@@ -13,7 +13,7 @@
     
     *****************************************************************************
 
-    Inspired by original S.Port firware by Rolf Blomgren
+    Inspired by original S.Port firmware by Rolf Blomgren
 
     Written from scratch by Eric Stockenstrom - April/May 2018
 
@@ -22,19 +22,28 @@
 
     *****************************************************************************
 
+    Whereas the Orange (and some other) UHF Long Range RC and telemetry radio systems deliver 
+    19.2kb/s two-way Mavlink link, the FrSky Taranis and Horus hand-held RC controllers expect
+    to receive FrSky S.Port protocol telemetry for display on their screen.  While excellent 
+    firmware is available to convert Mavlink to the native S.Port protocol, the author is 
+    unaware of a suitable solution to convert to the Passthrough protocol. 
+
+    Recently some excellent Lua scripts for Taris displays, like this one by yaapu 
+    https://github.com/yaapu/FrskyTelemetryScript 
+    
     This firmware converts APM or PX4 Mavlink telemetry to FrSky SPort passthrough telemetry, 
-    and is designed to run based on Teensy 3.2, or STM32 with some small mods and a signal 
-    inverter
+    and is designed to run on a Teensy 3.2, or cheap STM32F103 (with some small mods and a signal 
+    inverter). The Mavlink procol telemetry can still be fed on to Mission Planner or other GCSs.
 
     For now the Teensy 3.2 is prefered to the STM32 because of it's small size. It fits snugly 
-    into the  Orange LRS UHF RX/TX enclosure in the back bay of the Taranis, and requires no 
+    into the Orange LRS UHF RX/TX enclosure in the back bay of the Taranis, and requires no 
     external inverter.
     
     Originally written for use with ULRS UHF, which delivers Mavlink to the back bay of the 
     Taranis X9D Plus to provide Frsky Passthrough compatible telemety to yaapu's outstanding 
     LUA script.
     
-    It could possibly also convert Mavlink from Pixhawk/PX4 Pro for disply on the Taranis. 
+    It could possibly also convert Mavlink from Pixhawk/PX4 Pro for display on the Taranis. 
     Not tested. 
 
     Connections to Teensy3.2 are:
