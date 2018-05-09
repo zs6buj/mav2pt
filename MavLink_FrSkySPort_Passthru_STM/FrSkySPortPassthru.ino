@@ -13,21 +13,6 @@ void FrSkySPort_Init(void)  {
 
  frSerial.begin(57600); 
 
-#ifdef Use_Pin1_for_SPort
-   uartC3 = &UART0_C3;
-   UART0_C1 = 0xA0;  // Put Serial1 into single wire mode
-   UART0_C3 = 0x10;  // Invert Serial1 Tx levels
-   UART0_S2 = 0x10;  // Invert Serial1 Rx levels;
-   *uartC3 |= 0x20;  // We only ever TX on the S.Port in this App
- #endif   
-
-#ifdef Use_Pin8_for_SPort
-   uartC3 = &UART2_C3;
-   UART2_C1 = 0xA0;  // Put Serial1 into single wire mode
-   UART2_C3 = 0x10;  // Invert Serial1 Tx levels
-   UART2_S2 = 0x10;  // Invert Serial1 Rx levels;
-   *uartC3 |= 0x20;  // We only ever TX on the S.Port in this App
- #endif 
 }
 
 // ***********************************************************************

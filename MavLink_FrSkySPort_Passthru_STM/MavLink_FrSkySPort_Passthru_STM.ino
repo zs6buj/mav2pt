@@ -1,7 +1,7 @@
  
 /*  *****************************************************************************
 
-    BETA v0.18
+    BETA v0.18 - STM32F103C Version
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -67,14 +67,9 @@ v0.18   2018-05-09  Establish "home" position when we get 3D+ fix (fixtype 4) ra
 #define Use_Pin8_for_SPort
 
 #define Debug               Serial         // USB 
-#define mavSerial           Serial2
+#define frSerial            Serial1        // To S.Port Converter  TX = A2    RX = A3  on STM32F103C
+#define mavSerial           Serial2        // To/From Orange -     TX = B10   RX = B11 on STM32F103C  
 
-#ifdef Use_Pin1_for_SPort
-#define frSerial            Serial1        // S.Port - UART0  TX1 Pin 1
-#endif
-#ifdef Use_Pin8_for_SPort
-#define frSerial            Serial3        // S.Port - UART2 TX3 Pin 8
-#endif
 
 //#define Data_Streams_Enabled // Enable regular data stream requests from APM - ensure Teensy TX connected to Taranis/Orange RX                                         // Alternatively set SRn in Mission Planner
 //#define Mav_Debug_All
@@ -89,10 +84,10 @@ v0.18   2018-05-09  Establish "home" position when we get 3D+ fix (fixtype 4) ra
 //#define Frs_Debug_LatLon
 //#define Frs_Debug_APStatus
 //#define Debug_Bat
-//#define Frs_Debug_Home
-//#define Mav_Debug_GPS_Raw     // #24
-//#define Mav_Debug_GPS_Int     // #33
-//#define Frs_Debug_GPS_Status
+#define Frs_Debug_Home
+#define Mav_Debug_GPS_Raw     // #24
+#define Mav_Debug_GPS_Int     // #33
+#define Frs_Debug_GPS_Status
 //#define Mav_Debug_Raw_IMU
 //#define Mav_Debug_Scaled_Pressure
 //#define Mav_Debug_Attitude
