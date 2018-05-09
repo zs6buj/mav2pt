@@ -1,7 +1,7 @@
  
 /*  *****************************************************************************
 
-    BETA v0.17
+    BETA v0.18
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -56,6 +56,9 @@
     4) Vcc 3.3V !
     5) GND
 
+Change log:
+v0.18   2018-05-09  Establish "home" position when we get 3D+ fix (fixtype 4) rather than after 5 seconds of fixtype 3
+
 */
 
 #include <GCS_MAVLink.h>
@@ -86,10 +89,10 @@
 //#define Frs_Debug_LatLon
 //#define Frs_Debug_APStatus
 //#define Debug_Bat
-//#define Frs_Debug_Home
-//#define Mav_Debug_GPS_Raw     // #24
-//#define Mav_Debug_GPS_Int     // #33
-//#define Frs_Debug_GPS_Status
+#define Frs_Debug_Home
+#define Mav_Debug_GPS_Raw     // #24
+#define Mav_Debug_GPS_Int     // #33
+#define Frs_Debug_GPS_Status
 //#define Mav_Debug_Raw_IMU
 //#define Mav_Debug_Scaled_Pressure
 //#define Mav_Debug_Attitude
@@ -121,7 +124,6 @@ uint32_t  acc_millis=0;
 uint32_t  fr_millis=0;
 uint32_t  led_millis=0;
 
-uint32_t  hom_millis=0;
 uint32_t  now_millis = 0;
 uint32_t  prev_millis = 0;
 
@@ -345,7 +347,7 @@ uint8_t fr_ekf_fs;
 uint8_t fr_numsats;
 uint8_t fr_gps_status;     // (ap_sat_visible * 10) + ap_fixtype, e.g. 83 = 8 satellites visible, 3D lock 
 uint8_t fr_gps_stat_a;     // result of the above logic -  part a
-uint8_t fr_gps_stat_b;     // result of the above logic -  part b
+uint8_t fr_gps_adv_status;     // result of the above logic -  part b
 uint8_t fr_hdop;
 uint32_t fr_amsl;
 
@@ -675,10 +677,9 @@ void MavLink_Receive() {
           ap_hdg = mavlink_msg_global_position_int_get_hdg(&msg);             // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees          ap_ap_amsl = mavlink_msg_attitude_get_yaw(&msg);                // Yaw angle (rad, -pi..+pi)
           switch(homGood) {
             case 0:
-              homGood = 1;
-              hom_millis = millis();
+              homGood = 1;      //  Three way sw
             case 1:
-              if (millis() - hom_millis > 5000) {  // After 5 seconds establish "home" data
+              if (ap_fixtype >= 4) {  // Establish "home" when 3D+ Lock
                 homGood = 2;
                 hom.lat = (float)ap_lat / 1E7;
                 hom.lon = (float)ap_lon / 1E7;
