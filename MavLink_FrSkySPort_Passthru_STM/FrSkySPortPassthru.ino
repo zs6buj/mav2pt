@@ -19,9 +19,9 @@ void FrSkySPort_Init(void)  {
 void Emulate_SensorPoll() {
 
   FrSkySPort_SendByte(0x7E, false);              // START/STOP don't add into crc
- // delay(1);
+ 
   FrSkySPort_SendByte(sensID[sensPtr], false);   //  Poll Byte don't add into crc
- // delay(1);
+ 
     
   FrSkySPort_Process(0x7E);  
   FrSkySPort_Process(sensID[sensPtr]); 
@@ -52,8 +52,13 @@ if ((prevByte == 0x7E) && (pollByte == 0xBA || pollByte == 0x1B || pollByte == 0
     prevByte=pollByte;
     return; 
   }
+
+  if (millis() - Param5007_millis > 5000) {        // 0.2 Hz resend the 5007 parameters to keep FlightDeck happy
+    fr_paramsSent = false;
+    Param5007_millis = millis();
+  }
    
-  if (mavGood && ap_bat_paramsRead && (!fr_paramsSent)) {                // Send each parameter 3 times then no more
+  if (mavGood && ap_bat_paramsRead && (!fr_paramsSent)) {                // Send each parameter once
     SendParameters5007();
     prevByte=pollByte;
     return;                                         // Go around
@@ -501,11 +506,8 @@ void SendParameters5007() {
 
   if (paramsID >= 5) {
     paramsID = 0;
-    if(paramsCount >=3 ) {  // Send each parameter 3 times
-      fr_paramsSent = true;
-      return;
-    }
-    paramsCount++;
+    fr_paramsSent = true;
+    return;
   }
   paramsID++;
     

@@ -1,7 +1,7 @@
  
 /*  *****************************************************************************
 
-    BETA v0.18 - STM32F103C Version
+    BETA v0.19 - STM32F103C Version
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -58,6 +58,7 @@
 
 Change log:
 v0.18   2018-05-09  Establish "home" position when we get 3D+ fix (fixtype 4) rather than after 5 seconds of fixtype 3
+v0.19   2018-05-12  Now works with FlightDeck. Changed 0x5007 param from once at start, to 0.2 Hz
 
 */
 
@@ -84,10 +85,10 @@ v0.18   2018-05-09  Establish "home" position when we get 3D+ fix (fixtype 4) ra
 //#define Frs_Debug_LatLon
 //#define Frs_Debug_APStatus
 //#define Debug_Bat
-#define Frs_Debug_Home
-#define Mav_Debug_GPS_Raw     // #24
-#define Mav_Debug_GPS_Int     // #33
-#define Frs_Debug_GPS_Status
+//#define Frs_Debug_Home
+//#define Mav_Debug_GPS_Raw     // #24
+//#define Mav_Debug_GPS_Int     // #33
+//#define Frs_Debug_GPS_Status
 //#define Mav_Debug_Raw_IMU
 //#define Mav_Debug_Scaled_Pressure
 //#define Mav_Debug_Attitude
@@ -130,6 +131,7 @@ uint32_t  Bat1_5003_millis = 0;
 uint32_t  Home_5004_millis = 0;
 uint32_t  VelYaw5005_millis = 0;
 uint32_t  Atti5006_millis = 0;
+uint32_t  Param5007_millis = 0;
 uint32_t  Bat2_5008_millis = 0;
 uint32_t  rssi_F101_millis=0;
 //  , 0x2F, 0xD0, 0x71, 0x98, 0xF2, 0x53, 0x34, 0x95,
