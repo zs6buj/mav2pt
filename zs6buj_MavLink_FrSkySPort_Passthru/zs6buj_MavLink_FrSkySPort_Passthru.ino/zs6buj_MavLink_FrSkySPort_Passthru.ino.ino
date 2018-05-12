@@ -111,7 +111,6 @@ uint16_t  hb_count=0;
 bool      ap_bat_paramsRead=false;  
 bool      ap_paramsList=false;
 bool      fr_paramsSent=false; 
-uint8_t   paramsCount=0;
 uint8_t   paramsID=0;
 
 uint8_t   homGood=0;      // Three way switch
