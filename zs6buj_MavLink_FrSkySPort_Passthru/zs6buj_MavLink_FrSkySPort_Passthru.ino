@@ -1,7 +1,7 @@
  
 /*  *****************************************************************************
 
-    BETA v0.19
+    BETA v0.20
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,6 +19,10 @@
 
     Acknowledgements and thanks to Craft and Theory (http://www.craftandtheoryllc.com/) for
     the Mavlink / Frsky Passthrough protocol
+
+    Thank you to yaapu for advice on working with his excellent LUA scrip
+
+    Thank you florent for advice on working with my FlightDeck
 
     *****************************************************************************
 
@@ -44,7 +48,7 @@
     LUA script.
     
     It could possibly also convert Mavlink from Pixhawk/PX4 Pro for display on the Taranis. 
-    Not tested. 
+    Work in progress.
 
     Connections to Teensy3.2 are:
 
@@ -69,13 +73,14 @@ v0.19   2018-05-12  Now works with FlightDeck. Changed 0x5007 param from once at
 
 #define Debug               Serial         // USB 
 #define mavSerial           Serial2
-
+#define mavBaud             57600          
 #ifdef Use_Pin1_for_SPort
 #define frSerial            Serial1        // S.Port - UART0  TX1 Pin 1
 #endif
 #ifdef Use_Pin8_for_SPort
 #define frSerial            Serial3        // S.Port - UART2 TX3 Pin 8
 #endif
+#define frBaud              57600          // Use 57600
 
 //#define Data_Streams_Enabled // Enable regular data stream requests from APM - ensure Teensy TX connected to Taranis/Orange RX                                         // Alternatively set SRn in Mission Planner
 //#define Mav_Debug_All
@@ -100,6 +105,7 @@ v0.19   2018-05-12  Now works with FlightDeck. Changed 0x5007 param from once at
 //#define Frs_Debug_Attitude
 //#define Mav_Debug_Text
 //#define Frs_Debug_Text
+//#define Frs_Dummy_rssi              
 
 uint8_t StatusLed = 13; 
 uint8_t ledState = LOW; 
@@ -398,7 +404,7 @@ uint32_t fr_rssi;
 void setup()  {
   
   FrSkySPort_Init();
-  mavSerial.begin(57600);
+  mavSerial.begin(mavBaud);
   Debug.begin(115200);
 
   mavGood = false;

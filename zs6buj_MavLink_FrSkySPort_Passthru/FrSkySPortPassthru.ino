@@ -11,7 +11,7 @@ SerialMode mode;
 // ***********************************************************************
 void FrSkySPort_Init(void)  {
 
- frSerial.begin(57600); 
+ frSerial.begin(frBaud); 
 
 #ifdef Use_Pin1_for_SPort
    uartC3 = &UART0_C3;
@@ -34,9 +34,8 @@ void FrSkySPort_Init(void)  {
 void Emulate_SensorPoll() {
 
   FrSkySPort_SendByte(0x7E, false);              // START/STOP don't add into crc
- // delay(1);
+
   FrSkySPort_SendByte(sensID[sensPtr], false);   //  Poll Byte don't add into crc
- // delay(1);
     
   FrSkySPort_Process(0x7E);  
   FrSkySPort_Process(sensID[sensPtr]); 
@@ -67,11 +66,16 @@ if ((prevByte == 0x7E) && (pollByte == 0xBA || pollByte == 0x1B || pollByte == 0
     prevByte=pollByte;
     return; 
   }
+
+  if (millis() - Param5007_millis > 5000) {        // 0.2 Hz resend the 5007 parameters to keep FlightDeck happy
+    fr_paramsSent = false;
+    Param5007_millis = millis();
+  }
    
-  if (mavGood && ap_bat_paramsRead && (!fr_paramsSent)) {                // Send each parameter 3 times then no more
+  if (mavGood && ap_bat_paramsRead && (!fr_paramsSent)) {     // Send each parameter once
     SendParameters5007();
     prevByte=pollByte;
-    return;                                         // Go around
+    return;                                        // Go around
   }
 
   // ********************************************************** 
@@ -516,11 +520,8 @@ void SendParameters5007() {
 
   if (paramsID >= 5) {
     paramsID = 0;
-    if(paramsCount >=3 ) {  // Send each parameter 3 times
-      fr_paramsSent = true;
-      return;
-    }
-    paramsCount++;
+    fr_paramsSent = true;
+    return;
   }
   paramsID++;
     
@@ -603,6 +604,10 @@ void SendRssiF101() {          // data id 0xF101 RSSI tell LUA script in Taranis
     fr_rssi = (ap_rssi / 2.54);                // %
   else
     fr_rssi = 255;     // We may have a connection but don't yet know how strong. Prevents spurious "Telemetry lost" announcement
+  #ifdef Frs_Dummy_rssi
+    fr_rssi = 87;
+    Debug.print(" Dummy rssi="); Debug.println(fr_rssi); 
+  #endif
   bit32Pack(fr_rssi ,0, 32);
   FrSkySPort_SendDataFrame(0xF101,fr_payload); 
   #if defined Frs_Debug_All || defined Mav_Debug_Rssi
