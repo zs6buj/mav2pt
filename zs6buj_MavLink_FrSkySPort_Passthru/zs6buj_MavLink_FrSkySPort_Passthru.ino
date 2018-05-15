@@ -109,7 +109,7 @@ v0.22   2018-05-15  Make txsw_pin (6) HIGH after battery parameters safely read 
 //#define Frs_Debug_Attitude
 //#define Mav_Debug_Text
 //#define Frs_Debug_Text
-//#define Frs_Dummy_rssi              
+#define Frs_Dummy_rssi              
 
 uint8_t StatusLed = 13; 
 uint8_t ledState = LOW; 
@@ -437,7 +437,9 @@ void setup()  {
   Debug.println("Starting.....");
 
   pinMode(StatusLed, OUTPUT );
-
+  pinMode(TXsw_pin, OUTPUT);
+  TXsw=LOW;
+  digitalWrite(TXsw_pin, TXsw);     // Initialise low
 }
 
 // ******************************************
