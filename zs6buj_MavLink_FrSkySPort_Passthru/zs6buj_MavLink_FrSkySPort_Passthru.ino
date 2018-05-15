@@ -1,7 +1,7 @@
  
 /*  *****************************************************************************
 
-    BETA v0.21
+    BETA v0.22
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -65,6 +65,7 @@ v0.18   2018-05-09  Establish "home" position when we get 3D+ fix (fixtype 4) ra
 v0.19   2018-05-12  Now works with FlightDeck. Changed 0x5007 param from once at start, to 0.2 Hz
 v0.20   2018-05-13  Tidy up
 v0.21   2018-05-15  Add byte-stuffing on outgoing frsky payload - thanks Alex
+v0.22   2018-05-15  Make txsw_pin (6) HIGH after battery parameters safely read shortly after start - for CMOS switch
 
 */
 
@@ -83,6 +84,7 @@ v0.21   2018-05-15  Add byte-stuffing on outgoing frsky payload - thanks Alex
 #define frSerial            Serial3        // S.Port - UART2 TX3 Pin 8
 #endif
 #define frBaud              57600          // Use 57600
+#define TXsw_pin            6              // Pin to control mavlink TX cmos switch. LOW=Teensy, HIGH=BT
 
 //#define Data_Streams_Enabled // Enable regular data stream requests from APM - ensure Teensy TX connected to Taranis/Orange RX                                         // Alternatively set SRn in Mission Planner
 //#define Mav_Debug_All
@@ -96,7 +98,7 @@ v0.21   2018-05-15  Add byte-stuffing on outgoing frsky payload - thanks Alex
 //#define Mav_Debug_SysStatus
 //#define Frs_Debug_LatLon
 //#define Frs_Debug_APStatus
-#define Debug_Batteries
+//#define Debug_Batteries
 //#define Frs_Debug_Home
 //#define Mav_Debug_GPS_Raw     // #24
 //#define Mav_Debug_GPS_Int     // #33
@@ -107,15 +109,17 @@ v0.21   2018-05-15  Add byte-stuffing on outgoing frsky payload - thanks Alex
 //#define Frs_Debug_Attitude
 //#define Mav_Debug_Text
 //#define Frs_Debug_Text
-#define Frs_Dummy_rssi              
+//#define Frs_Dummy_rssi              
 
 uint8_t StatusLed = 13; 
 uint8_t ledState = LOW; 
+bool    TXsw = LOW;
 
 uint8_t     buf[MAVLINK_MAX_PACKET_LEN];
 
 uint16_t  hb_count=0;
 
+bool      ap_bat_paramsReq = false;
 bool      ap_bat_paramsRead=false;  
 bool      ap_paramsList=false;
 bool      fr_paramsSent=false; 
@@ -455,12 +459,24 @@ void loop()  {
     Debug.println("Heartbeat timed out! Mavlink not connected");    
     hb_count = 0;
    } 
-   
-  if (mavGood && (!ap_bat_paramsRead)) {
-    Request_Param_Read(356);  // Request Bat1 capacity
-    delay(1);
-    Request_Param_Read(364);  // Request Bat2 capacity
-  }
+
+  // Request battery capacity params, and when they have safely arrived switch txsw_pin (6) high 
+  if (mavGood)
+    if (!ap_bat_paramsReq) {
+      Request_Param_Read(356);    // Request Bat1 capacity   do this twice in case of lost frame
+      Request_Param_Read(356);    
+      Request_Param_Read(364);    // Request Bat2 capacity
+      Request_Param_Read(364);    
+      Debug.println("Battery capacities requested");
+      ap_bat_paramsReq = true;
+    } else {
+      if (ap_bat_paramsRead &&  (TXsw==LOW)) {
+        TXsw = HIGH;
+        digitalWrite(TXsw_pin, TXsw);  // Disconnect the pin so that BT adapter can share tx line
+        Debug.println("Mavlink TX disconnected"); 
+      }
+    }
+    
   
   #ifdef Mav_List_Params
     if(mavGood && (!ap_paramsList)) {
