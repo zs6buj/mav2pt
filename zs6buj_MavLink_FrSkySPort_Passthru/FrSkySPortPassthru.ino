@@ -176,13 +176,54 @@ if ((prevByte == 0x7E) && (pollByte == 0xBA || pollByte == 0x1B || pollByte == 0
     }
     prevByte=pollByte;
  }     
-
+/*
 // ***********************************************************************
+#define START_STOP_SPORT            0x7E
+#define BYTESTUFF_SPORT             0x7D
+
 void FrSkySPort_SendByte(uint8_t byte, bool addCrc) {
-	
- frSerial.write(byte);
+  //Byte stuffing method:
+  //OUT:Byte in frame has value 0x7E is changed into 2 bytes: 0x7D 0x5E
+  //OUT:Byte in frame has value 0x7D is changed into 2 bytes: 0x7D 0x5D
+  //IN:When byte 0x7D is received, discard this byte, and the next byte is XORed with 0x20;
+  
+  // FrSky SPort protocol (X-receivers)
+  if (byte == START_STOP_SPORT) {
+    frSerial.write(0x7D);
+    frSerial.write(0x5E);
+  } else if (byte == BYTESTUFF_SPORT) {
+    frSerial.write(0x7D);
+    frSerial.write(0x5D);
+  } else {
+    frSerial.write(byte);
+  }
 
  if (!addCrc) return;
+ 
+  // update CRC
+  crc += byte;       //0-1FF
+  crc += crc >> 8;   //0-100
+  crc &= 0x00ff;
+  crc += crc >> 8;   //0-0FF
+  crc &= 0x00ff;
+}
+*/
+
+void FrSkySPort_SendByte(uint8_t byte, bool addCrc) {
+ if (!addCrc) { 
+   frSerial.write(byte);  
+   return;       
+ }
+ // bytestuff
+ if (byte == 0x7E) {
+   frSerial.write(0x7D);
+   frSerial.write(0x5E);
+ } else if (byte == 0x7D) {
+   frSerial.write(0x7D);
+   frSerial.write(0x5D);	
+ } else {
+   frSerial.write(byte);
+   }
  
   // update CRC
 	crc += byte;       //0-1FF
@@ -401,7 +442,7 @@ void Send_Bat1_5003() {
   fr_bat1_amps = ap_current_battery1 ;               // Remain       dA  - A * 10   
   fr_bat1_mAh = Total_mAh1();
 
-  #if defined Frs_Debug_All || defined Debug_Bat
+  #if defined Frs_Debug_All || defined Debug_Batteries
     Debug.print("Frsky out Bat1 0x5003: ");   
     Debug.print(" fr_bat1_volts="); Debug.print(fr_bat1_volts);
     Debug.print(" fr_bat1_amps="); Debug.print(fr_bat1_amps);
@@ -553,7 +594,7 @@ void SendParameters5007() {
       bit32Pack(fr_param_id, 24, 4);
       FrSkySPort_SendDataFrame(0x5007,fr_payload); 
 
-      #if defined Frs_Debug_All || defined Frs_Debug_Params || defined Debug_Bat
+      #if defined Frs_Debug_All || defined Frs_Debug_Params || defined Debug_Batteries
         Debug.print("Frsky out Params 0x5007: ");   
         Debug.print(" fr_param_id="); Debug.print(fr_param_id);
         Debug.print(" fr_bat1_capacity="); Debug.println(fr_bat1_capacity);           
@@ -566,7 +607,7 @@ void SendParameters5007() {
       bit32Pack(fr_param_id, 24, 4);
       FrSkySPort_SendDataFrame(0x5007,fr_payload); 
       
-      #if defined Frs_Debug_All || defined Frs_Debug_Params || defined Debug_Bat
+      #if defined Frs_Debug_All || defined Frs_Debug_Params || defined Debug_Batteries
         Debug.print("Frsky out Params 0x5007: ");   
         Debug.print(" fr_param_id="); Debug.print(fr_param_id);
         Debug.print(" fr_bat2_capacity="); Debug.println(fr_bat2_capacity);           
@@ -581,7 +622,7 @@ void Send_Bat2_5008() {
   fr_bat2_amps = ap_current_battery2 ;               // now A * 10   
   fr_bat2_mAh = Total_mAh2();
 
-  #if defined Frs_Debug_All || defined Debug_Bat
+  #if defined Frs_Debug_All || defined Debug_Batteries
     Debug.print("Frsky out Bat2 0x5008: ");   
     Debug.print(" fr_bat2_volts="); Debug.print(fr_bat2_volts);
     Debug.print(" fr_bat2_amps="); Debug.print(fr_bat2_amps);

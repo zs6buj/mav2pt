@@ -1,7 +1,7 @@
  
 /*  *****************************************************************************
 
-    BETA v0.20
+    BETA v0.21
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -63,6 +63,8 @@
 Change log:
 v0.18   2018-05-09  Establish "home" position when we get 3D+ fix (fixtype 4) rather than after 5 seconds of fixtype 3
 v0.19   2018-05-12  Now works with FlightDeck. Changed 0x5007 param from once at start, to 0.2 Hz
+v0.20   2018-05-13  Tidy up
+v0.21   2018-05-15  Add byte-stuffing on outgoing frsky payload - thanks Alex
 
 */
 
@@ -94,7 +96,7 @@ v0.19   2018-05-12  Now works with FlightDeck. Changed 0x5007 param from once at
 //#define Mav_Debug_SysStatus
 //#define Frs_Debug_LatLon
 //#define Frs_Debug_APStatus
-//#define Debug_Bat
+#define Debug_Batteries
 //#define Frs_Debug_Home
 //#define Mav_Debug_GPS_Raw     // #24
 //#define Mav_Debug_GPS_Int     // #33
@@ -105,7 +107,7 @@ v0.19   2018-05-12  Now works with FlightDeck. Changed 0x5007 param from once at
 //#define Frs_Debug_Attitude
 //#define Mav_Debug_Text
 //#define Frs_Debug_Text
-//#define Frs_Dummy_rssi              
+#define Frs_Dummy_rssi              
 
 uint8_t StatusLed = 13; 
 uint8_t ledState = LOW; 
@@ -299,6 +301,18 @@ Power supply status flags (bitmask)
 16  MAV_POWER_STATUS_PERIPH_HIPOWER_OVERCURRENT hi-power peripheral supply is in over-current state
 32  MAV_POWER_STATUS_CHANGED  Power status has changed since boot
  */
+
+// Message  #147 BATTERY_STATUS 
+uint8_t      ap_battery_function;
+uint8_t      ap_bat_type;  
+int16_t      ap_bat_temperature;    // centi-degrees celsius
+uint16_t     ap_voltages[10];       // cell voltages in millivolts 
+int16_t      ap_current_battery;    // in 10*milliamperes (1 = 10 milliampere)
+int32_t      ap_current_consumed;   // mAh)
+int32_t      ap_energy_consumed;    // HectoJoules (intergrated U*I*dt) (1 = 100 Joule)
+int8_t       ap_battery_remaining;  // (0%: 0, 100%: 100)
+int32_t      ap_time_remaining;     // in seconds
+uint8_t      ap_charge_state;     
 
 // Message #166 RADIO
 uint8_t ap_rssi;                // local signal strength
@@ -560,7 +574,7 @@ void MavLink_Receive() {
           switch(ap_param_index) {  
             case 356:         // Bat1 Capacity
               ap_bat1_capacity = ap_param_value;
-              #if defined Mav_Debug_All || defined Debug_Bat
+              #if defined Mav_Debug_All || defined Debug_Batteries
                 Debug.print("Mavlink in #22 Param_Value: ");
                 Debug.print("bat1 capacity=");
                 Debug.println(ap_bat1_capacity);
@@ -569,7 +583,7 @@ void MavLink_Receive() {
             case 364:         // Bat2 Capacity
               ap_bat2_capacity = ap_param_value;
               ap_bat_paramsRead = true;
-              #if defined Mav_Debug_All || defined Debug_Bat
+              #if defined Mav_Debug_All || defined Debug_Batteries
                 Debug.print("Mavlink in #22 Param_Value: ");
                 Debug.print("bat2 capacity=");
                 Debug.println(ap_bat2_capacity);
@@ -783,6 +797,18 @@ void MavLink_Receive() {
             Debug.print("  Vservo= ");  Debug.print(ap_Vservo);       
             Debug.print("  flags= ");  Debug.println(ap_flags);       
           #endif  
+          break; 
+        case MAVLINK_MSG_ID_BATTERY_STATUS:      // #147   http://mavlink.org/messages/common
+          if (!mavGood) break;         
+          ap_current_battery = mavlink_msg_battery_status_get_current_battery(&msg);      // in 10*milliamperes (1 = 10 milliampere)
+          ap_current_consumed = mavlink_msg_battery_status_get_current_consumed(&msg);    // mAh
+          ap_battery_remaining = mavlink_msg_battery_status_get_battery_remaining(&msg);  // (0%: 0, 100%: 100)              
+          #if defined Mav_Debug_All || defined Debug_Batteries
+            Debug.print("Mavlink in #147 Battery Status: ");
+            Debug.print(" bat current= "); Debug.print(ap_current_battery); 
+            Debug.print(" bat mAh= ");  Debug.print(ap_current_consumed);       
+            Debug.print(" bat % remaining= ");  Debug.println(ap_time_remaining);       
+          #endif  
           break;    
         case MAVLINK_MSG_ID_SENSOR_OFFSETS:    // #150   http://mavlink.org/messages/ardupilotmega
           if (!mavGood) break;        
@@ -823,7 +849,7 @@ void MavLink_Receive() {
             else if(ap_voltage_battery2 > 8400 && ap_cell_count2 != 4) ap_cell_count2 = 3;
             else if(ap_voltage_battery2 > 4200 && ap_cell_count2 != 3) ap_cell_count2 = 2;
             else ap_cell_count2 = 0;
-          #if defined Mav_Debug_All || defined Mav_Debug_Battery2
+          #if defined Mav_Debug_All || defined Mav_Debug_Batteriestery2
             Debug.print("Mavlink in #181 Battery2: ");        
             Debug.print(" Bat volts=");
             Debug.print((float)ap_voltage_battery2 / 1000, 3);   // now V
