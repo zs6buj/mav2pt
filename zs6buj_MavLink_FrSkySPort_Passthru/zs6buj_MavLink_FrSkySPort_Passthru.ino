@@ -1,7 +1,7 @@
  
 /*  *****************************************************************************
 
-    BETA v0.22
+    BETA v0.23
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -66,6 +66,7 @@ v0.19   2018-05-12  Now works with FlightDeck. Changed 0x5007 param from once at
 v0.20   2018-05-13  Tidy up
 v0.21   2018-05-15  Add byte-stuffing on outgoing frsky payload - thanks Alex
 v0.22   2018-05-15  Make txsw_pin (6) HIGH after battery parameters safely read shortly after start - for CMOS switch
+v0.23   2018-05-16  Include crc in byte-stuffing. Modify data stream request code slightly.
 
 */
 
@@ -447,11 +448,11 @@ void setup()  {
 void loop()  {
   
 #ifdef Data_Streams_Enabled
-  if(!mavGood) {    // Start requesting data streams from MavLink
+  if(mavGood) {                      // If we have a link request data streams from MavLink every 5s
     if(millis()-rds_millis > 5000) {
     rds_millis=millis();
-    Debug.println("No heartbeat yet. Requesting data streams");    
-    RequestDataStreams();   // ensure Teensy Tx connected to Taranis RX  (When SRn not enumerated)
+    Debug.println("Requesting data streams");    
+    RequestDataStreams();   // ensure Teensy Tx connected to Taranis RX  (When SRx not enumerated)
     }
   }
 #endif 
