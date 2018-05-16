@@ -1,7 +1,7 @@
  
 /*  *****************************************************************************
 
-    BETA v0.23
+    BETA v0.24
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -67,27 +67,31 @@ v0.20   2018-05-13  Tidy up
 v0.21   2018-05-15  Add byte-stuffing on outgoing frsky payload - thanks Alex
 v0.22   2018-05-15  Make txsw_pin (6) HIGH after battery parameters safely read shortly after start - for CMOS switch
 v0.23   2018-05-16  Include crc in byte-stuffing. Modify data stream request code slightly.
+v0.24   2018-05-16  Single source code targets Teensy 3.x or STM32F103C depending on #defines
 
 */
 
 #include <GCS_MAVLink.h>
 
-//#define Use_Pin1_for_SPort - This is the default
-#define Use_Pin8_for_SPort
+//#define Target_STM32            // Un-comment this line if you are using an STM32F103C and an inveter+single wire
+#define Target_Teensy3x         // OR  Un-comment this line if you are using a Teensy 3.x
+
+//#define Use_Serial1_for_SPort // - This is the default
+#define Use_Serial3_for_SPort  // - This is only possible on the Teensy 3.x - Pin 8
 
 #define Debug               Serial         // USB 
 #define mavSerial           Serial2
 #define mavBaud             57600          
-#ifdef Use_Pin1_for_SPort
-#define frSerial            Serial1        // S.Port - UART0  TX1 Pin 1
+#ifdef Use_Serial1_for_SPort
+#define frSerial            Serial1        // S.Port 
 #endif
-#ifdef Use_Pin8_for_SPort
-#define frSerial            Serial3        // S.Port - UART2 TX3 Pin 8
+#ifdef Use_Serial3_for_SPort
+#define frSerial            Serial3        // S.Port - Only possible on Teensy 3.x UART2 TX3 Pin 8
 #endif
 #define frBaud              57600          // Use 57600
 #define TXsw_pin            6              // Pin to control mavlink TX cmos switch. LOW=Teensy, HIGH=BT
 
-//#define Data_Streams_Enabled // Enable regular data stream requests from APM - ensure Teensy TX connected to Taranis/Orange RX                                         // Alternatively set SRn in Mission Planner
+//#define Data_Streams_Enabled // Enable regular data stream requests from APM - ensure Serial2 TX connected to Taranis/Orange RX                                         // Alternatively set SRn in Mission Planner
 //#define Mav_Debug_All
 //#define Frs_Debug_All
 //#define Mav_List_Params
