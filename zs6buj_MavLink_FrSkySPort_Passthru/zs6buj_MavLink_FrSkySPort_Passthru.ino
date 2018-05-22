@@ -1,7 +1,7 @@
  
 /*  *****************************************************************************
 
-    BETA v0.24
+    BETA v0.25
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -50,6 +50,8 @@
     It could possibly also convert Mavlink from Pixhawk/PX4 Pro for display on the Taranis. 
     Work in progress.
 
+    Select the target mpu by un-commenting either //#define Target_Teensy3x or //#define Target_STM32
+
     Connections to Teensy3.2 are:
 
     1) SPort S --> TX1 Pin 1    Serial1) or Pin 8 (Serial3) - see #define frSerial below
@@ -65,9 +67,10 @@ v0.18   2018-05-09  Establish "home" position when we get 3D+ fix (fixtype 4) ra
 v0.19   2018-05-12  Now works with FlightDeck. Changed 0x5007 param from once at start, to 0.2 Hz
 v0.20   2018-05-13  Tidy up
 v0.21   2018-05-15  Add byte-stuffing on outgoing frsky payload - thanks Alex
-v0.22   2018-05-15  Make txsw_pin (6) HIGH after battery parameters safely read shortly after start - for CMOS switch
+v0.22   2018-05-15  Make txsw_pin (6 on Teensy) HIGH after battery parameters safely read shortly after start - for CMOS switch
 v0.23   2018-05-16  Include crc in byte-stuffing. Modify data stream request code slightly.
 v0.24   2018-05-16  Single source code targets Teensy 3.x or STM32F103C depending on #defines
+v0.25   2018-05-17  Make _txsw_pin (5 on Teensy) the inverse (inverted value) of txsw_pin. For 2nd bi-lateral cmos switch.
 
 */
 
@@ -89,7 +92,8 @@ v0.24   2018-05-16  Single source code targets Teensy 3.x or STM32F103C dependin
 #define frSerial            Serial3        // S.Port - Only possible on Teensy 3.x UART2 TX3 Pin 8
 #endif
 #define frBaud              57600          // Use 57600
-#define TXsw_pin            6              // Pin to control mavlink TX cmos switch. LOW=Teensy, HIGH=BT
+#define TXsw_pin            6              // Pin to control mavlink TX cmos switch. LOW=Teensy/STM32, HIGH=BT
+#define _TXsw_pin           5              // Inverse pin.                           HIGH=Teensy/STM32, LOW=BT
 
 //#define Data_Streams_Enabled // Enable regular data stream requests from APM - ensure Serial2 TX connected to Taranis/Orange RX                                         // Alternatively set SRn in Mission Planner
 //#define Mav_Debug_All
@@ -114,11 +118,12 @@ v0.24   2018-05-16  Single source code targets Teensy 3.x or STM32F103C dependin
 //#define Frs_Debug_Attitude
 //#define Mav_Debug_Text
 //#define Frs_Debug_Text
-#define Frs_Dummy_rssi              
+//#define Frs_Dummy_rssi              
 
 uint8_t StatusLed = 13; 
 uint8_t ledState = LOW; 
 bool    TXsw = LOW;
+bool    _TXsw = HIGH;
 
 uint8_t     buf[MAVLINK_MAX_PACKET_LEN];
 
@@ -443,8 +448,11 @@ void setup()  {
 
   pinMode(StatusLed, OUTPUT );
   pinMode(TXsw_pin, OUTPUT);
+  pinMode(_TXsw_pin, OUTPUT);
   TXsw=LOW;
   digitalWrite(TXsw_pin, TXsw);     // Initialise low
+  _TXsw=HIGH;
+  digitalWrite(_TXsw_pin, _TXsw);   // Initialise high
 }
 
 // ******************************************
@@ -479,8 +487,10 @@ void loop()  {
     } else {
       if (ap_bat_paramsRead &&  (TXsw==LOW)) {
         TXsw = HIGH;
-        digitalWrite(TXsw_pin, TXsw);  // Disconnect the pin so that BT adapter can share tx line
-        Debug.println("Mavlink TX disconnected"); 
+        digitalWrite(TXsw_pin, TXsw);  // Disconnect the pin using cmos switch so that BT adapter can share tx line
+        _TXsw = LOW;
+        digitalWrite(_TXsw_pin, _TXsw);  
+        Debug.println("Battery params successfully read. Mavlink TX disconnected"); 
       }
     }
     
