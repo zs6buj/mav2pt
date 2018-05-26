@@ -1,7 +1,7 @@
  
 /*  *****************************************************************************
 
-    BETA v0.25
+    BETA v0.27
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -50,18 +50,32 @@
     It could possibly also convert Mavlink from Pixhawk/PX4 Pro for display on the Taranis. 
     Work in progress.
 
+    Un-comment the #define Bluetooth_Port_Enabled line to channel Mavlink in and out of Serial3
+    This is ignored on the STM32F103C since there are too few serial ports available
+
     Select the target mpu by un-commenting either //#define Target_Teensy3x or //#define Target_STM32
 
     Connections to Teensy3.2 are:
 
-    1) SPort S --> TX1 Pin 1    Serial1) or Pin 8 (Serial3) - see #define frSerial below
-    2) Mavlink <-- RX2 Pin 9
-    3) Mavlink --> TX2Pin 10    Needed only for Parameter_Request_Read to get battery capacity parameters from Mavlink, 
-                                or if data streams must be enabled (when SR0 paramter not set in APM). 
-                                When in doubt, connect it
-    4) Vcc 3.3V !
-    5) GND
+    1) SPort S     -->TX1 Pin 1    S.Port out to Taranis bay, bottom pin
+    2) Mavlink    <-- RX2 Pin 9    Mavlink from Taranis to Teensy
+    3) Mavlink    --> TX2Pin 10    Mavlink from Taranis to Teensy
+    4) Aux_Mavlink<-- RX3 Pin 7    Auxiliary Mavlink From Teensy to WiFi Module or general use
+    5) Aux_Mavlink--> TX3 Pin 8    Auxiliary Mavlink From Teensy to WiFi Module or general use
+    6) Vcc 3.3V !
+    7) GND
 
+    Connections to STM32F103C are:
+
+    1) SPort S     -->TX2 Pin A2   Serial1 to inverter, convert to single wire then to S.Port
+    2) SPort S     -->RX2 Pin A3   Serial1 To inverter, convert to single wire then to S.Port
+    2) Mavlink    <-- RX3 Pin B11  Serial2 Mavlink from Taranis to Teensy
+    3) Mavlink     -->TX2 Pin B10   Mavlink from Taranis to Teensy
+    4) Aux_Mavlink    Not available   
+    5) Aux_Mavlink    Not available
+    6) Vcc 3.3V !
+    7) GND
+    
 Change log:
 v0.18   2018-05-09  Establish "home" position when we get 3D+ fix (fixtype 4) rather than after 5 seconds of fixtype 3
 v0.19   2018-05-12  Now works with FlightDeck. Changed 0x5007 param from once at start, to 0.2 Hz
@@ -71,6 +85,8 @@ v0.22   2018-05-15  Make txsw_pin (6 on Teensy) HIGH after battery parameters sa
 v0.23   2018-05-16  Include crc in byte-stuffing. Modify data stream request code slightly.
 v0.24   2018-05-16  Single source code targets Teensy 3.x or STM32F103C depending on #defines
 v0.25   2018-05-17  Make _txsw_pin (5 on Teensy) the inverse (inverted value) of txsw_pin. For 2nd bi-lateral cmos switch.
+v0.26   2018-05-23  Pass Mavlink auxiliary telemetry through Serial3 - bi-directional
+v0.27   2018-05-26  Rather use mAh from FC than my di/dt accumulation for bat1
 
 */
 
@@ -79,19 +95,19 @@ v0.25   2018-05-17  Make _txsw_pin (5 on Teensy) the inverse (inverted value) of
 //#define Target_STM32            // Un-comment this line if you are using an STM32F103C and an inveter+single wire
 #define Target_Teensy3x         // OR  Un-comment this line if you are using a Teensy 3.x
 
-//#define Use_Serial1_for_SPort // - This is the default
-#define Use_Serial3_for_SPort  // - This is only possible on the Teensy 3.x - Pin 8
+#define Bluetooth_Port_Enabled   // Ignored on STM32. No spare uart unless you forgo debugging
 
 #define Debug               Serial         // USB 
-#define mavSerial           Serial2
-#define mavBaud             57600          
-#ifdef Use_Serial1_for_SPort
 #define frSerial            Serial1        // S.Port 
-#endif
-#ifdef Use_Serial3_for_SPort
-#define frSerial            Serial3        // S.Port - Only possible on Teensy 3.x UART2 TX3 Pin 8
-#endif
 #define frBaud              57600          // Use 57600
+#define mavSerial           Serial2
+#define mavBaud             57600   
+
+#if defined Bluetooth_Port_Enabled && defined Target_Teensy3x
+#define btSerial            Serial3        // Mavlink telemetry to and from BlueTooth adapter
+#define btBaud              57600          // Use 57600
+#endif
+
 #define TXsw_pin            6              // Pin to control mavlink TX cmos switch. LOW=Teensy/STM32, HIGH=BT
 #define _TXsw_pin           5              // Inverse pin.                           HIGH=Teensy/STM32, LOW=BT
 
@@ -322,7 +338,7 @@ uint8_t      ap_bat_type;
 int16_t      ap_bat_temperature;    // centi-degrees celsius
 uint16_t     ap_voltages[10];       // cell voltages in millivolts 
 int16_t      ap_current_battery;    // in 10*milliamperes (1 = 10 milliampere)
-int32_t      ap_current_consumed;   // mAh)
+int32_t      ap_current_consumed;   // mAh
 int32_t      ap_energy_consumed;    // HectoJoules (intergrated U*I*dt) (1 = 100 Joule)
 int8_t       ap_battery_remaining;  // (0%: 0, 100%: 100)
 int32_t      ap_time_remaining;     // in seconds
@@ -433,6 +449,11 @@ void setup()  {
   
   FrSkySPort_Init();
   mavSerial.begin(mavBaud);
+  
+  #if defined  Bluetooth_Port_Enabled && defined Target_Teensy3x
+  btSerial.begin(btBaud);
+  #endif
+  
   Debug.begin(115200);
 
   mavGood = false;
@@ -453,6 +474,7 @@ void setup()  {
   digitalWrite(TXsw_pin, TXsw);     // Initialise low
   _TXsw=HIGH;
   digitalWrite(_TXsw_pin, _TXsw);   // Initialise high
+
 }
 
 // ******************************************
@@ -504,6 +526,10 @@ void loop()  {
 
   MavLink_Receive();                      // Get Mavlink Data
 
+  #if defined  Bluetooth_Port_Enabled && defined Target_Teensy3x
+  BT_ReceiveAndForward();                 // Service BT incoming if enabled
+  #endif
+  
   if(mavGood && ((millis() - fr_millis) > 22)) {   
      Emulate_SensorPoll();                // Poll FrSkySPort_Process with sensor IDs round-robin fashion
      fr_millis=millis();
@@ -524,8 +550,12 @@ void MavLink_Receive() {
     if(mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status)) {
        
 
-     //   PrintMavBuffer(&msg);
+      //   PrintMavBuffer(&msg);
 
+      #if defined  Bluetooth_Port_Enabled && defined Target_Teensy3x
+      len = mavlink_msg_to_send_buffer(buf, &msg);
+      btSerial.write(buf,len);
+      #endif
 
       #ifdef Mav_Debug_All
         //Debug.print("Mavlink in: ");
@@ -1002,6 +1032,25 @@ const uint16_t mavRates[] = { 0x04, 0x0a, 0x04, 0x0a, 0x04, 0x04};
  // Debug.println("Request Data Streams xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
 }
 #endif
+
+//***************************************************
+#if defined Bluetooth_Port_Enabled && defined Target_Teensy3x
+void BT_ReceiveAndForward() { 
+  mavlink_message_t msg; 
+  mavlink_status_t status;
+
+  while(btSerial.available()) 
+                { 
+    uint8_t c = btSerial.read();
+    if(mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status)) {
+ //     Debug.println("Mav in from BT:");
+ //     PrintMavBuffer(&msg);
+      len = mavlink_msg_to_send_buffer(buf, &msg);
+      mavSerial.write(buf,len);
+    }
+   }
+}
+#endif  
 //***************************************************
 void ServiceTheStatusLed() {
   if (mavGood) {

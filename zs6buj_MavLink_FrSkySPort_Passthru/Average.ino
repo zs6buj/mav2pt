@@ -34,7 +34,7 @@ void Accum_mAh1(uint32_t dAs) {        //  dA    10 = 1A
     
   float hrs = (float)(period / 3600000.0f);
 
-  bat1.mAh = dAs * 100 * hrs;  //  dA to mA    Tiny mAh consumed this tiny period dy/dx
+  bat1.mAh = dAs * 100 * hrs;  //  dA to mA    Tiny mAh consumed this tiny period di/dt
   bat1.tot_mAh += bat1.mAh;   //   Add them all in
 }
 
@@ -80,7 +80,7 @@ void Accum_mAh2(uint32_t dAs) {        //  dA    10 = 1A
     
   float hrs = (float)(period / 3600000.0f);
 
-  bat2.mAh = dAs * 100 * hrs;  //  dA to mA    Tiny mAh consumed this tiny period dy/dx
+  bat2.mAh = dAs * 100 * hrs;  //  dA to mA    Tiny mAh consumed this tiny period di/dt
   bat2.tot_mAh += bat2.mAh;   //   Add them all in
 }
 

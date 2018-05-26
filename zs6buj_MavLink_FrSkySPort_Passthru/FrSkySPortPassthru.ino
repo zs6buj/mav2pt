@@ -13,21 +13,13 @@ void FrSkySPort_Init(void)  {
 
  frSerial.begin(frBaud); 
 
-#if defined Target_Teensy3x && Use_Serial1_for_SPort
-   uartC3 = &UART0_C3;
+#if defined Target_Teensy3x 
+   uartC3 = &UART0_C3;// UART0 is Serial1
    UART0_C1 = 0xA0;  // Put Serial1 into single wire mode
    UART0_C3 = 0x10;  // Invert Serial1 Tx levels
    UART0_S2 = 0x10;  // Invert Serial1 Rx levels;
    *uartC3 |= 0x20;  // We only ever TX on the S.Port in this App
  #endif   
-
-#if defined Target_Teensy3x && defined Use_Serial3_for_SPort
-   uartC3 = &UART2_C3;
-   UART2_C1 = 0xA0;  // Put Serial1 into single wire mode
-   UART2_C3 = 0x10;  // Invert Serial1 Tx levels
-   UART2_S2 = 0x10;  // Invert Serial1 Rx levels;
-   *uartC3 |= 0x20;  // We only ever TX on the S.Port in this App
- #endif 
 }
 
 // ***********************************************************************
@@ -415,8 +407,8 @@ void Send_GPS_Status5002() {
 void Send_Bat1_5003() {
   fr_bat1_volts = ap_voltage_battery1 / 100;         // Were mV, now dV  - V * 10
   fr_bat1_amps = ap_current_battery1 ;               // Remain       dA  - A * 10   
-  fr_bat1_mAh = Total_mAh1();
-
+//  fr_bat1_mAh = Total_mAh1();      // My accumulated mAh;   di/dt
+  fr_bat1_mAh =ap_current_consumed;  // Rather use mAh from flight computer
   #if defined Frs_Debug_All || defined Debug_Batteries
     Debug.print("Frsky out Bat1 0x5003: ");   
     Debug.print(" fr_bat1_volts="); Debug.print(fr_bat1_volts);
