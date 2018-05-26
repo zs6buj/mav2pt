@@ -57,20 +57,20 @@
 
     Connections to Teensy3.2 are:
 
-    1) SPort S     -->TX1 Pin 1    S.Port out to Taranis bay, bottom pin
-    2) Mavlink    <-- RX2 Pin 9    Mavlink from Taranis to Teensy
-    3) Mavlink    --> TX2Pin 10    Mavlink from Taranis to Teensy
-    4) Aux_Mavlink<-- RX3 Pin 7    Auxiliary Mavlink From Teensy to WiFi Module or general use
-    5) Aux_Mavlink--> TX3 Pin 8    Auxiliary Mavlink From Teensy to WiFi Module or general use
+    1) SPort S      --> TX1 Pin 1    S.Port out to Taranis bay, bottom pin
+    2) Mavlink      <-- RX2 Pin 9    Mavlink from Taranis to Teensy
+    3) Mavlink      --> TX2 Pin 10    Mavlink from Taranis to Teensy
+    4) Aux_Mavlink  <-- RX3 Pin 7    Auxiliary Mavlink From Teensy to WiFi Module or general use
+    5) Aux_Mavlink  --> TX3 Pin 8    Auxiliary Mavlink From Teensy to WiFi Module or general use
     6) Vcc 3.3V !
     7) GND
 
     Connections to STM32F103C are:
 
-    1) SPort S     -->TX2 Pin A2   Serial1 to inverter, convert to single wire then to S.Port
-    2) SPort S     -->RX2 Pin A3   Serial1 To inverter, convert to single wire then to S.Port
-    2) Mavlink    <-- RX3 Pin B11  Serial2 Mavlink from Taranis to Teensy
-    3) Mavlink     -->TX2 Pin B10   Mavlink from Taranis to Teensy
+    1) SPort S      -->TX2 Pin A2   Serial1 to inverter, convert to single wire then to S.Port
+    2) SPort S      <--RX2 Pin A3   Serial1 To inverter, convert to single wire then to S.Port
+    2) Mavlink      -->TX3 Pin B10  Mavlink from Taranis to Teensy
+    3) Mavlink      <--RX3 Pin B11  Serial2 Mavlink from Taranis to Teensy
     4) Aux_Mavlink    Not available   
     5) Aux_Mavlink    Not available
     6) Vcc 3.3V !
