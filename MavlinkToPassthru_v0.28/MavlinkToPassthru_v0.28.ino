@@ -115,7 +115,7 @@ v0.28   2018-05-30  Enable receiver (like XSR) SPort polling of SPort, make emul
 
 //#define Data_Streams_Enabled // Enable regular data stream requests from APM - ensure Serial2 TX connected to Taranis/Orange RX                                         // Alternatively set SRn in Mission Planner
 //#define Mav_Debug_All
-#define Frs_Debug_All
+//#define Frs_Debug_All
 //#define Mav_List_Params
 //#define Mav_Debug_Params
 //#define Frs_Debug_Params
