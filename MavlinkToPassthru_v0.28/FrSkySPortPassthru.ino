@@ -15,11 +15,9 @@ void setSPortMode(SPortMode mode) {   // To share single wire on TX pin
 #if defined Target_Teensy3x
   if(mode == TX) {
     *uartC3 |= 0x20;                 // Switch S.Port into send mode
-    Debug.println("TX Mode "); 
   }
   else if(mode == RX) {   
     *uartC3 ^= 0x20;                 // Switch S.Port into receive mode
-    Debug.println("RX Mode "); 
   }
 }
 #endif
