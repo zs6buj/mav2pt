@@ -71,7 +71,6 @@
     2) SPort S     <--RX2 Pin A3   Serial1 To inverter, convert to single wire then to S.Port
     3) Mavlink     -->TX3 Pin B10  Mavlink from Taranis to Teensy   
     4) Mavlink     <--RX3 Pin B11  Serial2 Mavlink from Taranis to Teensy
-
     5) Aux_Mavlink    Not available   
     6) Aux_Mavlink    Not available
     7) Vcc 3.3V !
@@ -97,9 +96,11 @@ v0.28   2018-05-30  Enable receiver (like XSR) SPort polling of SPort, make emul
 //#define Target_STM32     // Un-comment this line if you are using an STM32F103C and an inverter+single wire
 #define Target_Teensy3x    // OR  Un-comment this line if you are using a Teensy 3.x
 
-#define Frs_Dummy_rssi     // For testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
+#define Emulation_Enabled      // Un-comment this line when there is no Frsky receiver polling the SPort
 
-//#define Aux_Port_Enabled        // Ignored on STM32. No spare uart unless we forgo debugging
+//#define Frs_Dummy_rssi     // For testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
+
+#define Aux_Port_Enabled        // Ignored on STM32. No spare uart unless we forgo debugging
 
 #define Debug               Serial         // USB 
 #define frSerial            Serial1        // S.Port 
@@ -112,11 +113,9 @@ v0.28   2018-05-30  Enable receiver (like XSR) SPort polling of SPort, make emul
 #define btBaud              57600          // Use 57600
 #endif
 
-//#define Emulation_Enabled      // Un-comment this line when there is no Frsky receiver polling the SPort
-
 //#define Data_Streams_Enabled // Enable regular data stream requests from APM - ensure Serial2 TX connected to Taranis/Orange RX                                         // Alternatively set SRn in Mission Planner
 //#define Mav_Debug_All
-//#define Frs_Debug_All
+#define Frs_Debug_All
 //#define Mav_List_Params
 //#define Mav_Debug_Params
 //#define Frs_Debug_Params

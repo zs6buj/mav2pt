@@ -15,9 +15,11 @@ void setSPortMode(SPortMode mode) {   // To share single wire on TX pin
 #if defined Target_Teensy3x
   if(mode == TX) {
     *uartC3 |= 0x20;                 // Switch S.Port into send mode
+    Debug.println("TX Mode "); 
   }
   else if(mode == RX) {   
     *uartC3 ^= 0x20;                 // Switch S.Port into receive mode
+    Debug.println("RX Mode "); 
   }
 }
 #endif
@@ -30,9 +32,9 @@ void FrSkySPort_Init(void)  {
 
 // Manipulate UART registers for S.Port working
    uartC3   = &UART0_C3;  // UART0 is Serial1
-   UART0_C3 = 0x10;     // Invert Serial1 Tx levels
-   UART0_C1 = 0xA0;     // Switch Serial1 into single wire mode
-   UART0_S2 = 0x10;     // Invert Serial1 Rx levels;
+   UART0_C3 = 0x10;       // Invert Serial1 Tx levels
+   UART0_C1 = 0xA0;       // Switch Serial1 into single wire mode
+   UART0_S2 = 0x10;       // Invert Serial1 Rx levels;
    
 //   UART0_C3 |= 0x20;    // Switch S.Port into send mode
 //   UART0_C3 ^= 0x20;    // Switch S.Port into receive mode
@@ -205,7 +207,7 @@ if ((prevByte == 0x7E) && (pollByte == 0xBA || pollByte == 0x1B || pollByte == 0
 
 // ***********************************************************************
 void FrSkySPort_SendByte(uint8_t byte, bool addCrc) {
-   setSPortMode(RX); 
+   setSPortMode(TX); 
  if (!addCrc) { 
    frSerial.write(byte);  
    return;       
@@ -246,7 +248,7 @@ void FrSkySPort_SendCrc() {
 //***************************************************
 void FrSkySPort_SendDataFrame(uint16_t id, uint32_t value) {
   
-  setSPortMode(RX); 
+  setSPortMode(TX); 
   
   FrSkySPort_SendByte(0x10, true );   //  Data framing byte
  
