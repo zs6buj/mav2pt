@@ -88,6 +88,7 @@ v0.25   2018-05-17  Make _txsw_pin (5 on Teensy) the inverse (inverted value) of
 v0.26   2018-05-23  Pass Mavlink auxiliary telemetry through Serial3 - bi-directional
 v0.27   2018-05-26  Rather use mAh from FC than my di/dt accumulation for bat1
 v0.28   2018-05-30  Enable receiver (like XSR) SPort polling of SPort, make emulation optional with #define
+v0.29   2018-06-01  As per yaapu: Respond only to sensor 0x1B, attitude 10Hz, rssi from FrSky receiver, not other
 
 */
 
@@ -96,9 +97,9 @@ v0.28   2018-05-30  Enable receiver (like XSR) SPort polling of SPort, make emul
 //#define Target_STM32     // Un-comment this line if you are using an STM32F103C and an inverter+single wire
 #define Target_Teensy3x    // OR  Un-comment this line if you are using a Teensy 3.x
 
-#define Emulation_Enabled      // Un-comment this line when there is no Frsky receiver polling the SPort
+//#define Emulation_Enabled      // Un-comment this line when there is no Frsky receiver polling the SPort
 
-//#define Frs_Dummy_rssi     // For testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
+//#define Frs_Dummy_rssi     // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
 
 #define Aux_Port_Enabled        // Ignored on STM32. No spare uart unless we forgo debugging
 

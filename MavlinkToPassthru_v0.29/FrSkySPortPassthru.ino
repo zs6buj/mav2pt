@@ -7,17 +7,25 @@ float a, az, c, d, dis, dLat, dLon;
 
 volatile uint8_t *uartC3;
 enum SPortMode { RX = 0, TX = 1 };
-SPortMode mode;
+SPortMode mode, modeNow;
 
 void setSPortMode(SPortMode mode);
 
 void setSPortMode(SPortMode mode) {   // To share single wire on TX pin
 #if defined Target_Teensy3x
-  if(mode == TX) {
+  if(mode == TX && modeNow !=TX) {
     *uartC3 |= 0x20;                 // Switch S.Port into send mode
+    modeNow=mode;
+    #ifdef Frs_Debug_All
+    Debug.println("TX");
+    #endif
   }
-  else if(mode == RX) {   
+  else if(mode == RX && modeNow != RX) {   
     *uartC3 ^= 0x20;                 // Switch S.Port into receive mode
+    modeNow=mode;
+    #ifdef Frs_Debug_All
+    Debug.println("RX");
+    #endif
   }
 }
 #endif
@@ -42,21 +50,22 @@ void FrSkySPort_Init(void)  {
 // ***********************************************************************
 
 #ifndef Emulation_Enabled    / Note if NOT enabled
-
 void ReadSPort(void) {
   setSPortMode(RX);
   uint8_t Byt = 0;
   while ( frSerial.available())   {  
     Byt =  frSerial.read();
+    #ifdef Frs_Debug_All
     DisplayByte(Byt);
+    #endif
     FrSkySPort_Process(Byt); 
   }
   // and back to main loop
 }
 #endif
 // ***********************************************************************
-#ifdef Emulation_Enabled
 
+#ifdef Emulation_Enabled
 void Emulate_ReadSPort() {
   
   setSPortMode(TX);
@@ -74,19 +83,20 @@ void Emulate_ReadSPort() {
 
 void FrSkySPort_Process(byte pollByte) {
 
-if ((prevByte == 0x7E) && (pollByte == 0xBA || pollByte == 0x1B || pollByte == 0x98)) {     
+if ((prevByte == 0x7E) && (pollByte == 0x1B)) {     
        
   fr_payload = 0; // Clear the payload field
     
   // ******** Priority processes *********************** 
-   
+
+ #ifdef Emulation_Enabled    
  if (millis() - rssi_F101_millis > 500) {           // 2 Hz - if it's time, appropriate one of the polling slots 
     rssi_F101_millis = millis();
     SendRssiF101();                                 // Regularly tell LUA script in Taranis we are connected
     prevByte=pollByte;
     return;                                         // Then go around
   }
-
+  #endif
   if (textFlag) {
     Send_TextMsg5000();  // Chunk of message until textFlag down
     prevByte=pollByte;
@@ -176,7 +186,7 @@ if ((prevByte == 0x7E) && (pollByte == 0xBA || pollByte == 0x1B || pollByte == 0
             time_slot++;   // Donate the slot to next 
    
         case 8:        // data id 0x5006 Attitude and range
-          if (millis() - Atti5006_millis > 250)  {  // 4 Hz - match Mavlink setting in MP
+          if (millis() - Atti5006_millis > 100)  {  // 10 Hz 
             Send_Atti_5006();
             Atti5006_millis = millis();
             break; 
