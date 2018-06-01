@@ -1,7 +1,7 @@
  
 /*  *****************************************************************************
 
-    BETA v0.27
+    BETA v0.28
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -50,31 +50,32 @@
     It could possibly also convert Mavlink from Pixhawk/PX4 Pro for display on the Taranis. 
     Work in progress.
 
-    Un-comment the #define Bluetooth_Port_Enabled line to channel Mavlink in and out of Serial3
+    Un-comment the #define Aux_Port_Enabled line to channel Mavlink in and out of Serial3
     This is ignored on the STM32F103C since there are too few serial ports available
 
     Select the target mpu by un-commenting either //#define Target_Teensy3x or //#define Target_STM32
 
     Connections to Teensy3.2 are:
 
-    1) SPort S      --> TX1 Pin 1    S.Port out to Taranis bay, bottom pin
-    2) Mavlink      <-- RX2 Pin 9    Mavlink from Taranis to Teensy
-    3) Mavlink      --> TX2 Pin 10    Mavlink from Taranis to Teensy
-    4) Aux_Mavlink  <-- RX3 Pin 7    Auxiliary Mavlink From Teensy to WiFi Module or general use
-    5) Aux_Mavlink  --> TX3 Pin 8    Auxiliary Mavlink From Teensy to WiFi Module or general use
+    1) SPort S     -->TX1 Pin 1    S.Port out to Taranis bay, bottom pin
+    2) Mavlink     <--RX2 Pin 9    Mavlink from Taranis to Teensy
+    3) Mavlink     -->TX2 Pin 10    Mavlink from Taranis to Teensy
+    4) Aux_Mavlink <--RX3 Pin 7    Auxiliary Mavlink From Teensy to WiFi Module or general use
+    5) Aux_Mavlink -->TX3 Pin 8    Auxiliary Mavlink From Teensy to WiFi Module or general use
     6) Vcc 3.3V !
     7) GND
 
     Connections to STM32F103C are:
 
-    1) SPort S      -->TX2 Pin A2   Serial1 to inverter, convert to single wire then to S.Port
-    2) SPort S      <--RX2 Pin A3   Serial1 To inverter, convert to single wire then to S.Port
-    2) Mavlink      -->TX3 Pin B10  Mavlink from Taranis to Teensy
-    3) Mavlink      <--RX3 Pin B11  Serial2 Mavlink from Taranis to Teensy
-    4) Aux_Mavlink    Not available   
-    5) Aux_Mavlink    Not available
-    6) Vcc 3.3V !
-    7) GND
+    1) SPort S     -->TX2 Pin A2   Serial1 to inverter, convert to single wire then to S.Port
+    2) SPort S     <--RX2 Pin A3   Serial1 To inverter, convert to single wire then to S.Port
+    3) Mavlink     -->TX3 Pin B10  Mavlink from Taranis to Teensy   
+    4) Mavlink     <--RX3 Pin B11  Serial2 Mavlink from Taranis to Teensy
+
+    5) Aux_Mavlink    Not available   
+    6) Aux_Mavlink    Not available
+    7) Vcc 3.3V !
+    8) GND
     
 Change log:
 v0.18   2018-05-09  Establish "home" position when we get 3D+ fix (fixtype 4) rather than after 5 seconds of fixtype 3
@@ -87,29 +88,31 @@ v0.24   2018-05-16  Single source code targets Teensy 3.x or STM32F103C dependin
 v0.25   2018-05-17  Make _txsw_pin (5 on Teensy) the inverse (inverted value) of txsw_pin. For 2nd bi-lateral cmos switch.
 v0.26   2018-05-23  Pass Mavlink auxiliary telemetry through Serial3 - bi-directional
 v0.27   2018-05-26  Rather use mAh from FC than my di/dt accumulation for bat1
+v0.28   2018-05-30  Enable receiver (like XSR) SPort polling of SPort, make emulation optional with #define
 
 */
 
 #include <GCS_MAVLink.h>
 
-//#define Target_STM32            // Un-comment this line if you are using an STM32F103C and an inveter+single wire
-#define Target_Teensy3x         // OR  Un-comment this line if you are using a Teensy 3.x
+//#define Target_STM32     // Un-comment this line if you are using an STM32F103C and an inverter+single wire
+#define Target_Teensy3x    // OR  Un-comment this line if you are using a Teensy 3.x
 
-#define Bluetooth_Port_Enabled   // Ignored on STM32. No spare uart unless you forgo debugging
+#define Frs_Dummy_rssi     // For testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
+
+//#define Aux_Port_Enabled        // Ignored on STM32. No spare uart unless we forgo debugging
 
 #define Debug               Serial         // USB 
 #define frSerial            Serial1        // S.Port 
 #define frBaud              57600          // Use 57600
-#define mavSerial           Serial2
+#define mavSerial           Serial2        
 #define mavBaud             57600   
 
-#if defined Bluetooth_Port_Enabled && defined Target_Teensy3x
-#define btSerial            Serial3        // Mavlink telemetry to and from BlueTooth adapter
+#if defined Aux_Port_Enabled && defined Target_Teensy3x
+#define auxSerial           Serial3        // Mavlink telemetry to and from auxilliary adapter
 #define btBaud              57600          // Use 57600
 #endif
 
-#define TXsw_pin            6              // Pin to control mavlink TX cmos switch. LOW=Teensy/STM32, HIGH=BT
-#define _TXsw_pin           5              // Inverse pin.                           HIGH=Teensy/STM32, LOW=BT
+//#define Emulation_Enabled      // Un-comment this line when there is no Frsky receiver polling the SPort
 
 //#define Data_Streams_Enabled // Enable regular data stream requests from APM - ensure Serial2 TX connected to Taranis/Orange RX                                         // Alternatively set SRn in Mission Planner
 //#define Mav_Debug_All
@@ -134,19 +137,18 @@ v0.27   2018-05-26  Rather use mAh from FC than my di/dt accumulation for bat1
 //#define Frs_Debug_Attitude
 //#define Mav_Debug_Text
 //#define Frs_Debug_Text
-//#define Frs_Dummy_rssi              
+          
 
 uint8_t StatusLed = 13; 
 uint8_t ledState = LOW; 
-bool    TXsw = LOW;
-bool    _TXsw = HIGH;
 
 uint8_t     buf[MAVLINK_MAX_PACKET_LEN];
 
 uint16_t  hb_count=0;
 
 bool      ap_bat_paramsReq = false;
-bool      ap_bat_paramsRead=false;  
+bool      ap_bat_paramsRead=false; 
+bool      parm_msg_shown = false;
 bool      ap_paramsList=false;
 bool      fr_paramsSent=false; 
 uint8_t   paramsID=0;
@@ -159,7 +161,8 @@ bool      textFlag=false;
 uint32_t  hb_millis=0;
 uint32_t  rds_millis=0;
 uint32_t  acc_millis=0;
-uint32_t  fr_millis=0;
+uint32_t  em_millis=0;
+uint32_t  sp_millis=0;
 uint32_t  led_millis=0;
 
 uint32_t  now_millis = 0;
@@ -450,8 +453,8 @@ void setup()  {
   FrSkySPort_Init();
   mavSerial.begin(mavBaud);
   
-  #if defined  Bluetooth_Port_Enabled && defined Target_Teensy3x
-  btSerial.begin(btBaud);
+  #if defined  Aux_Port_Enabled && defined Target_Teensy3x
+  auxSerial.begin(btBaud);
   #endif
   
   Debug.begin(115200);
@@ -462,18 +465,10 @@ void setup()  {
   hb_millis=millis();
   acc_millis=millis();
   rds_millis=millis();
-  fr_millis=millis();
+  em_millis=millis();
   
   delay(1000);
   Debug.println("Starting.....");
-
-  pinMode(StatusLed, OUTPUT );
-  pinMode(TXsw_pin, OUTPUT);
-  pinMode(_TXsw_pin, OUTPUT);
-  TXsw=LOW;
-  digitalWrite(TXsw_pin, TXsw);     // Initialise low
-  _TXsw=HIGH;
-  digitalWrite(_TXsw_pin, _TXsw);   // Initialise high
 
 }
 
@@ -507,12 +502,9 @@ void loop()  {
       Debug.println("Battery capacities requested");
       ap_bat_paramsReq = true;
     } else {
-      if (ap_bat_paramsRead &&  (TXsw==LOW)) {
-        TXsw = HIGH;
-        digitalWrite(TXsw_pin, TXsw);  // Disconnect the pin using cmos switch so that BT adapter can share tx line
-        _TXsw = LOW;
-        digitalWrite(_TXsw_pin, _TXsw);  
-        Debug.println("Battery params successfully read. Mavlink TX disconnected"); 
+      if (ap_bat_paramsRead &&  (!parm_msg_shown)) {
+        parm_msg_shown = true; 
+        Debug.println("Battery params successfully read"); 
       }
     }
     
@@ -526,15 +518,21 @@ void loop()  {
 
   MavLink_Receive();                      // Get Mavlink Data
 
-  #if defined  Bluetooth_Port_Enabled && defined Target_Teensy3x
-  BT_ReceiveAndForward();                 // Service BT incoming if enabled
+  #if defined  Aux_Port_Enabled && defined Target_Teensy3x
+  Aux_ReceiveAndForward();                 // Service BT incoming if enabled
   #endif
-  
-  if(mavGood && ((millis() - fr_millis) > 22)) {   
-     Emulate_SensorPoll();                // Poll FrSkySPort_Process with sensor IDs round-robin fashion
-     fr_millis=millis();
-    } 
 
+  #ifdef Emulation_Enabled
+  if(mavGood && ((millis() - em_millis) > 22)) {   
+     Emulate_ReadSPort();                // Emulate the sensor IDs received from XRS receiver on SPort
+     em_millis=millis();
+    }
+  #else   
+  if(mavGood && ((millis() - sp_millis) > 10)) {   
+     ReadSPort();                       // Receive round-robin of sensor IDs received from XRS receiver
+     sp_millis=millis();
+    }
+  #endif   
   ServiceTheStatusLed();
 }
 // ******************************************
@@ -552,9 +550,9 @@ void MavLink_Receive() {
 
       //   PrintMavBuffer(&msg);
 
-      #if defined  Bluetooth_Port_Enabled && defined Target_Teensy3x
+      #if defined  Aux_Port_Enabled && defined Target_Teensy3x
       len = mavlink_msg_to_send_buffer(buf, &msg);
-      btSerial.write(buf,len);
+      auxSerial.write(buf,len);
       #endif
 
       #ifdef Mav_Debug_All
@@ -1034,14 +1032,14 @@ const uint16_t mavRates[] = { 0x04, 0x0a, 0x04, 0x0a, 0x04, 0x04};
 #endif
 
 //***************************************************
-#if defined Bluetooth_Port_Enabled && defined Target_Teensy3x
-void BT_ReceiveAndForward() { 
+#if defined Aux_Port_Enabled && defined Target_Teensy3x
+void Aux_ReceiveAndForward() { 
   mavlink_message_t msg; 
   mavlink_status_t status;
 
-  while(btSerial.available()) 
+  while(auxSerial.available()) 
                 { 
-    uint8_t c = btSerial.read();
+    uint8_t c = auxSerial.read();
     if(mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status)) {
  //     Debug.println("Mav in from BT:");
  //     PrintMavBuffer(&msg);
@@ -1114,8 +1112,8 @@ void PrintMavBuffer (const void *object){
   */
   
   Debug.print("CRC=");
-  PrintHex(bytes[0]);
-  PrintHex(bytes[1]);
+  DisplayByte(bytes[0]);
+  DisplayByte(bytes[1]);
   Debug.print("  ");
   
   b= bytes[3];
@@ -1137,16 +1135,10 @@ void PrintMavBuffer (const void *object){
   Debug.print(")\t");
   
   for ( int i = 2; i < lth; i++ ) {
-    PrintHex(bytes[i]);
+    DisplayByte(bytes[i]);
     if(i==7) Debug.print("  ");      // Print space after header
   }
   Debug.println();
-}
-//***************************************************
-void PrintHex(byte b) {
-  if (b<=0xf) Serial.print("0");
-  Debug.print(b,HEX);
-  Debug.print(" ");
 }
 //***************************************************
 float RadToDeg (float _Rad) {

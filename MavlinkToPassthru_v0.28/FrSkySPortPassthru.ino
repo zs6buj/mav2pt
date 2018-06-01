@@ -6,36 +6,70 @@ uint32_t time_slot = 1;
 float a, az, c, d, dis, dLat, dLon;
 
 volatile uint8_t *uartC3;
-enum SerialMode { RX = 0, TX = 1 };
-SerialMode mode;
+enum SPortMode { RX = 0, TX = 1 };
+SPortMode mode;
+
+void setSPortMode(SPortMode mode);
+
+void setSPortMode(SPortMode mode) {   // To share single wire on TX pin
+#if defined Target_Teensy3x
+  if(mode == TX) {
+    *uartC3 |= 0x20;                 // Switch S.Port into send mode
+  }
+  else if(mode == RX) {   
+    *uartC3 ^= 0x20;                 // Switch S.Port into receive mode
+  }
+}
+#endif
 // ***********************************************************************
 void FrSkySPort_Init(void)  {
 
  frSerial.begin(frBaud); 
 
-#if defined Target_Teensy3x 
-   uartC3 = &UART0_C3;// UART0 is Serial1
-   UART0_C1 = 0xA0;  // Put Serial1 into single wire mode
-   UART0_C3 = 0x10;  // Invert Serial1 Tx levels
-   UART0_S2 = 0x10;  // Invert Serial1 Rx levels;
-   *uartC3 |= 0x20;  // We only ever TX on the S.Port in this App
+#if defined Target_Teensy3x
+
+// Manipulate UART registers for S.Port working
+   uartC3   = &UART0_C3;  // UART0 is Serial1
+   UART0_C3 = 0x10;     // Invert Serial1 Tx levels
+   UART0_C1 = 0xA0;     // Switch Serial1 into single wire mode
+   UART0_S2 = 0x10;     // Invert Serial1 Rx levels;
+   
+//   UART0_C3 |= 0x20;    // Switch S.Port into send mode
+//   UART0_C3 ^= 0x20;    // Switch S.Port into receive mode
+
  #endif   
 }
-
 // ***********************************************************************
-void Emulate_SensorPoll() {
 
-  FrSkySPort_SendByte(0x7E, false);              // START/STOP don't add into crc
+#ifndef Emulation_Enabled    / Note if NOT enabled
 
-  FrSkySPort_SendByte(sensID[sensPtr], false);   //  Poll Byte don't add into crc
-    
-  FrSkySPort_Process(0x7E);  
-  FrSkySPort_Process(sensID[sensPtr]); 
+void ReadSPort(void) {
+  setSPortMode(RX);
+  uint8_t Byt = 0;
+  while ( frSerial.available())   {  
+    Byt =  frSerial.read();
+    DisplayByte(Byt);
+    FrSkySPort_Process(Byt); 
+  }
+  // and back to main loop
+}
+#endif
+// ***********************************************************************
+#ifdef Emulation_Enabled
+
+void Emulate_ReadSPort() {
+  
+  setSPortMode(TX);
  
+  FrSkySPort_SendByte(0x7E, false);              // START/STOP don't add into crc
+  FrSkySPort_SendByte(sensID[sensPtr], false);   //  Poll Byte don't add into crc    
+  FrSkySPort_Process(0x7E);  
+  FrSkySPort_Process(sensID[sensPtr]);  
   sensPtr++;
   if (sensPtr>9) sensPtr=0;  // 10 sensor IDs, 0 thru 9
-  // and back to main polling loop
+  // and back to main loop
 }
+#endif
 // ***********************************************************************
 
 void FrSkySPort_Process(byte pollByte) {
@@ -171,6 +205,7 @@ if ((prevByte == 0x7E) && (pollByte == 0xBA || pollByte == 0x1B || pollByte == 0
 
 // ***********************************************************************
 void FrSkySPort_SendByte(uint8_t byte, bool addCrc) {
+   setSPortMode(RX); 
  if (!addCrc) { 
    frSerial.write(byte);  
    return;       
@@ -210,7 +245,9 @@ void FrSkySPort_SendCrc() {
 }
 //***************************************************
 void FrSkySPort_SendDataFrame(uint16_t id, uint32_t value) {
-
+  
+  setSPortMode(RX); 
+  
   FrSkySPort_SendByte(0x10, true );   //  Data framing byte
  
 	uint8_t *bytes = (uint8_t*)&id;
@@ -243,7 +280,7 @@ void FrSkySPort_SendDataFrame(uint16_t id, uint32_t value) {
   #endif
   
 	FrSkySPort_SendCrc();
-        
+   
 }
 //***************************************************
 // Mask then AND the shifted bits, then OR them to the payload
