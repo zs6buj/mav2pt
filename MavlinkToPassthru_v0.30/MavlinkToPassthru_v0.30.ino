@@ -1,7 +1,7 @@
-  
+ 
 /*  *****************************************************************************
 
-    BETA v0.28
+    BETA v0.30
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,16 +42,31 @@
     For now the Teensy 3.2 is prefered to the STM32 because of it's small size. It fits snugly 
     into the Orange LRS UHF RX/TX enclosure in the back bay of the Taranis, and requires no 
     external inverter.
-    
-    Originally written for use with ULRS UHF, which delivers Mavlink to the back bay of the 
-    Taranis X9D Plus to provide Frsky Passthrough compatible telemety to yaapu's outstanding 
-    LUA script.
-    
-    It could possibly also convert Mavlink from Pixhawk/PX4 Pro for display on the Taranis. 
-    Work in progress.
 
-    Un-comment the #define Aux_Port_Enabled line to channel Mavlink in and out of Serial3
-    This is ignored on the STM32F103C since there are too few serial ports available
+   FrSky telemetry is unlike regular telemetry. It evolved from a simple system to poll sensors 
+   on a 'plane, and as the number of sensors grew over time so too did the temetry requirements.
+   Synchromous sensor polling is central to the telemetry, and timing is critical.
+
+   On the other hand, most flight control computers manage internal and external sensors so 
+   that the polling is handled internally. Telemetry is organised into meaningful records or 
+   frames and sent asynchronously (whenever you like).
+
+   The converter can work in two modes. Ground mode or air mode.
+
+   In air mode, it is located on the aircraft between the FC and a Frsky receiver. It converts 
+   Mavlink out of a Pixhawk and feeds passthru telemetry to the frsky receiver, which sends it 
+   to Taranis on the ground. In this situation it responds to the FrSky receiver's sensor polling. 
+   The APM firmware can deliver passthru telemetry, but the PX4 Pro firmware cannot. 
+   Comment out this line      // #define Emulation_Enabled    like this
+   
+   In ground mode, it is located in the back of the Taranis. Since there is no FrSky receiver to 
+   provide sensor polling, we create a routine in the firmware to emulate FrSky receiver sensor
+   polling. (It pretends to be a receiver for polling purposes). 
+   Un-comment this line       #define Emulation_Enabled      like this.
+  
+   Originally written for use with ULRS UHF, which delivers Mavlink to the back bay of the 
+   Taranis X9D Plus to provide Frsky Passthrough compatible telemetry to yaapu's outstanding 
+   LUA script.
 
     Select the target mpu by un-commenting either //#define Target_Teensy3x or //#define Target_STM32
 
@@ -89,7 +104,7 @@ v0.26   2018-05-23  Pass Mavlink auxiliary telemetry through Serial3 - bi-direct
 v0.27   2018-05-26  Rather use mAh from FC than my di/dt accumulation for bat1
 v0.28   2018-05-30  Enable receiver (like XSR) SPort polling of SPort, make emulation optional with #define
 v0.29   2018-06-01  As per yaapu: Respond only to sensor 0x1B, attitude 10Hz, rssi from FrSky receiver, not other
-
+v0.30   2018-06-05  Improve the technical explanation of ground_mode, air_mode and polling emulation 
 */
 
 #include <GCS_MAVLink.h>
@@ -97,7 +112,7 @@ v0.29   2018-06-01  As per yaapu: Respond only to sensor 0x1B, attitude 10Hz, rs
 //#define Target_STM32     // Un-comment this line if you are using an STM32F103C and an inverter+single wire
 #define Target_Teensy3x    // OR  Un-comment this line if you are using a Teensy 3.x
 
-//#define Emulation_Enabled      // Un-comment this line when there is no Frsky receiver polling the SPort
+#define Emulation_Enabled      // Un-comment this line when there is no Frsky receiver polling the SPort
 
 //#define Frs_Dummy_rssi     // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
 
@@ -115,9 +130,13 @@ v0.29   2018-06-01  As per yaapu: Respond only to sensor 0x1B, attitude 10Hz, rs
 #endif
 
 //#define Data_Streams_Enabled // Enable regular data stream requests from APM - ensure Serial2 TX connected to Taranis/Orange RX                                         // Alternatively set SRn in Mission Planner
-//#define Mav_Debug_All
-//#define Frs_Debug_All
+
 //#define Mav_List_Params
+
+//#define Aux_Debug_All
+//#define Aux_Debug_Params
+//#define Frs_Debug_All
+//#define Aux_Port_Debug
 //#define Mav_Debug_Params
 //#define Frs_Debug_Params
 //#define Frs_Debug_Payload
@@ -179,9 +198,10 @@ uint32_t  Atti5006_millis = 0;
 uint32_t  Param5007_millis = 0;
 uint32_t  Bat2_5008_millis = 0;
 uint32_t  rssi_F101_millis=0;
+
 //  , 0x2F, 0xD0, 0x71, 0x98, 0xF2, 0x53, 0x34, 0x95,
 
-char sensID [10] = { 0x1B, 0x48, 0xBA,  0x98, 0xE9, 0x6A, 0xCB, 0xAC, 0x0D, 0x8E};
+char sensID [10] = { 0x1B, 0x48, 0xBA,  0x98, 0xE9, 0x6A, 0xCB, 0xAC, 0x0D, 0x8E};  // Should be enough to achieve synchronisation
 char prevByte;
 uint8_t sensPtr=0;
 
@@ -221,6 +241,7 @@ struct Battery bat2     = {
   0, 0, 0, 0, 0, 0, 0, true};   
 
 // ******************************************
+uint8_t len;
 // Mavlink Messages
 
 // Mavlink Header
@@ -537,7 +558,7 @@ void loop()  {
 }
 // ******************************************
 //*******************************************
-uint8_t len;
+
 void MavLink_Receive() { 
   mavlink_message_t msg;
   mavlink_status_t status;
@@ -547,18 +568,25 @@ void MavLink_Receive() {
     uint8_t c = mavSerial.read();
     if(mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status)) {
        
-
       //   PrintMavBuffer(&msg);
 
       #if defined  Aux_Port_Enabled && defined Target_Teensy3x
       len = mavlink_msg_to_send_buffer(buf, &msg);
+      #ifdef  Aux_Port_Debug
+      Debug.println("mavSerial passed to auxSerial:");
+      PrintMavBuffer(&msg);
+      #endif
       auxSerial.write(buf,len);
+  //    #ifdef  Aux_Port_Debug
+  //    Debug.println("auxSerial passed to GCS:");
+  //    PrintMavBuffer(&msg);
+  //    #endif  
       #endif
 
       #ifdef Mav_Debug_All
         //Debug.print("Mavlink in: ");
        // Debug.print("Message ID=");
-      //  Debug.println(id); 
+      //  Debug.println(msg.msgid); 
       #endif
       switch(msg.msgid) {
     
@@ -1041,10 +1069,18 @@ void Aux_ReceiveAndForward() {
                 { 
     uint8_t c = auxSerial.read();
     if(mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status)) {
- //     Debug.println("Mav in from BT:");
- //     PrintMavBuffer(&msg);
+      
+      #ifdef  Aux_Port_Debug
+      Debug.println("GCS auxSerial passed to mavSerial:");
+      PrintMavBuffer(&msg);
+      #endif
+      
       len = mavlink_msg_to_send_buffer(buf, &msg);
       mavSerial.write(buf,len);
+  //    #ifdef  Aux_Port_Debug
+  //    Debug.println("mavSerial to FC via LRS:");
+  //    PrintMavBuffer(&msg);  
+  //    #endif
     }
    }
 }
@@ -1189,3 +1225,423 @@ void ShowPeriod() {
   prev_millis=now_millis;
 }
 //***************************************************
+
+void Aux_Decode(){ 
+  /*
+  mavlink_message_t msg;
+  mavlink_status_t status;
+
+  while(auxSerial.available()) 
+                { 
+    uint8_t c = auxSerial.read();
+    if(mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status)) {
+       
+      //   PrintMavBuffer(&msg);
+*/
+      #ifdef Aux_Port_Debug
+        Debug.print("Aux port in: ");
+        Debug.print("Message ID=");
+        Debug.println(msg.msgid); 
+      #endif
+      switch(msg.msgid) {
+    
+        case MAVLINK_MSG_ID_HEARTBEAT:    // #0   http://mavlink.org/messages/common
+          ap_type = mavlink_msg_heartbeat_get_type(&msg);
+          ap_autopilot = mavlink_msg_heartbeat_get_autopilot(&msg);
+          ap_base_mode = mavlink_msg_heartbeat_get_base_mode(&msg);
+          ap_custom_mode = mavlink_msg_heartbeat_get_custom_mode(&msg);
+          ap_system_status = mavlink_msg_heartbeat_get_system_status(&msg);
+          ap_mavlink_version = mavlink_msg_heartbeat_get_mavlink_version(&msg);
+          hb_millis=millis(); 
+
+          #if defined Aux_Debug_All || defined Aux_Debug_Heartbeat
+            Debug.print("Aux port in #0 Heartbeat: ");           
+            Debug.print("ap_type="); Debug.print(ap_type);   
+            Debug.print("  ap_autopilot="); Debug.print(ap_autopilot); 
+            Debug.print("  ap_base_mode="); Debug.print(ap_base_mode); 
+            Debug.print(" ap_custom_mode="); Debug.print(ap_custom_mode);   
+            Debug.print("  ap_system_status="); Debug.print(ap_system_status); 
+            Debug.print("  ap_mavlink_version="); Debug.println(ap_mavlink_version);
+          #endif
+
+          break;
+        case MAVLINK_MSG_ID_SYS_STATUS:   // #1
+
+          ap_voltage_battery1= Get_Volt_Average1(mavlink_msg_sys_status_get_voltage_battery(&msg));        // 1000 = 1V  i.e mV
+          ap_current_battery1= Get_Current_Average1(mavlink_msg_sys_status_get_current_battery(&msg));     //  100 = 1A, i.e dA
+          if(ap_voltage_battery1> 21000) ap_ccell_count1= 6;
+            else if (ap_voltage_battery1> 16800 && ap_ccell_count1!= 6) ap_ccell_count1= 5;
+            else if(ap_voltage_battery1> 12600 && ap_ccell_count1!= 5) ap_ccell_count1= 4;
+            else if(ap_voltage_battery1> 8400 && ap_ccell_count1!= 4) ap_ccell_count1= 3;
+            else if(ap_voltage_battery1> 4200 && ap_ccell_count1!= 3) ap_ccell_count1= 2;
+            else ap_ccell_count1= 0;
+          #if defined Aux_Debug_All || defined Aux_Debug_SysStatus
+            Debug.print("Aux port in #1 Sys_Status: ");        
+            Debug.print(" Bat volts=");
+            Debug.print((float)ap_voltage_battery1/ 1000, 3);   // now V
+            Debug.print("  Bat amps=");
+            Debug.print((float)ap_current_battery1/ 100, 1);   // now A
+              
+            Debug.print("  mAh="); Debug.print(bat1.mAh, 6);    
+            Debug.print("  Total mAh="); Debug.print(bat1.tot_mAh, 3);
+         
+            Debug.print("  Bat1 cell count= "); 
+            Debug.println(ap_ccell_count1);
+          #endif
+          break;
+        case MAVLINK_MSG_ID_PARAM_REQUEST_READ:   // #20 - OUTGOING TO UAV
+          if (!mavGood) break;
+          break;     
+        case MAVLINK_MSG_ID_PARAM_REQUEST_LIST:   // #21 - OUTGOING TO UAV
+          if (!mavGood) break;
+          break;  
+        case MAVLINK_MSG_ID_PARAM_VALUE:          // #22
+          if (!mavGood) break;        
+          len=mavlink_msg_param_value_get_param_id(&msg, ap_param_id);
+          ap_param_id[len+1]=0;
+          ap_param_value=mavlink_msg_param_value_get_param_value(&msg);
+          ap_param_count=mavlink_msg_param_value_get_param_count(&msg);
+          ap_param_index=mavlink_msg_param_value_get_param_index(&msg); 
+
+          switch(ap_param_index) {  
+            case 356:         // Bat1 Capacity
+              ap_bat1_capacity = ap_param_value;
+              #if defined Aux_Debug_All || defined Debug_Batteries
+                Debug.print("Aux port in #22 Param_Value: ");
+                Debug.print("ap_param_value=");
+                Debug.println(ap_param_value);
+              #endif
+              break;
+            case 364:         // Bat2 Capacity
+              ap_bat2_capacity = ap_param_value;
+              ap_bat_paramsRead = true;
+              #if defined Aux_Debug_All || defined Debug_Batteries
+                Debug.print(Aux port in #22 Param_Value: ");
+                Debug.print("bat2 capacity=");
+                Debug.println(ap_bat2_capacity);
+              #endif             
+              break;
+          } 
+             
+          #if defined Aux_Debug_All || defined Aux_Debug_Params
+            Debug.print("**********************************************************************Aux port in #22 Param_Value: ");
+            Debug.print("param_id=");
+            Debug.print(ap_param_id);
+            Debug.print("  param_value=");
+            Debug.print(ap_param_value, 4);
+            Debug.print("  param_count=");
+            Debug.print(ap_param_count);
+            Debug.print("  param_index=");
+            Debug.println(ap_param_index);
+          #endif       
+          break;    
+        case MAVLINK_MSG_ID_GPS_RAW_INT:          // #24
+          if (!mavGood) break;        
+          ap_fixtype = mavlink_msg_gps_raw_int_get_fix_type(&msg);                   // 0 = No GPS, 1 =No Fix, 2 = 2D Fix, 3 = 3D Fix
+          ap_sat_visible =  mavlink_msg_gps_raw_int_get_satellites_visible(&msg);    // number of visible satelites
+          ap_gps_status = (ap_sat_visible*10) + ap_fixtype; 
+          if(ap_fixtype > 2)  {
+            ap_latitude = mavlink_msg_gps_raw_int_get_lat(&msg);
+            ap_longitude = mavlink_msg_gps_raw_int_get_lon(&msg);
+            ap_amsl24 = mavlink_msg_gps_raw_int_get_alt(&msg);             // 1m =1000 
+            ap_eph = mavlink_msg_gps_raw_int_get_eph(&msg);                // GPS HDOP 
+            ap_epv = mavlink_msg_gps_raw_int_get_epv(&msg);                // GPS VDOP 
+            ap_vel = mavlink_msg_gps_raw_int_get_vel(&msg);                // GPS ground speed (m/s * 100)
+            ap_cog = mavlink_msg_gps_raw_int_get_cog(&msg);                // Course over ground (NOT heading) in degrees * 100
+          }
+          #if defined Aux_Debug_All || defined Aux_Debug_GPS_Raw
+            Debug.print("Aux port in #24 GPS_RAW_INT: ");  
+            Debug.print("ap_fixtype="); Debug.print(ap_fixtype);
+            if (ap_fixtype==1) Debug.print(" No GPS");
+              else if (ap_fixtype==2) Debug.print(" No Lock");
+              else if (ap_fixtype==3) Debug.print(" 3D Lock");
+              else if (ap_fixtype==4) Debug.print(" 3D+ Lock");
+              else Debug.print(" Unknown");
+
+            Debug.print("  sats visible="); Debug.print(ap_sat_visible);
+            Debug.print("  GPS status="); Debug.print(ap_gps_status);
+            Debug.print("  latitude="); Debug.print((float)(ap_latitude)/1E7, 7);
+            Debug.print("  longitude="); Debug.print((float)(ap_longitude)/1E7, 7);
+            Debug.print("  gps alt amsl"); Debug.print((float)(ap_amsl24)/1E3, 1);
+            Debug.print("  eph (hdop)="); Debug.print(ap_eph, 1);               // HDOP
+            Debug.print("  epv (vdop)="); Debug.print(ap_epv, 1);
+            Debug.print("  vel="); Debug.print((float)ap_vel / 100, 1);         // GPS ground speed (m/s)
+            Debug.print("  cog="); Debug.println((float)ap_cog / 100, 1);       // Course over ground in degrees
+          #endif     
+          break;
+        case MAVLINK_MSG_ID_RAW_IMU:   // #27
+          if (!mavGood) break;        
+          ap_accX = mavlink_msg_raw_imu_get_xacc(&msg);                 
+          ap_accY = mavlink_msg_raw_imu_get_yacc(&msg);
+          ap_accZ = mavlink_msg_raw_imu_get_zacc(&msg);
+          #if defined Aux_Debug_All || defined Aux_Debug_Raw_IMU
+            Debug.print("Aux port in #27 Raw_IMU: ");
+            Debug.print("accX="); Debug.print((float)ap_accX / 1000); 
+            Debug.print("  accY="); Debug.print((float)ap_accY / 1000); 
+            Debug.print("  accZ="); Debug.println((float)ap_accZ / 1000);
+          #endif     
+          break;      
+        case MAVLINK_MSG_ID_SCALED_PRESSURE:         // #29
+          if (!mavGood) break;        
+          ap_press_abs = mavlink_msg_scaled_pressure_get_press_abs(&msg);
+          ap_temperature = mavlink_msg_scaled_pressure_get_temperature(&msg);
+          #if defined Aux_Debug_All || defined Aux_Debug_Scaled_Pressure
+            Debug.print("Aux port in #29 Scaled_Pressure: ");
+            Debug.print("  press_abs=");  Debug.print(ap_press_abs,1);
+            Debug.print("hPa  press_diff="); Debug.print(ap_press_diff, 3);
+            Debug.print("hPa  temperature=");  Debug.print((float)(ap_temperature)/100, 1); 
+            Debug.println("C");             
+          #endif             
+          break;     
+        case MAVLINK_MSG_ID_ATTITUDE:                // #30
+          if (!mavGood) break;   
+
+          ap_roll = mavlink_msg_attitude_get_roll(&msg);              // Roll angle (rad, -pi..+pi)
+          ap_pitch = mavlink_msg_attitude_get_pitch(&msg);            // Pitch angle (rad, -pi..+pi)
+          ap_yaw = mavlink_msg_attitude_get_yaw(&msg);                // Yaw angle (rad, -pi..+pi)
+          ap_rollspeed = mavlink_msg_attitude_get_rollspeed(&msg);    // Roll angular speed (rad/s)
+          ap_pitchspeed = mavlink_msg_attitude_get_pitchspeed(&msg);  // Pitch angular speed (rad/s)
+          ap_yawspeed = mavlink_msg_attitude_get_yawspeed(&msg);      // Yaw angular speed (rad/s)           
+
+          ap_roll = RadToDeg(ap_roll);   // Now degrees
+          ap_pitch = RadToDeg(ap_pitch);
+          ap_yaw = RadToDeg(ap_yaw);
+
+          #if defined Aux_Debug_All || defined Aux_Debug_Attitude   
+            Debug.print("Aux port in #30 Attitude: ");      
+            Debug.print(" ap_roll degs=");
+            Debug.print(ap_roll, 1);
+            Debug.print(" ap_pitch degs=");   
+            Debug.print(ap_pitch, 1);
+            Debug.print(" ap_yaw degs=");         
+            Debug.println(ap_yaw, 1);
+          #endif             
+
+          break;  
+        case MAVLINK_MSG_ID_GLOBAL_POSITION_INT:     // #33
+          if ((!mavGood) || (ap_fixtype < 3)) break;  
+          ap_lat = mavlink_msg_global_position_int_get_lat(&msg);             // Latitude, expressed as degrees * 1E7
+          ap_lon = mavlink_msg_global_position_int_get_lon(&msg);             // Pitch angle (rad, -pi..+pi)
+          ap_amsl33 = mavlink_msg_global_position_int_get_alt(&msg);          // x Supposedly altitude above mean sea level (millimeters)
+          ap_alt_ag = mavlink_msg_global_position_int_get_relative_alt(&msg); // Altitude above ground (millimeters)
+          ap_vx = mavlink_msg_global_position_int_get_vx(&msg);               //  Ground X Speed (Latitude, positive north), expressed as m/s * 100
+          ap_vy = mavlink_msg_global_position_int_get_vy(&msg);               //  Ground Y Speed (Longitude, positive east), expressed as m/s * 100
+          ap_vz = mavlink_msg_global_position_int_get_vz(&msg);               // Ground Z Speed (Altitude, positive down), expressed as m/s * 100
+          ap_hdg = mavlink_msg_global_position_int_get_hdg(&msg);             // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees          ap_ap_amsl = mavlink_msg_attitude_get_yaw(&msg);                // Yaw angle (rad, -pi..+pi)
+          switch(homGood) {
+            case 0:
+              homGood = 1;      //  Three way sw
+            case 1:
+              if (ap_fixtype >= 4) {  // Establish "home" when 3D+ Lock
+                homGood = 2;
+                hom.lat = (float)ap_lat / 1E7;
+                hom.lon = (float)ap_lon / 1E7;
+                hom.alt = (float)ap_amsl24 / 1E3;
+                hom.hdg = (float)ap_hdg / 100;
+
+                #if defined Aux_Debug_All || defined Aux_Debug_GPS_Int
+                  Debug.print("******************************************Mavlink in #33 GPS Int: Home established: ");       
+                  Debug.print("hom.lat=");  Debug.print(hom.lat, 7);
+                  Debug.print(" hom.lon=");  Debug.print(hom.lon, 7 );        
+                  Debug.print(" hom.alt="); Debug.print(hom.alt, 1);
+                  Debug.print(" hom.hdg="); Debug.println(hom.hdg);                   
+                #endif 
+              }   
+            }
+          cur.lat =  (float)ap_lat / 1E7;
+          cur.lon = (float)ap_lon / 1E7;
+          cur.alt = ap_amsl24 / 1E3;
+          cur.hdg = ap_hdg / 100;
+          
+          #if defined Aux_Debug_All || defined Aux_Debug_GPS_Int
+            Debug.print("Aux port in #33 GPS Int: ");
+            Debug.print(" ap_lat="); Debug.print((float)ap_lat / 1E7, 6);
+            Debug.print(" ap_lon="); Debug.print((float)ap_lon / 1E7, 6);
+            Debug.print(" ap_amsl="); Debug.print((float)ap_amsl33 / 1E3, 0);
+            Debug.print(" ap_alt_ag="); Debug.print((float)ap_alt_ag / 1E3, 1);           
+            Debug.print(" ap_vx="); Debug.print((float)ap_vx / 100, 1);
+            Debug.print(" ap_vy="); Debug.print((float)ap_vy / 100, 1);
+            Debug.print(" ap_vz="); Debug.print((float)ap_vz / 100, 1);
+            Debug.print(" ap_hdg="); Debug.println((float)ap_hdg / 100, 1);
+          #endif  
+                
+          break;  
+        case MAVLINK_MSG_ID_RC_CHANNELS_RAW:         // #35
+          if (!mavGood) break;        
+          break; 
+        case MAVLINK_MSG_ID_SERVO_OUTPUT_RAW:        // #36
+          if (!mavGood) break;        
+          break;   
+        case MAVLINK_MSG_ID_MISSION_CURRENT:         // #42
+          if (!mavGood) break;       
+          break; 
+        case MAVLINK_MSG_ID_NAV_CONTROLLER_OUTPUT:   // #62
+          if (!mavGood) break;       
+          break;     
+        case MAVLINK_MSG_ID_RC_CHANNELS:             // #65
+          if (!mavGood) break; 
+          rssiGood=true;               //  We have received at least one rssi packet from air mavlink   
+          ap_chancount = mavlink_msg_rc_channels_get_chancount(&msg);
+          ap_chan3_raw = mavlink_msg_rc_channels_get_chan3_raw(&msg);   
+          ap_chan16_raw = mavlink_msg_rc_channels_get_chan16_raw(&msg);
+          ap_rssi = mavlink_msg_rc_channels_get_rssi(&msg);   // Receive RSSI 0: 0%, 254: 100%, 255: invalid/unknown
+          
+          #if defined Aux_Debug_All || defined Aux_Debug_Rssi
+            Debug.print("Aux port in #65 RC_Channels: ");
+            Debug.print("Channel count= "); Debug.print(ap_chancount); 
+            Debug.print("  Channel 3= ");  Debug.print(ap_chan3_raw);            
+            Debug.print("  Channel 16= ");  Debug.print(ap_chan16_raw);       
+            Debug.print("  Receive RSSI=");  Debug.println(ap_rssi/ 2.54);        
+          #endif             
+          break;      
+        case MAVLINK_MSG_ID_REQUEST_DATA_STREAM:     // #66 - OUTGOING TO UAV
+          if (!mavGood) break;       
+          break;                             
+        case MAVLINK_MSG_ID_VFR_HUD:                 //  #74
+          if (!mavGood) break;      
+          ap_airspeed = 0;
+          ap_groundspeed = mavlink_msg_vfr_hud_get_groundspeed(&msg);      // 100 = 1m/s
+          ap_heading = mavlink_msg_vfr_hud_get_heading(&msg);              // 100 = 100 deg
+          ap_throttle = mavlink_msg_vfr_hud_get_throttle(&msg);            //  100 = 100%
+          ap_bar_altitude = mavlink_msg_vfr_hud_get_alt(&msg) * 100;       //  m
+          ap_climb_rate=mavlink_msg_vfr_hud_get_climb(&msg) * 100;         //  m/s
+
+          #ifdef Aux_Debug_All
+            Debug.print("Aux port in #74 VFR_HUD: ");
+            Debug.print("Groundspeed= "); Debug.print(ap_groundspeed); 
+            Debug.print("  Heading= ");  Debug.print(ap_heading);       
+            Debug.print("  Throttle= ");  Debug.print(ap_throttle);       
+            Debug.print("  Barometric altitude= "); Debug.print(ap_bar_altitude);                        
+            Debug.print("  Climb rate= "); Debug.println(ap_climb_rate); 
+          #endif  
+          break; 
+        case MAVLINK_MSG_ID_SCALED_IMU2:       // #116   http://mavlink.org/messages/common
+          if (!mavGood) break;       
+          break; 
+        case MAVLINK_MSG_ID_POWER_STATUS:      // #125   http://mavlink.org/messages/common
+          if (!mavGood) break;  
+          ap_Vcc = mavlink_msg_power_status_get_Vcc(&msg);         // 5V rail voltage in millivolts
+          ap_Vservo = mavlink_msg_power_status_get_Vservo(&msg);   // servo rail voltage in millivolts
+          ap_flags = mavlink_msg_power_status_get_flags(&msg);     // power supply status flags (see MAV_POWER_STATUS enum)
+          #ifdef Aux_Debug_All
+            Debug.print("Aux port in #125 Power Status: ");
+            Debug.print("Vcc= "); Debug.print(ap_Vcc); 
+            Debug.print("  Vservo= ");  Debug.print(ap_Vservo);       
+            Debug.print("  flags= ");  Debug.println(ap_flags);       
+          #endif  
+          break; 
+        case MAVLINK_MSG_ID_BATTERY_STATUS:      // #147   http://mavlink.org/messages/common
+          if (!mavGood) break;         
+          ap_current_battery = mavlink_msg_battery_status_get_current_battery(&msg);      // in 10*milliamperes (1 = 10 milliampere)
+          ap_current_consumed = mavlink_msg_battery_status_get_current_consumed(&msg);    // mAh
+          ap_battery_remaining = mavlink_msg_battery_status_get_battery_remaining(&msg);  // (0%: 0, 100%: 100)              
+          #if defined Aux_Debug_All || defined Debug_Batteries
+            Debug.print("Aux port in #147 Battery Status: ");
+            Debug.print(" bat current= "); Debug.print(ap_current_battery); 
+            Debug.print(" bat mAh= ");  Debug.print(ap_current_consumed);       
+            Debug.print(" bat % remaining= ");  Debug.println(ap_time_remaining);       
+          #endif  
+          break;    
+        case MAVLINK_MSG_ID_SENSOR_OFFSETS:    // #150   http://mavlink.org/messages/ardupilotmega
+          if (!mavGood) break;        
+          break; 
+        case MAVLINK_MSG_ID_MEMINFO:           // #152   http://mavlink.org/messages/ardupilotmega
+          if (!mavGood) break;        
+          break;   
+        case MAVLINK_MSG_ID_RADIO:             // #166   http://mavlink.org/messages/ardupilotmega
+          if (!mavGood) break;
+          ap_rssi = mavlink_msg_radio_get_rssi(&msg);            // local signal strength
+          ap_remrssi = mavlink_msg_radio_get_remrssi(&msg);      // remote signal strength
+          ap_txbuf = mavlink_msg_radio_get_txbuf(&msg);          // how full the tx buffer is as a percentage
+          ap_noise = mavlink_msg_radio_get_noise(&msg);          // remote background noise level
+          ap_remnoise = mavlink_msg_radio_get_remnoise(&msg);    // receive errors
+          ap_rxerrors = mavlink_msg_radio_get_rxerrors(&msg);    // count of error corrected packets
+          ap_fixed = mavlink_msg_radio_get_fixed(&msg);    
+         #ifdef Aux_Debug_All
+            Debug.print("Aux port in #166 Radio: "); 
+            Debug.print("rssi="); Debug.print(ap_rssi);
+            Debug.print("remrssi="); Debug.print(ap_remrssi);
+            Debug.print("txbuf="); Debug.print(ap_txbuf);
+            Debug.print("noise="); Debug.print(ap_noise); 
+            Debug.print("remnoise="); Debug.print(ap_remnoise);
+            Debug.print("rxerrors="); Debug.print(ap_rxerrors);
+            Debug.print("fixed="); Debug.println(ap_fixed);                                
+         #endif        
+          break; 
+        case MAVLINK_MSG_ID_AHRS2:             // #178   http://mavlink.org/messages/ardupilotmega
+          if (!mavGood) break;       
+          break;  
+        case MAVLINK_MSG_ID_BATTERY2:          // #181   http://mavlink.org/messages/ardupilotmega
+          if (!mavGood) break;
+          ap_voltage_battery2 = Get_Volt_Average2(mavlink_msg_battery2_get_voltage(&msg));        // 1000 = 1V
+          ap_current_battery2 = Get_Current_Average2(mavlink_msg_battery2_get_current_battery(&msg));     //  100 = 1A
+          if(ap_voltage_battery2 > 21000) ap_cell_count2 = 6;
+            else if (ap_voltage_battery2 > 16800 && ap_cell_count2 != 6) ap_cell_count2 = 5;
+            else if(ap_voltage_battery2 > 12600 && ap_cell_count2 != 5) ap_cell_count2 = 4;
+            else if(ap_voltage_battery2 > 8400 && ap_cell_count2 != 4) ap_cell_count2 = 3;
+            else if(ap_voltage_battery2 > 4200 && ap_cell_count2 != 3) ap_cell_count2 = 2;
+            else ap_cell_count2 = 0;
+          #if defined Aux_Debug_All || defined Aux_Debug_Batteriestery2
+            Debug.print("Aux port in #181 Battery2: ");        
+            Debug.print(" Bat volts=");
+            Debug.print((float)ap_voltage_battery2 / 1000, 3);   // now V
+            Debug.print("  Bat amps=");
+            Debug.print((float)ap_current_battery2 / 100, 1);   // now A
+              
+            Debug.print("  mAh="); Debug.print(bat2.mAh, 6);    
+            Debug.print("  Total mAh="); Debug.print(bat2.tot_mAh, 3);
+         
+            Debug.print("  Bat cell count= "); 
+            Debug.println(ap_cell_count2);
+          #endif
+          break;
+          
+        case MAVLINK_MSG_ID_AHRS3:             // #182   http://mavlink.org/messages/ardupilotmega
+          if (!mavGood) break;       
+          break;
+        case MAVLINK_MSG_ID_STATUSTEXT:        // #253      
+          ap_severity = mavlink_msg_statustext_get_severity(&msg);
+          len=mavlink_msg_statustext_get_text(&msg, ap_text);
+
+    //      if (*prev_ap_text==*ap_text) break;  // Ignore duplicate text messages
+    //      *prev_ap_text=*ap_text;
+
+          for (int i=0; i<=len ; i++) {       // Get real len
+            if ((ap_text[i]==32 || ap_text[i]==0) && (ap_text[i+1]==32 || ap_text[i+1]==0)) {      // find first consecutive double-space
+              len=i;
+              break;
+            }
+          }
+          ap_text[len+1]=0x00;
+          textFlag = true;
+          p_text = 0;
+          
+          if (strcmp (ap_text,"SIMPLE mode on") == 0)
+            ap_simple = 1;
+          else if
+              (strcmp (ap_text,"SIMPLE mode off") == 0)
+                ap_simple = 0;
+
+          #if defined Aux_Debug_All || defined Aux_Debug_Text
+            Debug.print("Aux port in #253 Statustext: ");
+            Debug.print("length="); Debug.print(len);
+            Debug.print(" Severity="); Debug.print(ap_severity);
+            Debug.print(" "); Debug.print(MavSeverity(ap_severity));
+            Debug.print("  Text= "); Debug.print(ap_text);
+            Debug.print("  ap_simple "); Debug.println(ap_simple);
+          #endif
+          break;                                      
+        default:
+          if (!mavGood) break;
+          #ifdef Aux_Debug_All
+          //  Debug.print("Aux port in: ");
+          //  Debug.print("Unknown Message ID #");
+          //  Debug.print(msg.msgid);
+           // Debug.println(" Ignored"); 
+          #endif
+
+          break;
+      }
+    }
+
+
