@@ -49,7 +49,7 @@ void FrSkySPort_Init(void)  {
 }
 // ***********************************************************************
 
-#ifndef Emulation_Enabled    / Note if NOT enabled
+#ifndef Emulation_Enabled    // Note if NOT enabled
 void ReadSPort(void) {
   setSPortMode(RX);
   uint8_t Byt = 0;
