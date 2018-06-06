@@ -519,11 +519,6 @@ void Send_Home_5004() {
    bit32Pack((fr_home_angle * 0.00333f) ,27, 7);
    FrSkySPort_SendDataFrame(0x5004,fr_payload);
 
-   #if defined Frs_Debug_All || defined Frs_Debug_Home  
-     Debug.print(" fr_home_dist after prep="); Debug.print(fr_home_dist); 
-     Debug.print(" fr_home_alt after prep="); Debug.print(fr_home_alt);    
-     Debug.print(" fr_home_angle="); Debug.println(fr_home_angle);                  
-   #endif 
 }
 // *****************************************************************
 void Send_VelYaw_5005() {

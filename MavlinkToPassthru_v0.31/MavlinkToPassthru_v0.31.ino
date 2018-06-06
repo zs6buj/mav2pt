@@ -1,7 +1,7 @@
- 
+  
 /*  *****************************************************************************
 
-    BETA v0.30
+    BETA v0.31
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -74,8 +74,8 @@
 
     1) SPort S     -->TX1 Pin 1    S.Port out to Taranis bay, bottom pin
     2) Mavlink     <--RX2 Pin 9    Mavlink from Taranis to Teensy
-    3) Mavlink     -->TX2 Pin 10    Mavlink from Taranis to Teensy
-    4) Aux_Mavlink <--RX3 Pin 7    Auxiliary Mavlink From Teensy to WiFi Module or general use
+    3) Mavlink     -->TX2 Pin 10   Mavlink from Taranis to Teensy
+    4) Aux_Mavlink <--RX3 Pin 7    NOT NECESSARY - wire direct from Orange TX to BT RX  
     5) Aux_Mavlink -->TX3 Pin 8    Auxiliary Mavlink From Teensy to WiFi Module or general use
     6) Vcc 3.3V !
     7) GND
@@ -84,8 +84,8 @@
 
     1) SPort S     -->TX2 Pin A2   Serial1 to inverter, convert to single wire then to S.Port
     2) SPort S     <--RX2 Pin A3   Serial1 To inverter, convert to single wire then to S.Port
-    3) Mavlink     -->TX3 Pin B10  Mavlink from Taranis to Teensy   
-    4) Mavlink     <--RX3 Pin B11  Serial2 Mavlink from Taranis to Teensy
+    3) Mavlink     <--RX3 Pin B11  NOT NECESSARY - wire direct from Orange TX to BT RX 
+    4) Mavlink     -->TX3 Pin B10  Mavlink from Taranis to Teensy    
     5) Aux_Mavlink    Not available   
     6) Aux_Mavlink    Not available
     7) Vcc 3.3V !
@@ -105,6 +105,7 @@ v0.27   2018-05-26  Rather use mAh from FC than my di/dt accumulation for bat1
 v0.28   2018-05-30  Enable receiver (like XSR) SPort polling of SPort, make emulation optional with #define
 v0.29   2018-06-01  As per yaapu: Respond only to sensor 0x1B, attitude 10Hz, rssi from FrSky receiver, not other
 v0.30   2018-06-05  Improve the technical explanation of ground_mode, air_mode and polling emulation 
+v0.31  2018-05-06   Change recommended wiring to eliminate receive latency
 */
 
 #include <GCS_MAVLink.h>
@@ -1130,7 +1131,6 @@ void PrintMavBuffer (const void *object){
 
   byte b; 
   int lth;
-  int pSeq=0;
 
   const unsigned char * const bytes = static_cast<const unsigned char *>(object);
 
