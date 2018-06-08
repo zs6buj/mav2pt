@@ -5,6 +5,7 @@ uint8_t  time_slot_max = 9;
 uint32_t time_slot = 1;
 float a, az, c, d, dis, dLat, dLon;
 
+#if defined Target_Teensy3x
 volatile uint8_t *uartC3;
 enum SPortMode { RX = 0, TX = 1 };
 SPortMode mode, modeNow;
@@ -12,7 +13,7 @@ SPortMode mode, modeNow;
 void setSPortMode(SPortMode mode);
 
 void setSPortMode(SPortMode mode) {   // To share single wire on TX pin
-#if defined Target_Teensy3x
+
   if(mode == TX && modeNow !=TX) {
     *uartC3 |= 0x20;                 // Switch S.Port into send mode
     modeNow=mode;
@@ -45,8 +46,8 @@ void FrSkySPort_Init(void)  {
 //   UART0_C3 |= 0x20;    // Switch S.Port into send mode
 //   UART0_C3 ^= 0x20;    // Switch S.Port into receive mode
 
- #endif   
-}
+#endif   
+} 
 // ***********************************************************************
 
 #ifndef Emulation_Enabled    // Note if NOT enabled
@@ -67,9 +68,9 @@ void ReadSPort(void) {
 
 #ifdef Emulation_Enabled
 void Emulate_ReadSPort() {
-  
+  #if defined Target_Teensy3x
   setSPortMode(TX);
- 
+  #endif
   FrSkySPort_SendByte(0x7E, false);              // START/STOP don't add into crc
   FrSkySPort_SendByte(sensID[sensPtr], false);   //  Poll Byte don't add into crc    
   FrSkySPort_Process(0x7E);  
@@ -110,7 +111,6 @@ if ((prevByte == 0x7E) && (pollByte == 0x1B)) {
   if (millis() - Param5007_millis > 5000) {        // 0.2 Hz resend the 5007 parameters to keep FlightDeck happy
     fr_paramsSent = false;
     Param5007_millis = millis();
- 
   }
    
   if (mavGood && ap_bat_paramsRead && (!fr_paramsSent)) {     // Send each parameter once
@@ -220,7 +220,9 @@ if ((prevByte == 0x7E) && (pollByte == 0x1B)) {
 
 // ***********************************************************************
 void FrSkySPort_SendByte(uint8_t byte, bool addCrc) {
+  #if defined Target_Teensy3x
    setSPortMode(TX); 
+ #endif  
  if (!addCrc) { 
    frSerial.write(byte);  
    return;       
@@ -260,8 +262,10 @@ void FrSkySPort_SendCrc() {
 }
 //***************************************************
 void FrSkySPort_SendDataFrame(uint16_t id, uint32_t value) {
-  
+
+  #if defined Target_Teensy3x
   setSPortMode(TX); 
+  #endif
   
   FrSkySPort_SendByte(0x10, true );   //  Data framing byte
  

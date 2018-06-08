@@ -1,7 +1,7 @@
   
 /*  *****************************************************************************
 
-    BETA v0.32
+    BETA v0.33
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -107,18 +107,19 @@ v0.29   2018-06-01  As per yaapu: Respond only to sensor 0x1B, attitude 10Hz, rs
 v0.30   2018-06-05  Improve the technical explanation of ground_mode, air_mode and polling emulation 
 v0.31   2018-05-06  Change recommended wiring to eliminate receive latency
 v0.32   2018-06-08  Fine tuned polling, much improved latency. Fixed bug in groundspeed, vertical speed.
+v0.33   2018-06-08  Cleaned up STM32F103C8 build options and tested STM32 version
 */
 
 #include <GCS_MAVLink.h>
 
-//#define Target_STM32     // Un-comment this line if you are using an STM32F103C and an inverter+single wire
-#define Target_Teensy3x    // OR  Un-comment this line if you are using a Teensy 3.x
+#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
+//#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
 
-#define Emulation_Enabled      // Un-comment this line when there is no Frsky receiver polling the SPort
+#define Emulation_Enabled    // Un-comment this line when there is no Frsky receiver polling the SPort
 
 //#define Frs_Dummy_rssi     // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
 
-#define Aux_Port_Enabled        // Ignored on STM32. No spare uart unless we forgo debugging
+//#define Aux_Port_Enabled   // Comment out for STM32. No spare uart unless we forgo debugging
 
 #define Debug               Serial         // USB 
 #define frSerial            Serial1        // S.Port 
@@ -126,9 +127,9 @@ v0.32   2018-06-08  Fine tuned polling, much improved latency. Fixed bug in grou
 #define mavSerial           Serial2        
 #define mavBaud             57600   
 
-#if defined Aux_Port_Enabled && defined Target_Teensy3x
+#if defined Aux_Port_Enabled
 #define auxSerial           Serial3        // Mavlink telemetry to and from auxilliary adapter
-#define btBaud              57600          // Use 57600
+#define auxBaud              57600          // Use 57600
 #endif
 
 //#define Data_Streams_Enabled // Enable regular data stream requests from APM - ensure Serial2 TX connected to Taranis/Orange RX                                         // Alternatively set SRn in Mission Planner
@@ -151,7 +152,7 @@ v0.32   2018-06-08  Fine tuned polling, much improved latency. Fixed bug in grou
 //#define Frs_Debug_Home
 //#define Mav_Debug_GPS_Raw     // #24
 //#define Mav_Debug_GPS_Int     // #33
-#define Frs_Debug_YelYaw
+//#define Frs_Debug_YelYaw
 //#define Frs_Debug_GPS_Status
 //#define Mav_Debug_Raw_IMU
 //#define Mav_Debug_VFR_HUD
@@ -475,8 +476,8 @@ void setup()  {
   FrSkySPort_Init();
   mavSerial.begin(mavBaud);
   
-  #if defined  Aux_Port_Enabled && defined Target_Teensy3x
-  auxSerial.begin(btBaud);
+  #if defined  Aux_Port_Enabled 
+  auxSerial.begin(auxBaud);
   #endif
   
   Debug.begin(115200);
@@ -539,9 +540,7 @@ void loop()  {
 
   MavLink_Receive();                      // Get Mavlink Data
 
-  #if defined  Aux_Port_Enabled && defined Target_Teensy3x
-  Aux_ReceiveAndForward();                 // Service BT incoming if enabled
-  #endif
+  Aux_ReceiveAndForward();                 // Service aux incoming if enabled
 
   #ifdef Emulation_Enabled
   if(mavGood && ((millis() - em_millis) > 10)) {   
@@ -569,16 +568,16 @@ void MavLink_Receive() {
     if(mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status)) {
        
       //   PrintMavBuffer(&msg);
-
-      #if defined  Aux_Port_Enabled && defined Target_Teensy3x
+      
+      #if defined  Aux_Port_Enabled 
       len = mavlink_msg_to_send_buffer(buf, &msg);
       #ifdef  Aux_Port_Debug
-      Debug.println("mavSerial passed to auxSerial:");
-      PrintMavBuffer(&msg);
+        Debug.println("mavSerial passed to auxSerial:");
+        PrintMavBuffer(&msg);
       #endif
       auxSerial.write(buf,len);
       #endif
-      
+     
     // Debug.print(" msgid="); Debug.println(msg.msgid); 
 
       switch(msg.msgid) {
@@ -1054,8 +1053,9 @@ const uint16_t mavRates[] = { 0x04, 0x0a, 0x04, 0x0a, 0x04, 0x04};
 #endif
 
 //***************************************************
-#if defined Aux_Port_Enabled && defined Target_Teensy3x
+
 void Aux_ReceiveAndForward() { 
+  #if defined Aux_Port_Enabled 
   mavlink_message_t msg; 
   mavlink_status_t status;
 
@@ -1071,14 +1071,11 @@ void Aux_ReceiveAndForward() {
       
       len = mavlink_msg_to_send_buffer(buf, &msg);
       mavSerial.write(buf,len);
-  //    #ifdef  Aux_Port_Debug
-  //    Debug.println("mavSerial to FC via LRS:");
-  //    PrintMavBuffer(&msg);  
-  //    #endif
     }
    }
+#endif    
 }
-#endif  
+ 
 //***************************************************
 void ServiceTheStatusLed() {
   if (mavGood) {
