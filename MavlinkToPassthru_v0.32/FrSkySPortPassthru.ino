@@ -75,7 +75,7 @@ void Emulate_ReadSPort() {
   FrSkySPort_Process(0x7E);  
   FrSkySPort_Process(sensID[sensPtr]);  
   sensPtr++;
-  if (sensPtr>9) sensPtr=0;  // 10 sensor IDs, 0 thru 9
+  if (sensPtr>1) sensPtr=0;  // Try using 1 sensor - works!  10 sensor IDs, 0 thru 9
   // and back to main loop
 }
 #endif
@@ -83,7 +83,11 @@ void Emulate_ReadSPort() {
 
 void FrSkySPort_Process(byte pollByte) {
 
-if ((prevByte == 0x7E) && (pollByte == 0x1B)) {     
+if ((prevByte == 0x7E) && (pollByte == 0x1B)) { 
+
+  #ifdef Frs_Debug_All
+    ShowPeriod();   
+  #endif  
        
   fr_payload = 0; // Clear the payload field
     
@@ -106,6 +110,7 @@ if ((prevByte == 0x7E) && (pollByte == 0x1B)) {
   if (millis() - Param5007_millis > 5000) {        // 0.2 Hz resend the 5007 parameters to keep FlightDeck happy
     fr_paramsSent = false;
     Param5007_millis = millis();
+ 
   }
    
   if (mavGood && ap_bat_paramsRead && (!fr_paramsSent)) {     // Send each parameter once
@@ -177,7 +182,7 @@ if ((prevByte == 0x7E) && (pollByte == 0x1B)) {
             time_slot++;   // Donate the slot to next 
    
         case 7:        // data id 0x5005 Velocity and yaw
-          if (millis() - VelYaw5005_millis > 333)  {  // 3 Hz
+          if (millis() - VelYaw5005_millis > 500)  {  // 2 Hz
             Send_VelYaw_5005();
             VelYaw5005_millis = millis();
             break; 
@@ -186,7 +191,7 @@ if ((prevByte == 0x7E) && (pollByte == 0x1B)) {
             time_slot++;   // Donate the slot to next 
    
         case 8:        // data id 0x5006 Attitude and range
-          if (millis() - Atti5006_millis > 100)  {  // 10 Hz 
+          if (millis() - Atti5006_millis > 200)  {  // 5 Hz 
             Send_Atti_5006();
             Atti5006_millis = millis();
             break; 
@@ -261,7 +266,7 @@ void FrSkySPort_SendDataFrame(uint16_t id, uint32_t value) {
   FrSkySPort_SendByte(0x10, true );   //  Data framing byte
  
 	uint8_t *bytes = (uint8_t*)&id;
-  #if defined Frs_Debug_All || defined Frs_Debug_Payload
+  #if defined Frs_Debug_Payload
     Debug.print("DataFrame. ID "); 
     DisplayByte(bytes[0]);
     Debug.print(" "); 
@@ -275,7 +280,7 @@ void FrSkySPort_SendDataFrame(uint16_t id, uint32_t value) {
 	FrSkySPort_SendByte(bytes[2], true);
 	FrSkySPort_SendByte(bytes[3], true);
   
-  #if defined Frs_Debug_All || defined Frs_Debug_Payload
+  #if defined Frs_Debug_Payload
     Debug.print("Payload (send order) "); 
     DisplayByte(bytes[0]);
     Debug.print(" "); 
@@ -386,10 +391,10 @@ void SendAP_Status5001() {
   fr_flight_mode = ap_custom_mode + 1; // AP_CONTROL_MODE_LIMIT - ls 5 bits
 
   fr_simple = ap_simple;  // Derived from "ALR SIMPLE mode on/off" text messages
-  fr_land_complete;
+//  fr_land_complete;
   fr_armed = ap_base_mode >> 7;
-  fr_bat_fs;
-  fr_ekf_fs; 
+//  fr_bat_fs;
+//  fr_ekf_fs; 
 
   bit32Pack(fr_flight_mode, 0, 5);     // Flight mode
   bit32Pack(fr_simple ,5, 2);          // Simple/super simple mode flags
@@ -522,28 +527,21 @@ void Send_Home_5004() {
 }
 // *****************************************************************
 void Send_VelYaw_5005() {
-  fr_vx = ap_vx;
-  fr_vy = ap_vy;
+  fr_vy = 0-(ap_vz / 10.0);    // from #33   dm/s  Ground Z Speed (Altitude, positive down)
+  fr_vx = ap_vel / 100.0;      // from #24   dm/s  Check this order of magnitude
   fr_yaw = ap_hdg;
-  #if defined Frs_Debug_All || defined VelYaw_Debug
-    Debug.print("Frsky out VelYaw 0x5005: Before prep:");         
-    Debug.print("fr_vx=");  Debug.print(fr_vx);
-    Debug.print(" fr_vy=");  Debug.print(fr_vy);
-     Debug.print(" fr_yaw="); Debug.print(fr_yaw); 
+  #if defined Frs_Debug_All || defined Frs_Debug_YelYaw
+    Debug.print("Frsky out VelYaw 0x5005:");  
+    Debug.print(" fr_vy=");  Debug.print(fr_vy);       
+    Debug.print(" fr_vx=");  Debug.print(fr_vx);
+    Debug.print(" fr_yaw="); Debug.print(fr_yaw); 
   #endif
-  fr_vy = prep_number(roundf(fr_vx), 2, 1);  // Vertical velocity
-  bit32Pack(fr_vx, 0, 8); 
+  fr_vy = prep_number(roundf(fr_vy), 2, 1);  // Vertical velocity
+  bit32Pack(fr_vy, 0, 8);   // what about negative
   fr_vx = prep_number(roundf(fr_vx), 2, 1);  // Horizontal velocity
   bit32Pack(fr_vx, 9, 8);    
   fr_yaw = fr_yaw * 0.5f;                   // Unit = 0.2 deg
   bit32Pack(fr_yaw ,13, 12);  
-         
- #if defined Frs_Debug_All || defined VelYaw_Debug
-   Debug.print(" After prep:");         
-    Debug.print("fr_vx=");  Debug.print(fr_vx);
-    Debug.print(" fr_vy=");  Debug.print(fr_vy);        
-    Debug.print(" fr_yaw="); Debug.println(fr_yaw);                
-  #endif
 
   FrSkySPort_SendDataFrame(0x5005,fr_payload);
 }

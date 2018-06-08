@@ -1,7 +1,7 @@
   
 /*  *****************************************************************************
 
-    BETA v0.31
+    BETA v0.32
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -105,7 +105,8 @@ v0.27   2018-05-26  Rather use mAh from FC than my di/dt accumulation for bat1
 v0.28   2018-05-30  Enable receiver (like XSR) SPort polling of SPort, make emulation optional with #define
 v0.29   2018-06-01  As per yaapu: Respond only to sensor 0x1B, attitude 10Hz, rssi from FrSky receiver, not other
 v0.30   2018-06-05  Improve the technical explanation of ground_mode, air_mode and polling emulation 
-v0.31  2018-05-06   Change recommended wiring to eliminate receive latency
+v0.31   2018-05-06  Change recommended wiring to eliminate receive latency
+v0.32   2018-06-08  Fine tuned polling, much improved latency. Fixed bug in groundspeed, vertical speed.
 */
 
 #include <GCS_MAVLink.h>
@@ -150,14 +151,15 @@ v0.31  2018-05-06   Change recommended wiring to eliminate receive latency
 //#define Frs_Debug_Home
 //#define Mav_Debug_GPS_Raw     // #24
 //#define Mav_Debug_GPS_Int     // #33
+#define Frs_Debug_YelYaw
 //#define Frs_Debug_GPS_Status
 //#define Mav_Debug_Raw_IMU
+//#define Mav_Debug_VFR_HUD
 //#define Mav_Debug_Scaled_Pressure
 //#define Mav_Debug_Attitude
 //#define Frs_Debug_Attitude
 //#define Mav_Debug_Text
-//#define Frs_Debug_Text
-          
+//#define Frs_Debug_Text          
 
 uint8_t StatusLed = 13; 
 uint8_t ledState = LOW; 
@@ -199,8 +201,6 @@ uint32_t  Atti5006_millis = 0;
 uint32_t  Param5007_millis = 0;
 uint32_t  Bat2_5008_millis = 0;
 uint32_t  rssi_F101_millis=0;
-
-//  , 0x2F, 0xD0, 0x71, 0x98, 0xF2, 0x53, 0x34, 0x95,
 
 char sensID [10] = { 0x1B, 0x48, 0xBA,  0x98, 0xE9, 0x6A, 0xCB, 0xAC, 0x0D, 0x8E};  // Should be enough to achieve synchronisation
 char prevByte;
@@ -284,8 +284,8 @@ float ap_bat2_capacity;
 char     ap_param_id [16]; 
 float    ap_param_value;
 uint8_t  ap_param_type;  
-uint16_t ap_param_count;       //  Total number of onboard parameters
-uint16_t ap_param_index;       //  Index of this onboard parameter
+uint16_t ap_param_count;              //  Total number of onboard parameters
+uint16_t ap_param_index;              //  Index of this onboard parameter
 
 // Message #24  GPS_RAW_INT 
 uint8_t    ap_fixtype = 3;            //   0= No GPS, 1 = No Fix, 2 = 2D Fix, 3 = 3D Fix
@@ -296,7 +296,7 @@ int32_t    ap_longitude = 0;          // 7 assumed decimal places
 int32_t    ap_amsl24 = 0;             // 1000 = 1m
 uint16_t   ap_eph;                    // GPS HDOP horizontal dilution of position (unitless)
 uint16_t   ap_epv;                    // GPS VDOP vertical dilution of position (unitless)
-uint16_t   ap_vel;                    //  GPS ground speed (m/s * 100)
+uint16_t   ap_vel;                    // GPS ground speed (m/s * 100) cm/s
 uint16_t   ap_cog;                    // Course over ground in degrees * 100, 0.0..359.99 degrees. 
 
 // Message #27 RAW IMU 
@@ -323,8 +323,8 @@ int32_t ap_lat;            // Latitude, expressed as degrees * 1E7
 int32_t ap_lon;            // Longitude, expressed as degrees * 1E7
 int32_t ap_amsl33;         // Altitude above mean sea level (millimeters)
 int32_t ap_alt_ag;         // Altitude above ground (millimeters)
-int16_t ap_vx;             //  Ground X Speed (Latitude, positive north), expressed as m/s * 100
-int16_t ap_vy;             //  Ground Y Speed (Longitude, positive east), expressed as m/s * 100
+int16_t ap_vx;             // Ground X Speed (Latitude, positive north), expressed as m/s * 100
+int16_t ap_vy;             // Ground Y Speed (Longitude, positive east), expressed as m/s * 100
 int16_t ap_vz;             // Ground Z Speed (Altitude, positive down), expressed as m/s * 100
 uint16_t ap_hdg;           // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees
 
@@ -335,12 +335,12 @@ uint16_t ap_chan16_raw;          // Used for RSSI uS 1000=0%  2000=100%
 uint8_t  rssi;                   // Receive signal strength indicator, 0: 0%, 100: 100%, 255: invalid/unknown
 
 // Message #74 VFR_HUD 
-int32_t   ap_airspeed = 0;
-uint32_t  ap_groundspeed = 0;
-uint32_t  ap_heading = 0;
-uint16_t  ap_throttle = 0;
-int32_t   ap_bar_altitude = 0;    // 100 = 1m
-int32_t   ap_climb_rate=0;        // 100= 1m/s
+float    ap_airspeed;
+float    ap_groundspeed;
+int16_t  ap_heading;
+uint16_t ap_throttle;
+float    ap_bar_altitude;   
+float    ap_climb_rate;        
 
 // Message  #125 POWER_STATUS 
 uint16_t  ap_Vcc;                 // 5V rail voltage in millivolts
@@ -515,7 +515,7 @@ void loop()  {
    } 
 
   // Request battery capacity params, and when they have safely arrived switch txsw_pin (6) high 
-  if (mavGood)
+  if (mavGood) {
     if (!ap_bat_paramsReq) {
       Request_Param_Read(356);    // Request Bat1 capacity   do this twice in case of lost frame
       Request_Param_Read(356);    
@@ -528,9 +528,8 @@ void loop()  {
         parm_msg_shown = true; 
         Debug.println("Battery params successfully read"); 
       }
-    }
-    
-  
+    } 
+  }
   #ifdef Mav_List_Params
     if(mavGood && (!ap_paramsList)) {
       Request_Param_List();
@@ -545,7 +544,7 @@ void loop()  {
   #endif
 
   #ifdef Emulation_Enabled
-  if(mavGood && ((millis() - em_millis) > 22)) {   
+  if(mavGood && ((millis() - em_millis) > 10)) {   
      Emulate_ReadSPort();                // Emulate the sensor IDs received from XRS receiver on SPort
      em_millis=millis();
     }
@@ -578,17 +577,10 @@ void MavLink_Receive() {
       PrintMavBuffer(&msg);
       #endif
       auxSerial.write(buf,len);
-  //    #ifdef  Aux_Port_Debug
-  //    Debug.println("auxSerial passed to GCS:");
-  //    PrintMavBuffer(&msg);
-  //    #endif  
       #endif
+      
+    // Debug.print(" msgid="); Debug.println(msg.msgid); 
 
-      #ifdef Mav_Debug_All
-        //Debug.print("Mavlink in: ");
-       // Debug.print("Message ID=");
-      //  Debug.println(msg.msgid); 
-      #endif
       switch(msg.msgid) {
     
         case MAVLINK_MSG_ID_HEARTBEAT:    // #0   http://mavlink.org/messages/common
@@ -720,10 +712,10 @@ void MavLink_Receive() {
             Debug.print("  GPS status="); Debug.print(ap_gps_status);
             Debug.print("  latitude="); Debug.print((float)(ap_latitude)/1E7, 7);
             Debug.print("  longitude="); Debug.print((float)(ap_longitude)/1E7, 7);
-            Debug.print("  gps alt amsl"); Debug.print((float)(ap_amsl24)/1E3, 1);
+            Debug.print("  gps alt amsl="); Debug.print((float)(ap_amsl24)/1E3, 1);
             Debug.print("  eph (hdop)="); Debug.print(ap_eph, 1);               // HDOP
             Debug.print("  epv (vdop)="); Debug.print(ap_epv, 1);
-            Debug.print("  vel="); Debug.print((float)ap_vel / 100, 1);         // GPS ground speed (m/s)
+            Debug.print("  vel="); Debug.print((float)ap_vel / 100, 3);         // GPS ground speed (m/s)
             Debug.print("  cog="); Debug.println((float)ap_cog / 100, 1);       // Course over ground in degrees
           #endif     
           break;
@@ -817,9 +809,9 @@ void MavLink_Receive() {
             Debug.print(" ap_lon="); Debug.print((float)ap_lon / 1E7, 6);
             Debug.print(" ap_amsl="); Debug.print((float)ap_amsl33 / 1E3, 0);
             Debug.print(" ap_alt_ag="); Debug.print((float)ap_alt_ag / 1E3, 1);           
-            Debug.print(" ap_vx="); Debug.print((float)ap_vx / 100, 1);
-            Debug.print(" ap_vy="); Debug.print((float)ap_vy / 100, 1);
-            Debug.print(" ap_vz="); Debug.print((float)ap_vz / 100, 1);
+            Debug.print(" ap_vx="); Debug.print((float)ap_vx / 100, 2);
+            Debug.print(" ap_vy="); Debug.print((float)ap_vy / 100, 2);
+            Debug.print(" ap_vz="); Debug.print((float)ap_vz / 100, 2);
             Debug.print(" ap_hdg="); Debug.println((float)ap_hdg / 100, 1);
           #endif  
                 
@@ -857,16 +849,17 @@ void MavLink_Receive() {
           break;                             
         case MAVLINK_MSG_ID_VFR_HUD:                 //  #74
           if (!mavGood) break;      
-          ap_airspeed = 0;
-          ap_groundspeed = mavlink_msg_vfr_hud_get_groundspeed(&msg);      // 100 = 1m/s
-          ap_heading = mavlink_msg_vfr_hud_get_heading(&msg);              // 100 = 100 deg
-          ap_throttle = mavlink_msg_vfr_hud_get_throttle(&msg);            //  100 = 100%
+          ap_airspeed = mavlink_msg_vfr_hud_get_airspeed(&msg);
+          ap_groundspeed = mavlink_msg_vfr_hud_get_groundspeed(&msg);      //  in m/s
+          ap_heading = mavlink_msg_vfr_hud_get_heading(&msg);              //  in degrees
+          ap_throttle = mavlink_msg_vfr_hud_get_throttle(&msg);            //  integer percent
           ap_bar_altitude = mavlink_msg_vfr_hud_get_alt(&msg) * 100;       //  m
           ap_climb_rate=mavlink_msg_vfr_hud_get_climb(&msg) * 100;         //  m/s
 
-          #ifdef Mav_Debug_All
+          #if defined Mav_Debug_All || defined Mav_Debug_VFR_HUD
             Debug.print("Mavlink in #74 VFR_HUD: ");
-            Debug.print("Groundspeed= "); Debug.print(ap_groundspeed); 
+            Debug.print("Airspeed= "); Debug.print(ap_airspeed, 2);             
+            Debug.print("  Groundspeed= "); Debug.print(ap_groundspeed, 2); 
             Debug.print("  Heading= ");  Debug.print(ap_heading);       
             Debug.print("  Throttle= ");  Debug.print(ap_throttle);       
             Debug.print("  Barometric altitude= "); Debug.print(ap_bar_altitude);                        
@@ -1097,7 +1090,7 @@ void ServiceTheStatusLed() {
     digitalWrite(StatusLed, ledState);  
 }
 //***************************************************
-void BlinkLed(int period) {
+void BlinkLed(uint32_t period) {
   uint32_t cMillis = millis();
      if (cMillis - led_millis >= period) {    // blink period
         led_millis = cMillis;
