@@ -1,7 +1,7 @@
   
 /*  *****************************************************************************
 
-    BETA v0.33
+    BETA v0.34
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -108,18 +108,19 @@ v0.30   2018-06-05  Improve the technical explanation of ground_mode, air_mode a
 v0.31   2018-05-06  Change recommended wiring to eliminate receive latency
 v0.32   2018-06-08  Fine tuned polling, much improved latency. Fixed bug in groundspeed, vertical speed.
 v0.33   2018-06-08  Cleaned up STM32F103C8 build options and tested STM32 version
+v0.34   2018-06-09  Fix bitfield overlap in groundspeed and yaw in 0x5005  
 */
 
 #include <GCS_MAVLink.h>
 
-#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
-//#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
+//#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
+#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
 
 #define Emulation_Enabled    // Un-comment this line when there is no Frsky receiver polling the SPort
 
 //#define Frs_Dummy_rssi     // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
 
-//#define Aux_Port_Enabled   // Comment out for STM32. No spare uart unless we forgo debugging
+#define Aux_Port_Enabled   // Comment out for STM32. No spare uart unless we forgo debugging
 
 #define Debug               Serial         // USB 
 #define frSerial            Serial1        // S.Port 
@@ -335,7 +336,7 @@ uint16_t ap_chan3_raw;           // Throttle - just for reference
 uint16_t ap_chan16_raw;          // Used for RSSI uS 1000=0%  2000=100%
 uint8_t  rssi;                   // Receive signal strength indicator, 0: 0%, 100: 100%, 255: invalid/unknown
 
-// Message #74 VFR_HUD 
+// Message #74 VFR_HUD   // Not used at present
 float    ap_airspeed;
 float    ap_groundspeed;
 int16_t  ap_heading;
@@ -444,9 +445,9 @@ short fr_pwr;
 
 // 0x5005 Velocity and yaw
 uint32_t fr_velyaw;
-float fr_yaw;
-float fr_vx;
 float fr_vy;
+float fr_vx;
+float fr_yaw;
 
 // 0x5006 Attitude and range
 uint16_t fr_roll;

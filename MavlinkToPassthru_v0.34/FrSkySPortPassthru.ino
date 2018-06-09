@@ -531,21 +531,37 @@ void Send_Home_5004() {
 }
 // *****************************************************************
 void Send_VelYaw_5005() {
-  fr_vy = 0-(ap_vz / 10.0);    // from #33   dm/s  Ground Z Speed (Altitude, positive down)
-  fr_vx = ap_vel / 100.0;      // from #24   dm/s  Check this order of magnitude
-  fr_yaw = ap_hdg;
+
+  //ap_vz = -4.567 * 100;  //  for testing
+  //ap_vel = 5.67 * 100;
+  fr_vy = 0-ap_vz * 0.1;    // from #33   dm/s  Ground Z Speed (Altitude, positive down)
+  fr_vx = ap_vel * 0.1;     // from #24   dm/s  Check this order of magnitude
+
+  fr_yaw = (float)ap_hdg / 10;
   #if defined Frs_Debug_All || defined Frs_Debug_YelYaw
     Debug.print("Frsky out VelYaw 0x5005:");  
     Debug.print(" fr_vy=");  Debug.print(fr_vy);       
     Debug.print(" fr_vx=");  Debug.print(fr_vx);
     Debug.print(" fr_yaw="); Debug.print(fr_yaw); 
   #endif
+  if (fr_vy<0)
+    bit32Pack(1, 8, 1);
+  else
+    bit32Pack(0, 8, 1);
   fr_vy = prep_number(roundf(fr_vy), 2, 1);  // Vertical velocity
-  bit32Pack(fr_vy, 0, 8);   // what about negative
+  bit32Pack(fr_vy, 0, 7);   // what about negative
+
   fr_vx = prep_number(roundf(fr_vx), 2, 1);  // Horizontal velocity
-  bit32Pack(fr_vx, 9, 8);    
+  bit32Pack(fr_vx, 9, 7);    
   fr_yaw = fr_yaw * 0.5f;                   // Unit = 0.2 deg
-  bit32Pack(fr_yaw ,13, 12);  
+  bit32Pack(fr_yaw ,17, 11);  
+
+ #if defined Frs_Debug_All || defined Frs_Debug_YelYaw
+   Debug.print(" After prep:"); \
+   Debug.print(" fr_vy=");  Debug.print((int)fr_vy);          
+   Debug.print(" fr_vx=");  Debug.print((int)fr_vx);  
+   Debug.print(" fr_yaw="); Debug.println((int)fr_yaw);                
+ #endif
 
   FrSkySPort_SendDataFrame(0x5005,fr_payload);
 }
