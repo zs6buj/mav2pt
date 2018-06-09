@@ -74,7 +74,7 @@
 
     1) SPort S     -->TX1 Pin 1    S.Port out to Taranis bay, bottom pin
     2) Mavlink     <--RX2 Pin 9    Mavlink from Taranis to Teensy
-    3) Mavlink     -->TX2 Pin 10   Mavlink from Taranis to Teensy
+    3) Mavlink     -->TX2 Pin 10   Mavlink from Teensy to Taranis
     4) Aux_Mavlink <--RX3 Pin 7    NOT NECESSARY - wire direct from Orange TX to BT RX  
     5) Aux_Mavlink -->TX3 Pin 8    Auxiliary Mavlink From Teensy to WiFi Module or general use
     6) Vcc 3.3V !
@@ -84,8 +84,8 @@
 
     1) SPort S     -->TX2 Pin A2   Serial1 to inverter, convert to single wire then to S.Port
     2) SPort S     <--RX2 Pin A3   Serial1 To inverter, convert to single wire then to S.Port
-    3) Mavlink     <--RX3 Pin B11  NOT NECESSARY - wire direct from Orange TX to BT RX 
-    4) Mavlink     -->TX3 Pin B10  Mavlink from Taranis to Teensy    
+    3) Mavlink     <--RX3 Pin B11  Mavlink from Taranis to STM32 
+    4) Mavlink     -->TX3 Pin B10  Mavlink from STM32 to Taranis
     5) Aux_Mavlink    Not available   
     6) Aux_Mavlink    Not available
     7) Vcc 3.3V !
@@ -120,7 +120,7 @@ v0.34   2018-06-09  Fix bitfield overlap in groundspeed and yaw in 0x5005
 
 //#define Frs_Dummy_rssi     // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
 
-#define Aux_Port_Enabled   // Comment out for STM32. No spare uart unless we forgo debugging
+#define Aux_Port_Enabled    // This must be enabled for BlueTooth relay. Comment out for STM32. 
 
 #define Debug               Serial         // USB 
 #define frSerial            Serial1        // S.Port 
