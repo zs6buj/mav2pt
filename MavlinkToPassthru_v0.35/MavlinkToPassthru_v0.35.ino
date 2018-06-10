@@ -156,7 +156,7 @@ v0.34   2018-06-09  Fix bitfield overlap in groundspeed and yaw in 0x5005
 //#define Frs_Debug_YelYaw
 //#define Frs_Debug_GPS_Status
 //#define Mav_Debug_Raw_IMU
-#define Mav_Debug_VFR_HUD
+//#define Mav_Debug_VFR_HUD
 //#define Mav_Debug_Scaled_Pressure
 //#define Mav_Debug_Attitude
 //#define Frs_Debug_Attitude
