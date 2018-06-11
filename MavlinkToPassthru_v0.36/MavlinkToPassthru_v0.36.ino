@@ -111,19 +111,19 @@ v0.33   2018-06-08  Cleaned up STM32F103C8 build options and tested STM32 versio
 v0.34   2018-06-09  Fix bitfield overlap in groundspeed and yaw in 0x5005 
 v0.35   2018-06-10  athertop - Use VFR_HUD data for vx and vy. Also fix 05004 fr_home_alt bit field, was one bit out
                     was bit32Pack(fr_home_alt ,13, 12), should be bit32Pack(fr_home_alt ,12, 12).
-v0.36   2018-06-11  Fix fr_gps_status and advanced status. Do not send 0x5004 Home frames before homeGood = 2               
+v0.36   2018-06-11  Fix fr_gps_status and advanced status. Do not send 0x5004 Home frames before homGood = 2               
 */
 
 #include <GCS_MAVLink.h>
 
-//#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
-#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
+#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
+//efine Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
 
 #define Emulation_Enabled    // Un-comment this line when there is no Frsky receiver polling the SPort
 
 //#define Frs_Dummy_rssi     // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
 
-#define Aux_Port_Enabled    // This must be enabled for BlueTooth relay. Comment out for STM32. 
+//efine Aux_Port_Enabled    // This must be enabled for BlueTooth relay. Comment out for STM32. 
 
 #define Debug               Serial         // USB 
 #define frSerial            Serial1        // S.Port 
