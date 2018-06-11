@@ -108,7 +108,10 @@ v0.30   2018-06-05  Improve the technical explanation of ground_mode, air_mode a
 v0.31   2018-05-06  Change recommended wiring to eliminate receive latency
 v0.32   2018-06-08  Fine tuned polling, much improved latency. Fixed bug in groundspeed, vertical speed.
 v0.33   2018-06-08  Cleaned up STM32F103C8 build options and tested STM32 version
-v0.34   2018-06-09  Fix bitfield overlap in groundspeed and yaw in 0x5005  
+v0.34   2018-06-09  Fix bitfield overlap in groundspeed and yaw in 0x5005 
+v0.35   2018-06-10  athertop - Use VFR_HUD data for vx and vy. Also fix 05004 fr_home_alt bit field, was one bit out
+                    was bit32Pack(fr_home_alt ,13, 12), should be bit32Pack(fr_home_alt ,12, 12).
+v0.36   2018-06-11  Fix fr_gps_status and advanced status. Do not send 0x5004 Home frames before homeGood = 2               
 */
 
 #include <GCS_MAVLink.h>
