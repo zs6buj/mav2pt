@@ -94,7 +94,7 @@ if ((prevByte == 0x7E) && (pollByte == 0x1B)) {
     
   // ******** Priority processes *********************** 
 
- #ifdef Emulation_Enabled    
+ #if defined Ground_Mode || defined Relay_Mode      // In Air_Mode the FrSky receiver provides rssi
  if (millis() - rssi_F101_millis > 500) {           // 2 Hz - if it's time, appropriate one of the polling slots 
     rssi_F101_millis = millis();
     SendRssiF101();                                 // Regularly tell LUA script in Taranis we are connected

@@ -51,26 +51,41 @@
    that the polling is handled internally. Telemetry is organised into meaningful records or 
    frames and sent asynchronously (whenever you like).
 
-   The converter can work in two modes. Ground mode or air mode.
-
-   In air mode, it is located on the aircraft between the FC and a Frsky receiver. It converts 
-   Mavlink out of a Pixhawk and feeds passthru telemetry to the frsky receiver, which sends it 
-   to Taranis on the ground. In this situation it responds to the FrSky receiver's sensor polling. 
-   The APM firmware can deliver passthru telemetry, but the PX4 Pro firmware cannot. 
-   Comment out this line      // #define Emulation_Enabled    like this
-   
-   In ground mode, it is located in the back of the Taranis. Since there is no FrSky receiver to 
-   provide sensor polling, we create a routine in the firmware to emulate FrSky receiver sensor
-   polling. (It pretends to be a receiver for polling purposes). 
-   Un-comment this line       #define Emulation_Enabled      like this.
-  
    Originally written for use with ULRS UHF, which delivers Mavlink to the back bay of the 
    Taranis X9D Plus to provide Frsky Passthrough compatible telemetry to yaapu's outstanding 
    LUA script.
 
-    Select the target mpu by un-commenting either //#define Target_Teensy3x or //#define Target_STM32
+   The converter can work in one of three modes: Ground_Mode, Air_Mode or Relay_Mode
 
-    Connections to Teensy3.2 are:
+   Ground_Mode
+   In ground mode, it is located in the back of the Taranis. Since there is no FrSky receiver to 
+   provide sensor polling, we create a routine in the firmware to emulate FrSky receiver sensor
+   polling. (It pretends to be a receiver for polling purposes). 
+   Un-comment this line       #define Ground_Mode      like this.
+
+   Air_Mode
+   In air mode, it is located on the aircraft between the FC and a Frsky receiver. It converts 
+   Mavlink out of a Pixhawk and feeds passthru telemetry to the frsky receiver, which sends it 
+   to Taranis on the ground. In this situation it responds to the FrSky receiver's sensor polling. 
+   The APM firmware can deliver passthru telemetry, but the PX4 Pro firmware cannot. 
+   Un-comment this line      #define Air_Mode    like this
+   
+   Relay_Mode
+   Consider the situation where an air-side LRS UHF tranceiver (trx) (like the Orange), 
+   communicates with a matching ground-side UHF trx located in a "relay" box using Mavlik 
+   telemetry. The UHF trx in the relay box feeds Mavlink telemtry into our passthru converter, and 
+   the converter feeds FrSky passthru telemtry into the FrSky receiver (like an XSR), also 
+   located in the relay box. The XSR receiver (actually a tranceiver - trx) then communicates on 
+   the public 2.4GHz band with the Taranis on the ground. In this situation the converter need not 
+   emulate sensor polling, as the FrSky receiver will provide it. However, the converter must 
+   determine the true rssi of the air link and forward it, as the rssi forwarded by the FrSky 
+   receiver in the relay box will incorrectly be that of the short terrestrial link from the relay
+   box to the Taranis.  To enable Relay_Mode :
+   Un-comment this line      #define Relay_Mode    like this
+
+   Select the target mpu by un-commenting either //#define Target_Teensy3x or //#define Target_STM32
+
+   Connections to Teensy3.2 are:
 
     1) SPort S     -->TX1 Pin 1    S.Port out to Taranis bay, bottom pin
     2) Mavlink     <--RX2 Pin 9    Mavlink from Taranis to Teensy
@@ -80,7 +95,7 @@
     6) Vcc 3.3V !
     7) GND
 
-    Connections to STM32F103C are:
+   Connections to STM32F103C are:
 
     1) SPort S     -->TX2 Pin A2   Serial1 to inverter, convert to single wire then to S.Port
     2) SPort S     <--RX2 Pin A3   Serial1 To inverter, convert to single wire then to S.Port
@@ -111,19 +126,28 @@ v0.33   2018-06-08  Cleaned up STM32F103C8 build options and tested STM32 versio
 v0.34   2018-06-09  Fix bitfield overlap in groundspeed and yaw in 0x5005 
 v0.35   2018-06-10  athertop - Use VFR_HUD data for vx and vy. Also fix 05004 fr_home_alt bit field, was one bit out
                     was bit32Pack(fr_home_alt ,13, 12), should be bit32Pack(fr_home_alt ,12, 12).
-v0.36   2018-06-11  Fix fr_gps_status and advanced status. Do not send 0x5004 Home frames before homGood = 2               
+v0.36   2018-06-11  Fix fr_gps_status and advanced status. Do not send 0x5004 Home frames before homGood = 2  
+v0.37   2018-06-12  Introduce support for three modes, 1-Ground, 2-Air, 3-Relay             
 */
 
 #include <GCS_MAVLink.h>
 
-#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
-//efine Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
+// Choose one (only) of these two target boards
+//#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
+#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
 
-#define Emulation_Enabled    // Un-comment this line when there is no Frsky receiver polling the SPort
+// Choose one (only) of these three modes
+#define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
+//#define Air_Mode             // Converter between FrSky receiver lke XRS and Flight Controller like Pixhawk
+//#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
-//#define Frs_Dummy_rssi     // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
+#ifdef Ground_Mode
+  #define Emulation_Enabled    // Un-comment this line when there is no Frsky receiver polling the SPort
+#endif
 
-//efine Aux_Port_Enabled    // This must be enabled for BlueTooth relay. Comment out for STM32. 
+#if defined Ground_Mode && defined Target_Teensy3x
+  #define Aux_Port_Enabled    // This must be enabled for BlueTooth or other relay. 
+#endif
 
 #define Debug               Serial         // USB 
 #define frSerial            Serial1        // S.Port 
@@ -136,10 +160,12 @@ v0.36   2018-06-11  Fix fr_gps_status and advanced status. Do not send 0x5004 Ho
 #define auxBaud              57600          // Use 57600
 #endif
 
-//#define Data_Streams_Enabled // Enable regular data stream requests from APM - ensure Serial2 TX connected to Taranis/Orange RX                                         // Alternatively set SRn in Mission Planner
+//#define Frs_Dummy_rssi       // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
 
+//#define Data_Streams_Enabled // Rather set SRn in Mission Planner
+
+// Debugging options below
 //#define Mav_List_Params
-
 //#define Aux_Debug_All
 //#define Aux_Debug_Params
 //#define Frs_Debug_All
