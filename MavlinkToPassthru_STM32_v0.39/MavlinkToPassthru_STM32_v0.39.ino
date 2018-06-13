@@ -129,16 +129,18 @@ v0.35   2018-06-10  athertop - Use VFR_HUD data for vx and vy. Also fix 05004 fr
 v0.36   2018-06-11  Fix fr_gps_status and advanced status. Do not send 0x5004 Home frames before homGood is true  
 v0.37   2018-06-12  Introduce support for three modes, 1-Ground, 2-Air, 3-Relay     
 v0.38   2018-06-13  #define auxDuplex, without which aux is simplex from BT to FC only
-                    Determine home position only when motors are armed       
+                    Determine home position only when motors are armed  
+v0.39   2018-06-13  yaapu fix - ignore GCS heartbeat for armed status,  and timer start/stop. 
+                    Fix GPS co-ords out to FrSky    
 */
 
 #include <GCS_MAVLink.h>
 
 // Choose one (only) of these two target boards
-//#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
-#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
+#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
+//#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
 
-#define Use_Serial1_For_SPort   // The default 
+#define Use_Serial1_For_SPort   // The default, else use Serial3
 
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
@@ -176,7 +178,7 @@ v0.38   2018-06-13  #define auxDuplex, without which aux is simplex from BT to F
 //#define Aux_Debug_All
 //#define Aux_Debug_Params
 //#define Frs_Debug_All
-#define Aux_Port_Debug
+//#define Aux_Port_Debug
 //#define Mav_Debug_Params
 //#define Frs_Debug_Params
 //#define Frs_Debug_Payload
@@ -433,8 +435,8 @@ uint32_t  fr_payload;
 
 // 0x800 GPS
 uint8_t ms2bits;
-float fr_lat = 0;
-float fr_lon = 0;
+uint32_t fr_lat = 0;
+uint32_t fr_lon = 0;
 
 // 0x5000 Text Msg
 uint8_t txtlth;

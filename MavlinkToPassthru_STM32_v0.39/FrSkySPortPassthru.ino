@@ -324,15 +324,20 @@ uint32_t createMask(uint8_t lo, uint8_t hi) {
 
 void SendLat800() {
   if (fr_gps_status < 3) return;
-  fr_lat = (float)ap_lat / 1E7;
-  if (fr_lat<0) 
+  fr_lat = Abs(ap_lat);
+  if (ap_lat<0) 
     ms2bits = 1;
   else ms2bits = 0;
-    fr_payload = (ms2bits <<30) | abs(int(fr_lat * 1E7));
+  
+  bit32Pack(fr_lat, 0, 30);
+  bit32Pack(ms2bits, 30, 2);
+ // fr_payload = (ms2bits <<30) | fr_lat;
           
   #if defined Frs_Debug_All || defined Frs_Debug_LatLon
     Debug.print("Frsky out LatLon 0x800: ");   
-    Debug.print(" fr_payload for lat="); Debug.println(fr_payload);
+    Debug.print(" ap_lat="); Debug.print(ap_lat); 
+    Debug.print(" fr_lat="); Debug.print(fr_lat);  
+    Debug.print(" fr_payload="); Debug.println(fr_payload);
   #endif
           
   FrSkySPort_SendDataFrame(0x800, fr_payload);  
@@ -340,15 +345,18 @@ void SendLat800() {
 // *****************************************************************
 void SendLon800() {
   if (fr_gps_status < 3) return;
-  fr_lon = (float)ap_lon / 1E7; 
-  if (fr_lon<0) 
+  fr_lon = Abs(ap_lon); 
+  if (ap_lon<0) 
     ms2bits = 3;
   else ms2bits = 2;
-  fr_payload = (ms2bits <<30) | abs(int(fr_lon * 1E7));
+  bit32Pack(fr_lon, 0, 30);
+  bit32Pack(ms2bits, 30, 2);
           
   #if defined Frs_Debug_All || defined Frs_Debug_LatLon
-    Debug.print("Frsky out LatLon 0x800: ");   
-    Debug.print(" fr_payload for lon="); Debug.println(fr_payload);
+    Debug.print("Frsky out LatLon 0x800: ");  
+    Debug.print(" ap_lon="); Debug.print(ap_lon); 
+    Debug.print(" fr_lon="); Debug.print(fr_lon); 
+    Debug.print(" fr_payload="); Debug.println(fr_payload);
   #endif
           
   FrSkySPort_SendDataFrame(0x800, fr_payload); 
@@ -399,9 +407,11 @@ void SendAP_Status5001() {
   
   fr_flight_mode = ap_custom_mode + 1; // AP_CONTROL_MODE_LIMIT - ls 5 bits
 
-  fr_simple = ap_simple;  // Derived from "ALR SIMPLE mode on/off" text messages
-//  fr_land_complete;
- fr_armed = ap_base_mode >> 7;
+  fr_simple = ap_simple;   // Derived from "ALR SIMPLE mode on/off" text messages
+  if (ap_type != 6) {      // If not GCS heartbeat   -  yaapu
+      fr_armed = ap_base_mode >> 7;  
+      fr_land_complete = fr_armed;
+  }
 
   bit32Pack(fr_flight_mode, 0, 5);     // Flight mode
   bit32Pack(fr_simple ,5, 2);          // Simple/super simple mode flags
@@ -690,7 +700,14 @@ void SendRssiF101() {          // data id 0xF101 RSSI tell LUA script in Taranis
     Debug.print(" rssi="); Debug.println(fr_rssi);                
   #endif
 }
-     
+//***************************************************  
+uint32_t Abs(int32_t num) {
+  if (num<0) 
+    return (num ^ 0xffffffff) + 1;
+  else
+    return num;  
+}
+
 //***************************************************
 // From Arducopter 3.5.5 code
 uint16_t prep_number(int32_t number, uint8_t digits, uint8_t power)
