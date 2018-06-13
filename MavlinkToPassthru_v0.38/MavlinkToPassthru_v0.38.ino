@@ -126,8 +126,10 @@ v0.33   2018-06-08  Cleaned up STM32F103C8 build options and tested STM32 versio
 v0.34   2018-06-09  Fix bitfield overlap in groundspeed and yaw in 0x5005 
 v0.35   2018-06-10  athertop - Use VFR_HUD data for vx and vy. Also fix 05004 fr_home_alt bit field, was one bit out
                     was bit32Pack(fr_home_alt ,13, 12), should be bit32Pack(fr_home_alt ,12, 12).
-v0.36   2018-06-11  Fix fr_gps_status and advanced status. Do not send 0x5004 Home frames before homGood = 2  
-v0.37   2018-06-12  Introduce support for three modes, 1-Ground, 2-Air, 3-Relay             
+v0.36   2018-06-11  Fix fr_gps_status and advanced status. Do not send 0x5004 Home frames before homGood is true  
+v0.37   2018-06-12  Introduce support for three modes, 1-Ground, 2-Air, 3-Relay     
+v0.38   2018-06-13  #define auxDuplex, without which aux is simplex from BT to FC only
+                    Determine home position only when motors are armed       
 */
 
 #include <GCS_MAVLink.h>
@@ -136,32 +138,37 @@ v0.37   2018-06-12  Introduce support for three modes, 1-Ground, 2-Air, 3-Relay
 //#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
 #define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
 
+#define Use_Serial1_For_SPort   // The default 
+
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
 //#define Air_Mode             // Converter between FrSky receiver lke XRS and Flight Controller like Pixhawk
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
-#ifdef Ground_Mode
-  #define Emulation_Enabled    // Un-comment this line when there is no Frsky receiver polling the SPort
-#endif
-
-#if defined Ground_Mode && defined Target_Teensy3x
-  #define Aux_Port_Enabled    // This must be enabled for BlueTooth or other relay. 
+#if defined Ground_Mode && defined Target_Teensy3x && defined Use_Serial1_For_SPort
+ #define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough. 
 #endif
 
 #define Debug               Serial         // USB 
-#define frSerial            Serial1        // S.Port 
+
 #define frBaud              57600          // Use 57600
 #define mavSerial           Serial2        
 #define mavBaud             57600   
 
-#if defined Aux_Port_Enabled
+#ifdef Use_Serial1_For_SPort     // The default
+  #define frSerial            Serial1        // S.Port 
+#else
+  #define frSerial            Serial3        // S.Port 
+#endif
+  
+#if defined Aux_Port_Enabled 
 #define auxSerial           Serial3        // Mavlink telemetry to and from auxilliary adapter
-#define auxBaud              57600          // Use 57600
+#define auxBaud              57600         // Use 57600
+//#define auxDuplex                          // Pass aux <-> FC traffic up and down, else only up to FC
 #endif
 
-//#define Frs_Dummy_rssi       // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
 
+//#define Frs_Dummy_rssi       // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
 //#define Data_Streams_Enabled // Rather set SRn in Mission Planner
 
 // Debugging options below
@@ -169,7 +176,7 @@ v0.37   2018-06-12  Introduce support for three modes, 1-Ground, 2-Air, 3-Relay
 //#define Aux_Debug_All
 //#define Aux_Debug_Params
 //#define Frs_Debug_All
-//#define Aux_Port_Debug
+#define Aux_Port_Debug
 //#define Mav_Debug_Params
 //#define Frs_Debug_Params
 //#define Frs_Debug_Payload
@@ -205,7 +212,7 @@ bool      ap_paramsList=false;
 bool      fr_paramsSent=false; 
 uint8_t   paramsID=0;
 
-uint8_t   homGood=0;      // Three way switch
+bool      homGood=false;      
 bool      mavGood=false;
 bool      rssiGood=false;
 bool      textFlag=false;
@@ -510,7 +517,7 @@ void setup()  {
   Debug.begin(115200);
 
   mavGood = false;
-  homGood=0;     // Three way switch
+  homGood = false;     
   hb_count = 0;
   hb_millis=millis();
   acc_millis=millis();
@@ -569,12 +576,14 @@ void loop()  {
 
   Aux_ReceiveAndForward();                 // Service aux incoming if enabled
 
-  #ifdef Emulation_Enabled
+  #ifdef Ground_Mode
   if(mavGood && ((millis() - em_millis) > 10)) {   
      Emulate_ReadSPort();                // Emulate the sensor IDs received from XRS receiver on SPort
      em_millis=millis();
     }
-  #else   
+  #endif
+     
+  #if defined Air_Mode_Mode || defined Relay_Mode
   if(mavGood && ((millis() - sp_millis) > 10)) {   
      ReadSPort();                       // Receive round-robin of sensor IDs received from XRS receiver
      sp_millis=millis();
@@ -596,10 +605,10 @@ void MavLink_Receive() {
        
       //   PrintMavBuffer(&msg);
       
-      #if defined  Aux_Port_Enabled 
+      #if defined  Aux_Port_Enabled && defined auxDuplex
       len = mavlink_msg_to_send_buffer(buf, &msg);
       #ifdef  Aux_Port_Debug
-        Debug.println("mavSerial passed to auxSerial:");
+        Debug.println("auxSerial passed down from FC:");
         PrintMavBuffer(&msg);
       #endif
       auxSerial.write(buf,len);
@@ -617,6 +626,8 @@ void MavLink_Receive() {
           ap_system_status = mavlink_msg_heartbeat_get_system_status(&msg);
           ap_mavlink_version = mavlink_msg_heartbeat_get_mavlink_version(&msg);
           hb_millis=millis(); 
+
+          if (ap_base_mode >> 7) MarkHome();  // If motors armed, then mark this spot as home
 
           #if defined Mav_Debug_All || defined Mav_Debug_Heartbeat
             Debug.print("Mavlink in #0 Heartbeat: ");           
@@ -806,26 +817,7 @@ void MavLink_Receive() {
           ap_vy = mavlink_msg_global_position_int_get_vy(&msg);               //  Ground Y Speed (Longitude, positive east), expressed as m/s * 100
           ap_vz = mavlink_msg_global_position_int_get_vz(&msg);               // Ground Z Speed (Altitude, positive down), expressed as m/s * 100
           ap_hdg = mavlink_msg_global_position_int_get_hdg(&msg);             // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees          ap_ap_amsl = mavlink_msg_attitude_get_yaw(&msg);                // Yaw angle (rad, -pi..+pi)
-          switch(homGood) {
-            case 0:
-              homGood = 1;      //  Three way sw
-            case 1:
-              if (ap_fixtype >= 3) {  
-                homGood = 2;
-                hom.lat = (float)ap_lat / 1E7;
-                hom.lon = (float)ap_lon / 1E7;
-                hom.alt = (float)ap_amsl24 / 1E3;
-                hom.hdg = (float)ap_hdg / 100;
-
-                #if defined Mav_Debug_All || defined Mav_Debug_GPS_Int
-                  Debug.print("******************************************Mavlink in #33 GPS Int: Home established: ");       
-                  Debug.print("hom.lat=");  Debug.print(hom.lat, 7);
-                  Debug.print(" hom.lon=");  Debug.print(hom.lon, 7 );        
-                  Debug.print(" hom.alt="); Debug.print(hom.alt, 1);
-                  Debug.print(" hom.hdg="); Debug.println(hom.hdg);                   
-                #endif 
-              }   
-            }
+ 
           cur.lat =  (float)ap_lat / 1E7;
           cur.lon = (float)ap_lon / 1E7;
           cur.alt = ap_amsl24 / 1E3;
@@ -1026,6 +1018,22 @@ void MavLink_Receive() {
 }
 
 //***************************************************
+void MarkHome()  {
+  homGood = true;
+  hom.lat = (float)ap_lat / 1E7;
+  hom.lon = (float)ap_lon / 1E7;
+  hom.alt = (float)ap_amsl24 / 1E3;
+  hom.hdg = (float)ap_hdg / 100;
+
+  #if defined Mav_Debug_All || defined Mav_Debug_GPS_Int
+    Debug.print("******************************************Mavlink in #33 GPS Int: Home established: ");       
+    Debug.print("hom.lat=");  Debug.print(hom.lat, 7);
+    Debug.print(" hom.lon=");  Debug.print(hom.lon, 7 );        
+    Debug.print(" hom.alt="); Debug.print(hom.alt, 1);
+    Debug.print(" hom.hdg="); Debug.println(hom.hdg);                   
+ #endif  
+}
+//***************************************************
  void Request_Param_Read(int16_t param_index) {
   system_id = 20;                          // ID 20 for this aircraft
   component_id = 1;                        //  autopilot1
@@ -1049,24 +1057,26 @@ void MavLink_Receive() {
                     
  }
 //***************************************************
-#ifdef Data_Streams_Enabled 
-void RequestDataStreams() {    //  REQUEST_DATA_STREAM ( #66 )
+#ifdef Data_Streams_Enabled    
+void RequestDataStreams() {    //  REQUEST_DATA_STREAM ( #66 ) DEPRECATED. USE SRx, SET_MESSAGE_INTERVAL INSTEAD
 uint16_t len;
 const uint8_t mavSysid=0xFF;
 const uint8_t mavCompid=0xBE;
 const uint8_t mavSys = 1;
 const uint8_t mavComp = 1;
 
-const int maxStreams = 6;
+const int maxStreams = 7;
 const uint8_t mavStreams[] = {
 MAV_DATA_STREAM_RAW_SENSORS,
 MAV_DATA_STREAM_EXTENDED_STATUS,
 MAV_DATA_STREAM_RC_CHANNELS,
 MAV_DATA_STREAM_POSITION,
 MAV_DATA_STREAM_EXTRA1, 
-MAV_DATA_STREAM_EXTRA2};
+MAV_DATA_STREAM_EXTRA2,
+MAV_DATA_STREAM_EXTRA3
+};
 //const uint16_t mavRates[] = { 0x02, 0x05, 0x02, 0x05, 0x02, 0x02};
-const uint16_t mavRates[] = { 0x04, 0x0a, 0x04, 0x0a, 0x04, 0x04};
+const uint16_t mavRates[] = { 0x04, 0x0a, 0x04, 0x0a, 0x04, 0x04 0x04};
  // req_message_rate The requested interval between two messages of this type
 
   for (int i=0; i < maxStreams; i++) {
@@ -1094,7 +1104,7 @@ void Aux_ReceiveAndForward() {
     if(mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status)) {
       
       #ifdef  Aux_Port_Debug
-      Debug.println("GCS auxSerial passed to mavSerial:");
+      Debug.println("auxSerial passed up to FC:");
       PrintMavBuffer(&msg);
       #endif
       

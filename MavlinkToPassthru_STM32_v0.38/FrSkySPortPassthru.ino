@@ -36,21 +36,26 @@ void FrSkySPort_Init(void)  {
  frSerial.begin(frBaud); 
 
 #if defined Target_Teensy3x
-
-// Manipulate UART registers for S.Port working
+ #ifdef Use_Serial1_For_SPort
+  // Manipulate UART registers for S.Port working
    uartC3   = &UART0_C3;  // UART0 is Serial1
    UART0_C3 = 0x10;       // Invert Serial1 Tx levels
    UART0_C1 = 0xA0;       // Switch Serial1 into single wire mode
    UART0_S2 = 0x10;       // Invert Serial1 Rx levels;
    
-//   UART0_C3 |= 0x20;    // Switch S.Port into send mode
-//   UART0_C3 ^= 0x20;    // Switch S.Port into receive mode
-
+ //   UART0_C3 |= 0x20;    // Switch S.Port into send mode
+ //   UART0_C3 ^= 0x20;    // Switch S.Port into receive modearmed
+ #else
+   uartC3   = &UART2_C3;  // UART2 is Serial3
+   UART2_C3 = 0x10;       // Invert Serial1 Tx levels
+   UART2_C1 = 0xA0;       // Switch Serial1 into single wire mode
+   UART2_S2 = 0x10;       // Invert Serial1 Rx levels;
+ #endif
 #endif   
 } 
 // ***********************************************************************
 
-#ifndef Emulation_Enabled    // Note if NOT enabled
+#if defined Air_Mode || defined Relay_Mode
 void ReadSPort(void) {
   setSPortMode(RX);
   uint8_t Byt = 0;
@@ -66,7 +71,7 @@ void ReadSPort(void) {
 #endif
 // ***********************************************************************
 
-#ifdef Emulation_Enabled
+#if defined Ground_Mode
 void Emulate_ReadSPort() {
   #if defined Target_Teensy3x
   setSPortMode(TX);
@@ -396,9 +401,7 @@ void SendAP_Status5001() {
 
   fr_simple = ap_simple;  // Derived from "ALR SIMPLE mode on/off" text messages
 //  fr_land_complete;
-  fr_armed = ap_base_mode >> 7;
-//  fr_bat_fs;
-//  fr_ekf_fs; 
+ fr_armed = ap_base_mode >> 7;
 
   bit32Pack(fr_flight_mode, 0, 5);     // Flight mode
   bit32Pack(fr_simple ,5, 2);          // Simple/super simple mode flags
@@ -480,36 +483,37 @@ void Send_Bat1_5003() {
 }
 // ***************************************************************** 
 void Send_Home_5004() {
-  if (fr_gps_status < 3 || homGood < 2) return;
-  //uint16_t fr_home_dist;
-  //uint32_t fr_home_angle;
-  //int32_t fr_home_alt;
+  if (fr_gps_status < 3) return;
 
-  lon1=hom.lon/180*PI;  // degrees to radians
-  lat1=hom.lat/180*PI;
-  lon2=cur.lon/180*PI;
-  lat2=cur.lat/180*PI;
+    lon1=hom.lon/180*PI;  // degrees to radians
+    lat1=hom.lat/180*PI;
+    lon2=cur.lon/180*PI;
+    lat2=cur.lat/180*PI;
 
-  //Calculate azimuth bearing of craft from home
-  a=atan2(sin(lon2-lon1)*cos(lat2), cos(lat1)*sin(lat2)-sin(lat1)*cos(lat2)*cos(lon2-lon1));
-  az=a*180/PI;  // radians to degrees
-  if (az<0) az=360+az;
+    //Calculate azimuth bearing of craft from home
+    a=atan2(sin(lon2-lon1)*cos(lat2), cos(lat1)*sin(lat2)-sin(lat1)*cos(lat2)*cos(lon2-lon1));
+    az=a*180/PI;  // radians to degrees
+    if (az<0) az=360+az;
  
-  // Calculate the distance from home to craft
-  dLat = (lat2-lat1);
-  dLon = (lon2-lon1);
-  a = sin(dLat/2) * sin(dLat/2) + sin(dLon/2) * sin(dLon/2) * cos(lat1) * cos(lat2); 
-  c = 2* asin(sqrt(a));  // proportion of Earth's radius
-  d = 6371000 * c;    // Radius of the Earth is 6371km
-  dis = d;
+    // Calculate the distance from home to craft
+    dLat = (lat2-lat1);
+    dLon = (lon2-lon1);
+    a = sin(dLat/2) * sin(dLat/2) + sin(dLon/2) * sin(dLon/2) * cos(lat1) * cos(lat2); 
+    c = 2* asin(sqrt(a));  // proportion of Earth's radius
+    d = 6371000 * c;    // Radius of the Earth is 6371km
+    dis = d;
 
-  fr_home_dist = (int)dis;
-  if (az >180)
-    fr_home_angle = (int)(az) - 180;
-  else 
-    fr_home_angle = (int)(az) + 180;
+    if (homGood)
+      fr_home_dist = (int)dis;
+    else
+      fr_home_dist = 0;
+      
+    if (az >180)
+      fr_home_angle = (int)(az) - 180;
+    else 
+      fr_home_angle = (int)(az) + 180;
+    
     fr_home_alt = cur.alt - hom.alt;  // Meaning alt relative to home
-  //  fr_home_alt = ap_bar_altitude * 10;     // metres to dm
          
    #if defined Frs_Debug_All || defined Frs_Debug_Home
      Debug.print("Frsky out Home 0x5004: ");         
