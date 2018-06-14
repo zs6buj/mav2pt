@@ -3,7 +3,7 @@
 short    crc;                         // of frsky-packet
 uint8_t  time_slot_max = 9;              
 uint32_t time_slot = 1;
-float a, az, c, d, dis, dLat, dLon;
+float a, az, c, dis, dLat, dLon;
 
 #if defined Target_Teensy3x
 volatile uint8_t *uartC3;
@@ -324,7 +324,7 @@ uint32_t createMask(uint8_t lo, uint8_t hi) {
 
 void SendLat800() {
   if (fr_gps_status < 3) return;
-  fr_lat = Abs(ap_lat);
+  fr_lat = Abs(ap_lat) / 10;
   if (ap_lat<0) 
     ms2bits = 1;
   else ms2bits = 0;
@@ -345,7 +345,7 @@ void SendLat800() {
 // *****************************************************************
 void SendLon800() {
   if (fr_gps_status < 3) return;
-  fr_lon = Abs(ap_lon); 
+  fr_lon = Abs(ap_lon) / 10; 
   if (ap_lon<0) 
     ms2bits = 3;
   else ms2bits = 2;
@@ -509,9 +509,8 @@ void Send_Home_5004() {
     dLat = (lat2-lat1);
     dLon = (lon2-lon1);
     a = sin(dLat/2) * sin(dLat/2) + sin(dLon/2) * sin(dLon/2) * cos(lat1) * cos(lat2); 
-    c = 2* asin(sqrt(a));  // proportion of Earth's radius
-    d = 6371000 * c;    // Radius of the Earth is 6371km
-    dis = d;
+    c = 2* asin(sqrt(a));    // proportion of Earth's radius
+    dis = 6371000 * c;       // radius of the Earth is 6371km
 
     if (homGood)
       fr_home_dist = (int)dis;
@@ -523,13 +522,14 @@ void Send_Home_5004() {
     else 
       fr_home_angle = (int)(az) + 180;
     
-    fr_home_alt = cur.alt - hom.alt;  // Meaning alt relative to home
-         
+   // fr_home_alt = cur.alt - hom.alt;  // Meaning alt relative to home
+      fr_home_alt = ap_alt_ag / 100;    // mm->dm
+        
    #if defined Frs_Debug_All || defined Frs_Debug_Home
      Debug.print("Frsky out Home 0x5004: ");         
      Debug.print("fr_home_dist=");  Debug.print(fr_home_dist);
      Debug.print(" fr_home_alt=");  Debug.print(fr_home_alt);
-     Debug.print(" fr_home_angle="); Debug.print(fr_home_angle);               
+     Debug.print(" fr_home_angle="); Debug.println(fr_home_angle);               
    #endif
    fr_home_dist = prep_number(roundf(fr_home_dist), 3, 2);
    bit32Pack(fr_home_dist ,0, 12);

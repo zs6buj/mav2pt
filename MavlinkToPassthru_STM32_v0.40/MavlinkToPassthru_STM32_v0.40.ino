@@ -126,12 +126,13 @@ v0.33   2018-06-08  Cleaned up STM32F103C8 build options and tested STM32 versio
 v0.34   2018-06-09  Fix bitfield overlap in groundspeed and yaw in 0x5005 
 v0.35   2018-06-10  athertop - Use VFR_HUD data for vx and vy. Also fix 05004 fr_home_alt bit field, was one bit out
                     was bit32Pack(fr_home_alt ,13, 12), should be bit32Pack(fr_home_alt ,12, 12).
-v0.36   2018-06-11  Fix fr_gps_status and advanced status. Do not send 0x5004 Home frames before homGood is true  
+v0.36   2018-06-11  Fix fr_gps_status and advanced status. Do not send 0x5004 Home alt before homGood is true  
 v0.37   2018-06-12  Introduce support for three modes, 1-Ground, 2-Air, 3-Relay     
 v0.38   2018-06-13  #define auxDuplex, without which aux is simplex from BT to FC only
                     Determine home position only when motors are armed  
 v0.39   2018-06-13  yaapu fix - ignore GCS heartbeat for armed status,  and timer start/stop. 
-                    Fix GPS co-ords out to FrSky    
+                    Fix GPS co-ords out to FrSky  
+v0.40   2018-06-14  Use baro alt_ag from #33 for home alt (alt above home field)                    
 */
 
 #include <GCS_MAVLink.h>
@@ -148,7 +149,7 @@ v0.39   2018-06-13  yaapu fix - ignore GCS heartbeat for armed status,  and time
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
 #if defined Ground_Mode && defined Target_Teensy3x && defined Use_Serial1_For_SPort
- #define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough. 
+// #define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough. 
 #endif
 
 #define Debug               Serial         // USB 
@@ -198,8 +199,8 @@ v0.39   2018-06-13  yaapu fix - ignore GCS heartbeat for armed status,  and time
 //#define Mav_Debug_Scaled_Pressure
 //#define Mav_Debug_Attitude
 //#define Frs_Debug_Attitude
-//#define Mav_Debug_Text
-//#define Frs_Debug_Text          
+#define Mav_Debug_Text
+#define Frs_Debug_Text          
 
 uint8_t StatusLed = 13; 
 uint8_t ledState = LOW; 
@@ -629,7 +630,8 @@ void MavLink_Receive() {
           ap_mavlink_version = mavlink_msg_heartbeat_get_mavlink_version(&msg);
           hb_millis=millis(); 
 
-          if (ap_base_mode >> 7) MarkHome();  // If motors armed, then mark this spot as home
+          if ((ap_base_mode >> 7) && (!homGood)) 
+            MarkHome();  // If motors armed for the first time, then mark this spot as home
 
           #if defined Mav_Debug_All || defined Mav_Debug_Heartbeat
             Debug.print("Mavlink in #0 Heartbeat: ");           
@@ -813,18 +815,18 @@ void MavLink_Receive() {
           if ((!mavGood) || (ap_fixtype < 3)) break;  
           ap_lat = mavlink_msg_global_position_int_get_lat(&msg);             // Latitude, expressed as degrees * 1E7
           ap_lon = mavlink_msg_global_position_int_get_lon(&msg);             // Pitch angle (rad, -pi..+pi)
-          ap_amsl33 = mavlink_msg_global_position_int_get_alt(&msg);          // x Supposedly altitude above mean sea level (millimeters)
+          ap_amsl33 = mavlink_msg_global_position_int_get_alt(&msg);          // Altitude above mean sea level (millimeters)
           ap_alt_ag = mavlink_msg_global_position_int_get_relative_alt(&msg); // Altitude above ground (millimeters)
           ap_vx = mavlink_msg_global_position_int_get_vx(&msg);               //  Ground X Speed (Latitude, positive north), expressed as m/s * 100
           ap_vy = mavlink_msg_global_position_int_get_vy(&msg);               //  Ground Y Speed (Longitude, positive east), expressed as m/s * 100
           ap_vz = mavlink_msg_global_position_int_get_vz(&msg);               // Ground Z Speed (Altitude, positive down), expressed as m/s * 100
-          ap_hdg = mavlink_msg_global_position_int_get_hdg(&msg);             // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees          ap_ap_amsl = mavlink_msg_attitude_get_yaw(&msg);                // Yaw angle (rad, -pi..+pi)
+          ap_hdg = mavlink_msg_global_position_int_get_hdg(&msg);             // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees        
  
           cur.lat =  (float)ap_lat / 1E7;
           cur.lon = (float)ap_lon / 1E7;
-          cur.alt = ap_amsl24 / 1E3;
+          cur.alt = ap_amsl33 / 1E3;
           cur.hdg = ap_hdg / 100;
-          
+
           #if defined Mav_Debug_All || defined Mav_Debug_GPS_Int
             Debug.print("Mavlink in #33 GPS Int: ");
             Debug.print(" ap_lat="); Debug.print((float)ap_lat / 1E7, 6);
