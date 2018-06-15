@@ -132,7 +132,11 @@ v0.38   2018-06-13  #define auxDuplex, without which aux is simplex from BT to F
                     Determine home position only when motors are armed  
 v0.39   2018-06-13  yaapu fix - ignore GCS heartbeat for armed status,  and timer start/stop. 
                     Fix GPS co-ords out to FrSky  
-v0.40   2018-06-14  Use baro alt_ag from #33 for home alt (alt above home field)                    
+v0.40   2018-06-14  Use baro alt_ag from #33 for home alt (alt above home field)  
+v0.41   2018-06-15  Change home angle thru 180 degrees - athertop. Avoid buffer taint by GCS heartbeat.
+                    Fix message text sometimes truncated - thanks yaapu  
+                    In Relay Mode send alternative instance of rssi (0x1c + 1) or 29 
+                                   
 */
 
 #include <GCS_MAVLink.h>
@@ -149,7 +153,7 @@ v0.40   2018-06-14  Use baro alt_ag from #33 for home alt (alt above home field)
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
 #if defined Ground_Mode && defined Target_Teensy3x && defined Use_Serial1_For_SPort
-// #define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough. 
+ #define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough. 
 #endif
 
 #define Debug               Serial         // USB 
@@ -175,6 +179,7 @@ v0.40   2018-06-14  Use baro alt_ag from #33 for home alt (alt above home field)
 //#define Data_Streams_Enabled // Rather set SRn in Mission Planner
 
 // Debugging options below
+//#define Debug_Air_Mode
 //#define Mav_List_Params
 //#define Aux_Debug_All
 //#define Aux_Debug_Params
@@ -199,8 +204,8 @@ v0.40   2018-06-14  Use baro alt_ag from #33 for home alt (alt above home field)
 //#define Mav_Debug_Scaled_Pressure
 //#define Mav_Debug_Attitude
 //#define Frs_Debug_Attitude
-#define Mav_Debug_Text
-#define Frs_Debug_Text          
+//#define Mav_Debug_Text
+//#define Frs_Debug_Text          
 
 uint8_t StatusLed = 13; 
 uint8_t ledState = LOW; 
@@ -241,10 +246,6 @@ uint32_t  Atti5006_millis = 0;
 uint32_t  Param5007_millis = 0;
 uint32_t  Bat2_5008_millis = 0;
 uint32_t  rssi_F101_millis=0;
-
-char sensID [10] = { 0x1B, 0x48, 0xBA,  0x98, 0xE9, 0x6A, 0xCB, 0xAC, 0x0D, 0x8E};  // Should be enough to achieve synchronisation
-char prevByte;
-uint8_t sensPtr=0;
 
 mavlink_message_t msg;
 
@@ -426,6 +427,7 @@ uint8_t    ap_cell_count2 = 0;
 uint8_t   ap_severity;
 char      ap_text[50];
 char      prev_ap_text[50];
+uint8_t   ap_txtlth;
 uint8_t   p_text = 0;  // pointer
 uint8_t   ap_simple=0;
 
@@ -440,14 +442,14 @@ uint32_t fr_lat = 0;
 uint32_t fr_lon = 0;
 
 // 0x5000 Text Msg
-uint8_t txtlth;
 uint32_t fr_textmsg;
-char ct[5];
-char p_ct[5];
-int ct_dups=0;
-uint8_t fr_severity;
-char fr_text[30];
-boolean eot=false;
+char     ct[5];
+char     p_ct[5];
+int      ct_dups=0;
+uint8_t  fr_severity;
+char     fr_text[30];
+uint8_t  fr_txtlth;
+boolean  eot=false;
 
 // 0x5001 AP Status
 uint8_t fr_flight_mode;
@@ -528,8 +530,17 @@ void setup()  {
   em_millis=millis();
   
   delay(1000);
-  Debug.println("Starting.....");
+  Debug.print("Starting ");
 
+  #ifdef Ground_Mode
+  Debug.println("Ground Mode....");
+  #endif
+  #ifdef Air_Mode
+  Debug.println("Air Mode....");
+  #endif
+  #ifdef Relay_Mode
+  Debug.println("Relay Mode....");
+  #endif
 }
 
 // ******************************************
@@ -586,7 +597,7 @@ void loop()  {
     }
   #endif
      
-  #if defined Air_Mode_Mode || defined Relay_Mode
+  #if defined Air_Mode || defined Relay_Mode
   if(mavGood && ((millis() - sp_millis) > 10)) {   
      ReadSPort();                       // Receive round-robin of sensor IDs received from XRS receiver
      sp_millis=millis();
@@ -623,6 +634,7 @@ void MavLink_Receive() {
     
         case MAVLINK_MSG_ID_HEARTBEAT:    // #0   http://mavlink.org/messages/common
           ap_type = mavlink_msg_heartbeat_get_type(&msg);
+          if (ap_type == 5 || ap_type == 6) break;    // Ignore heartbeats from GCS (6) or Ant Trackers(5)
           ap_autopilot = mavlink_msg_heartbeat_get_autopilot(&msg);
           ap_base_mode = mavlink_msg_heartbeat_get_base_mode(&msg);
           ap_custom_mode = mavlink_msg_heartbeat_get_custom_mode(&msg);
@@ -988,6 +1000,7 @@ void MavLink_Receive() {
             }
           }
           ap_text[len+1]=0x00;
+          ap_txtlth =len;
           textFlag = true;
           p_text = 0;
           

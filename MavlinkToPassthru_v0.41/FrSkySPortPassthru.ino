@@ -57,6 +57,7 @@ void FrSkySPort_Init(void)  {
 
 #if defined Air_Mode || defined Relay_Mode
 void ReadSPort(void) {
+  uint8_t prevByt=0;
   setSPortMode(RX);
   uint8_t Byt = 0;
   while ( frSerial.available())   {  
@@ -64,10 +65,18 @@ void ReadSPort(void) {
     #ifdef Frs_Debug_All
     DisplayByte(Byt);
     #endif
-    FrSkySPort_Process(Byt); 
+
+    if ((prevByt == 0x7E) && (Byt == 0x1B)) { 
+      #if defined Debug_Air_Mode
+        Debug.print("S/S "); 
+      #endif
+    FrSkySPort_Process(); 
+
+    }     
+  prevByt=Byt;
   }
   // and back to main loop
-}
+}  
 #endif
 // ***********************************************************************
 
@@ -76,20 +85,16 @@ void Emulate_ReadSPort() {
   #if defined Target_Teensy3x
   setSPortMode(TX);
   #endif
-  FrSkySPort_SendByte(0x7E, false);              // START/STOP don't add into crc
-  FrSkySPort_SendByte(sensID[sensPtr], false);   //  Poll Byte don't add into crc    
-  FrSkySPort_Process(0x7E);  
-  FrSkySPort_Process(sensID[sensPtr]);  
-  sensPtr++;
-  if (sensPtr>1) sensPtr=0;  // Try using 1 sensor - works!  10 sensor IDs, 0 thru 9
+ 
+  FrSkySPort_Process();  
+
+
   // and back to main loop
 }
 #endif
 // ***********************************************************************
 
-void FrSkySPort_Process(byte pollByte) {
-
-if ((prevByte == 0x7E) && (pollByte == 0x1B)) { 
+void FrSkySPort_Process() {
 
   #ifdef Frs_Debug_All
     ShowPeriod();   
@@ -103,13 +108,12 @@ if ((prevByte == 0x7E) && (pollByte == 0x1B)) {
  if (millis() - rssi_F101_millis > 500) {           // 2 Hz - if it's time, appropriate one of the polling slots 
     rssi_F101_millis = millis();
     SendRssiF101();                                 // Regularly tell LUA script in Taranis we are connected
-    prevByte=pollByte;
     return;                                         // Then go around
   }
   #endif
   if (textFlag) {
+    if (p_text == 0) fr_txtlth = ap_txtlth;  //  it's the first time thru here
     Send_TextMsg5000();  // Chunk of message until textFlag down
-    prevByte=pollByte;
     return; 
   }
 
@@ -120,7 +124,6 @@ if ((prevByte == 0x7E) && (pollByte == 0x1B)) {
    
   if (mavGood && ap_bat_paramsRead && (!fr_paramsSent)) {     // Send each parameter once
     SendParameters5007();
-    prevByte=pollByte;
     return;                                        // Go around
   }
 
@@ -219,10 +222,8 @@ if ((prevByte == 0x7E) && (pollByte == 0x1B)) {
       }
      time_slot++;
      if(time_slot > time_slot_max) time_slot = 1;
-    }
-    prevByte=pollByte;
- }     
 
+ }     
 // ***********************************************************************
 void FrSkySPort_SendByte(uint8_t byte, bool addCrc) {
   #if defined Target_Teensy3x
@@ -266,15 +267,20 @@ void FrSkySPort_SendCrc() {
   crc = 0;          // CRC reset
 }
 //***************************************************
-void FrSkySPort_SendDataFrame(uint16_t id, uint32_t value) {
+void FrSkySPort_SendDataFrame(uint8_t Instance, uint16_t Id, uint32_t value) {
 
   #if defined Target_Teensy3x
   setSPortMode(TX); 
   #endif
   
+  #ifdef Ground_Mode   // Only if ground mode send these bytes, else XSR sends them
+    FrSkySPort_SendByte(0x7E, false);       //  START/STOP don't add into crc
+    FrSkySPort_SendByte(Instance, false);   //  don't add into crc  
+  #endif 
+  
   FrSkySPort_SendByte(0x10, true );   //  Data framing byte
  
-	uint8_t *bytes = (uint8_t*)&id;
+	uint8_t *bytes = (uint8_t*)&Id;
   #if defined Frs_Debug_Payload
     Debug.print("DataFrame. ID "); 
     DisplayByte(bytes[0]);
@@ -340,7 +346,7 @@ void SendLat800() {
     Debug.print(" fr_payload="); Debug.println(fr_payload);
   #endif
           
-  FrSkySPort_SendDataFrame(0x800, fr_payload);  
+  FrSkySPort_SendDataFrame(0x1B, 0x800, fr_payload);  
 }
 // *****************************************************************
 void SendLon800() {
@@ -359,17 +365,19 @@ void SendLon800() {
     Debug.print(" fr_payload="); Debug.println(fr_payload);
   #endif
           
-  FrSkySPort_SendDataFrame(0x800, fr_payload); 
+  FrSkySPort_SendDataFrame(0x1B, 0x800, fr_payload); 
 }
 // *****************************************************************
 void Send_TextMsg5000() {
 
   fr_severity = ap_severity;
-         
-  txtlth=len;   // from ap
 
-  while (p_text <= (txtlth+2)) {                 // send multiple 4 byte (32b) chunks
-
+  while (p_text <= (fr_txtlth+2)) {                 // send multiple 4 byte (32b) chunks
+    #if defined Frs_Debug_All || defined Frs_Debug_Text
+      Debug.print("fr_txtlth="); Debug.print(fr_txtlth); 
+      Debug.print("  p_text="); Debug.print(p_text); 
+      Debug.println(" "); 
+    #endif     
     bit32Pack(ap_text[p_text], 24, 8);
     bit32Pack(ap_text[p_text+1], 16, 8);
     bit32Pack(ap_text[p_text+2], 8, 8);    
@@ -383,7 +391,7 @@ void Send_TextMsg5000() {
       Debug.print(" |"); Debug.print(fr_text); Debug.print("| ");
     #endif 
 
-    FrSkySPort_SendDataFrame(0x5000, fr_payload); 
+    FrSkySPort_SendDataFrame(0x1B, 0x5000, fr_payload); 
     p_text +=4;
     return;     // Go around again
   }
@@ -391,7 +399,7 @@ void Send_TextMsg5000() {
   
   bit32Pack(0x00, 0, 29);
   bit32Pack(fr_severity, 30, 3);             
-  FrSkySPort_SendDataFrame(0x5000, fr_payload);
+  FrSkySPort_SendDataFrame(0x1B, 0x5000, fr_payload);
    
   textFlag = false;   // We are done with this text message
           
@@ -404,11 +412,10 @@ void Send_TextMsg5000() {
 
 // *****************************************************************
 void SendAP_Status5001() {
-  
-  fr_flight_mode = ap_custom_mode + 1; // AP_CONTROL_MODE_LIMIT - ls 5 bits
 
   fr_simple = ap_simple;   // Derived from "ALR SIMPLE mode on/off" text messages
-  if (ap_type != 6) {      // If not GCS heartbeat   -  yaapu
+  if (ap_type != 6) {      // If not GCS heartbeat   -  yaapu  - ejs also handled at #0 read
+      fr_flight_mode = ap_custom_mode + 1; // AP_CONTROL_MODE_LIMIT - ls 5 bits
       fr_armed = ap_base_mode >> 7;  
       fr_land_complete = fr_armed;
   }
@@ -430,7 +437,7 @@ void SendAP_Status5001() {
     Debug.print(" fr_ekf_fs="); Debug.println(fr_ekf_fs);
   #endif
            
-  FrSkySPort_SendDataFrame(0x5001, fr_payload);  
+  FrSkySPort_SendDataFrame(0x1B, 0x5001, fr_payload);  
 }
 // *****************************************************************
 void Send_GPS_Status5002() {
@@ -468,7 +475,7 @@ void Send_GPS_Status5002() {
   bit32Pack(fr_amsl ,22, 9);
   bit32Pack(0, 31,0);  // 1=negative 
           
-  FrSkySPort_SendDataFrame(0x5002,fr_payload); 
+  FrSkySPort_SendDataFrame(0x1B, 0x5002,fr_payload); 
 
 }
 // *****************************************************************  
@@ -489,7 +496,7 @@ void Send_Bat1_5003() {
   bit32Pack(fr_bat1_amps,9, 8);
   bit32Pack(fr_bat1_mAh,17, 15);
             
-  FrSkySPort_SendDataFrame(0x5003, fr_payload);           
+  FrSkySPort_SendDataFrame(0x1B, 0x5003, fr_payload);           
 }
 // ***************************************************************** 
 void Send_Home_5004() {
@@ -516,12 +523,14 @@ void Send_Home_5004() {
       fr_home_dist = (int)dis;
     else
       fr_home_dist = 0;
-      
+
+    fr_home_angle = az;    
+ /*     
     if (az >180)
       fr_home_angle = (int)(az) - 180;
     else 
       fr_home_angle = (int)(az) + 180;
-    
+  */ 
    // fr_home_alt = cur.alt - hom.alt;  // Meaning alt relative to home
       fr_home_alt = ap_alt_ag / 100;    // mm->dm
         
@@ -540,7 +549,7 @@ void Send_Home_5004() {
    else  
      bit32Pack(0,24, 1);
    bit32Pack((fr_home_angle * 0.00333f) ,27, 7);
-   FrSkySPort_SendDataFrame(0x5004,fr_payload);
+   FrSkySPort_SendDataFrame(0x1B, 0x5004,fr_payload);
 
 }
 // *****************************************************************
@@ -580,7 +589,7 @@ void Send_VelYaw_5005() {
    Debug.print(" fr_yaw="); Debug.println((int)fr_yaw);                
  #endif
 
-  FrSkySPort_SendDataFrame(0x5005,fr_payload);
+  FrSkySPort_SendDataFrame(0x1B, 0x5005,fr_payload);
 }
 // *****************************************************************  
 void Send_Atti_5006() {
@@ -598,7 +607,7 @@ void Send_Atti_5006() {
     Debug.print(" Frs_Attitude Payload="); Debug.println(fr_payload);  
   #endif
   
-  FrSkySPort_SendDataFrame(0x5006,fr_payload);      
+  FrSkySPort_SendDataFrame(0x1B, 0x5006,fr_payload);      
 }
 //***************************************************
 void SendParameters5007() {
@@ -618,7 +627,7 @@ void SendParameters5007() {
       bit32Pack(fr_frame_type, 0, 24);
       bit32Pack(fr_param_id, 24, 4);
 
-      FrSkySPort_SendDataFrame(0x5007,fr_payload); 
+      FrSkySPort_SendDataFrame(0x1B, 0x5007,fr_payload); 
 
       #if defined Frs_Debug_All || defined Frs_Debug_Params
         Debug.print("Frsky out Params 0x5007: ");   
@@ -636,7 +645,7 @@ void SendParameters5007() {
       fr_bat1_capacity = ap_bat1_capacity;
       bit32Pack(fr_bat1_capacity, 0, 24);
       bit32Pack(fr_param_id, 24, 4);
-      FrSkySPort_SendDataFrame(0x5007,fr_payload); 
+      FrSkySPort_SendDataFrame(0x1B, 0x5007,fr_payload); 
 
       #if defined Frs_Debug_All || defined Frs_Debug_Params || defined Debug_Batteries
         Debug.print("Frsky out Params 0x5007: ");   
@@ -649,7 +658,7 @@ void SendParameters5007() {
       fr_bat2_capacity = ap_bat2_capacity;
       bit32Pack(fr_bat2_capacity, 0, 24);
       bit32Pack(fr_param_id, 24, 4);
-      FrSkySPort_SendDataFrame(0x5007,fr_payload); 
+      FrSkySPort_SendDataFrame(0x1B, 0x5007,fr_payload); 
       
       #if defined Frs_Debug_All || defined Frs_Debug_Params || defined Debug_Batteries
         Debug.print("Frsky out Params 0x5007: ");   
@@ -678,7 +687,7 @@ void Send_Bat2_5008() {
   bit32Pack(fr_bat2_amps,9, 8);
   bit32Pack(fr_bat2_mAh,17, 15);      
 
-  FrSkySPort_SendDataFrame(0x5008,fr_payload);          
+  FrSkySPort_SendDataFrame(0x1B, 0x5008,fr_payload);          
 }
 // *****************************************************************  
 // *****************************************************************  
@@ -694,7 +703,15 @@ void SendRssiF101() {          // data id 0xF101 RSSI tell LUA script in Taranis
     Debug.print(" Dummy rssi="); Debug.println(fr_rssi); 
   #endif
   bit32Pack(fr_rssi ,0, 32);
-  FrSkySPort_SendDataFrame(0xF101,fr_payload); 
+  
+  #ifdef Relay_Mode
+    FrSkySPort_SendByte(0x7E, false);   
+    FrSkySPort_SendByte(0x1C, false);  
+    FrSkySPort_SendDataFrame(0x1C, 0xF101,fr_payload); 
+  #else
+    FrSkySPort_SendDataFrame(0x1B, 0xF101,fr_payload); 
+  #endif
+     
   #if defined Frs_Debug_All || defined Mav_Debug_Rssi
     Debug.print("Frsky out: ");         
     Debug.print(" rssi="); Debug.println(fr_rssi);                
@@ -707,7 +724,6 @@ uint32_t Abs(int32_t num) {
   else
     return num;  
 }
-
 //***************************************************
 // From Arducopter 3.5.5 code
 uint16_t prep_number(int32_t number, uint8_t digits, uint8_t power)
