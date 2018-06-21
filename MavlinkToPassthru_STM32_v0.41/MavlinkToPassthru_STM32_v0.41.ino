@@ -90,8 +90,8 @@
     1) SPort S     -->TX1 Pin 1    S.Port out to Taranis bay, bottom pin
     2) Mavlink     <--RX2 Pin 9    Mavlink from Taranis to Teensy
     3) Mavlink     -->TX2 Pin 10   Mavlink from Teensy to Taranis
-    4) Aux_Mavlink <--RX3 Pin 7    Auxiliary Mavlink From BT Module to Teensy
-    5) Aux_Mavlink -->TX3 Pin 8    NOT NECESSARY - wire direct from Orange TX to BT RX  
+    4) Aux_Mavlink <--RX3 Pin 7    NOT NECESSARY - wire direct from Orange TX to BT RX  
+    5) Aux_Mavlink -->TX3 Pin 8    Auxiliary Mavlink From Teensy to WiFi Module or general use
     6) Vcc 3.3V !
     7) GND
 
@@ -142,8 +142,8 @@ v0.41   2018-06-15  Change home angle thru 180 degrees - athertop. Avoid buffer 
 #include <GCS_MAVLink.h>
 
 // Choose one (only) of these two target boards
-//#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
-#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
+#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
+//#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
 
 #define Use_Serial1_For_SPort   // The default, else use Serial3
 
@@ -154,7 +154,7 @@ v0.41   2018-06-15  Change home angle thru 180 degrees - athertop. Avoid buffer 
 
 #if defined Ground_Mode && defined Target_Teensy3x && defined Use_Serial1_For_SPort
  #define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough. 
-#endif
+#endif 
 
 #define Debug               Serial         // USB 
 
