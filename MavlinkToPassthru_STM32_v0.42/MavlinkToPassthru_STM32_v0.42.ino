@@ -90,8 +90,8 @@
     1) SPort S     -->TX1 Pin 1    S.Port out to Taranis bay, bottom pin
     2) Mavlink     <--RX2 Pin 9    Mavlink from Taranis to Teensy
     3) Mavlink     -->TX2 Pin 10   Mavlink from Teensy to Taranis
-    4) Aux_Mavlink <--RX3 Pin 7    NOT NECESSARY - wire direct from Orange TX to BT RX  
-    5) Aux_Mavlink -->TX3 Pin 8    Auxiliary Mavlink From Teensy to WiFi Module or general use
+    4) Aux_Mavlink <--RX3 Pin 7    Auxiliary Mavlink From BT Module to Teensy
+    5) Aux_Mavlink -->TX3 Pin 8    NOT NECESSARY - wire direct from Orange TX to BT RX  
     6) Vcc 3.3V !
     7) GND
 
@@ -135,7 +135,9 @@ v0.39   2018-06-13  yaapu fix - ignore GCS heartbeat for armed status,  and time
 v0.40   2018-06-14  Use baro alt_ag from #33 for home alt (alt above home field)  
 v0.41   2018-06-15  Change home angle thru 180 degrees - athertop. Avoid buffer taint by GCS heartbeat.
                     Fix message text sometimes truncated - thanks yaapu  
-                    In Relay Mode send alternative instance of rssi (0x1c + 1) or 29 
+                    In Relay Mode send alternative instance of rssi (0x1c + 1) or 29
+v0.42   2018-06-20  FrSky Passthrough wants GPS co-cords in minutes and decimals, not degrees 
+                    Set polling back to 22 ms for ground mode. Add startup status information.                    
                                    
 */
 
@@ -145,35 +147,26 @@ v0.41   2018-06-15  Change home angle thru 180 degrees - athertop. Avoid buffer 
 #define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
 //#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
 
-#define Use_Serial1_For_SPort   // The default, else use Serial3
-
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
 //#define Air_Mode             // Converter between FrSky receiver lke XRS and Flight Controller like Pixhawk
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
-#if defined Ground_Mode && defined Target_Teensy3x && defined Use_Serial1_For_SPort
+#if defined Ground_Mode && defined Target_Teensy3x 
  #define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough. 
-#endif 
+#endif
 
 #define Debug               Serial         // USB 
-
+#define frSerial            Serial1        // S.Port 
 #define frBaud              57600          // Use 57600
 #define mavSerial           Serial2        
 #define mavBaud             57600   
 
-#ifdef Use_Serial1_For_SPort     // The default
-  #define frSerial            Serial1        // S.Port 
-#else
-  #define frSerial            Serial3        // S.Port 
-#endif
-  
 #if defined Aux_Port_Enabled 
 #define auxSerial           Serial3        // Mavlink telemetry to and from auxilliary adapter
 #define auxBaud              57600         // Use 57600
 //#define auxDuplex                          // Pass aux <-> FC traffic up and down, else only up to FC
 #endif
-
 
 //#define Frs_Dummy_rssi       // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
 //#define Data_Streams_Enabled // Rather set SRn in Mission Planner
@@ -184,7 +177,7 @@ v0.41   2018-06-15  Change home angle thru 180 degrees - athertop. Avoid buffer 
 //#define Aux_Debug_All
 //#define Aux_Debug_Params
 //#define Frs_Debug_All
-#define Aux_Port_Debug
+//#define Aux_Port_Debug
 //#define Mav_Debug_Params
 //#define Frs_Debug_Params
 //#define Frs_Debug_Payload
@@ -529,7 +522,7 @@ void setup()  {
   rds_millis=millis();
   em_millis=millis();
   
-  delay(1000);
+  delay(2000);
   Debug.print("Starting ");
 
   #ifdef Ground_Mode
@@ -541,6 +534,15 @@ void setup()  {
   #ifdef Relay_Mode
   Debug.println("Relay Mode....");
   #endif
+
+  #if defined Aux_Port_Enabled
+  Debug.print("Teensy auxilliary Mavlink port enabled");
+    #ifdef auxDuplex
+      Debug.println(" for two-way telemetry"); 
+    #else 
+      Debug.println(" for one-way telemetry, Tx in and Rx out"); 
+    #endif 
+  #endif   
 }
 
 // ******************************************
@@ -591,7 +593,7 @@ void loop()  {
   Aux_ReceiveAndForward();                 // Service aux incoming if enabled
 
   #ifdef Ground_Mode
-  if(mavGood && ((millis() - em_millis) > 10)) {   
+  if(mavGood && ((millis() - em_millis) > 22)) {   
      Emulate_ReadSPort();                // Emulate the sensor IDs received from XRS receiver on SPort
      em_millis=millis();
     }

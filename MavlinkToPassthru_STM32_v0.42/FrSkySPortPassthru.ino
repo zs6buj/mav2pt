@@ -36,7 +36,6 @@ void FrSkySPort_Init(void)  {
  frSerial.begin(frBaud); 
 
 #if defined Target_Teensy3x
- #ifdef Use_Serial1_For_SPort
   // Manipulate UART registers for S.Port working
    uartC3   = &UART0_C3;  // UART0 is Serial1
    UART0_C3 = 0x10;       // Invert Serial1 Tx levels
@@ -45,12 +44,7 @@ void FrSkySPort_Init(void)  {
    
  //   UART0_C3 |= 0x20;    // Switch S.Port into send mode
  //   UART0_C3 ^= 0x20;    // Switch S.Port into receive modearmed
- #else
-   uartC3   = &UART2_C3;  // UART2 is Serial3
-   UART2_C3 = 0x10;       // Invert Serial1 Tx levels
-   UART2_C1 = 0xA0;       // Switch Serial1 into single wire mode
-   UART2_S2 = 0x10;       // Invert Serial1 Rx levels;
- #endif
+
 #endif   
 } 
 // ***********************************************************************
@@ -330,7 +324,7 @@ uint32_t createMask(uint8_t lo, uint8_t hi) {
 
 void SendLat800() {
   if (fr_gps_status < 3) return;
-  fr_lat = Abs(ap_lat) / 10;
+  fr_lat = Abs(ap_lat) / 100 * 6;  // ap_lat * 60 / 1000
   if (ap_lat<0) 
     ms2bits = 1;
   else ms2bits = 0;
@@ -351,7 +345,7 @@ void SendLat800() {
 // *****************************************************************
 void SendLon800() {
   if (fr_gps_status < 3) return;
-  fr_lon = Abs(ap_lon) / 10; 
+  fr_lon = Abs(ap_lon) * 0.06;   // ap_lon * 60 / 1000
   if (ap_lon<0) 
     ms2bits = 3;
   else ms2bits = 2;
@@ -523,14 +517,12 @@ void Send_Home_5004() {
       fr_home_dist = (int)dis;
     else
       fr_home_dist = 0;
-
-    fr_home_angle = az;    
- /*     
+  
     if (az >180)
       fr_home_angle = (int)(az) - 180;
     else 
       fr_home_angle = (int)(az) + 180;
-  */ 
+
    // fr_home_alt = cur.alt - hom.alt;  // Meaning alt relative to home
       fr_home_alt = ap_alt_ag / 100;    // mm->dm
         
