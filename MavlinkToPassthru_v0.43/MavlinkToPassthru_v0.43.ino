@@ -137,30 +137,40 @@ v0.41   2018-06-15  Change home angle thru 180 degrees - athertop. Avoid buffer 
                     Fix message text sometimes truncated - thanks yaapu  
                     In Relay Mode send alternative instance of rssi (0x1c + 1) or 29
 v0.42   2018-06-20  FrSky Passthrough wants GPS co-cords in minutes and decimals, not degrees 
-                    Set polling back to 22 ms for ground mode. Add startup status information.                    
-                                   
+                    Set polling back to 22 ms for ground mode. Add startup status information.
+                                        
+v0.43   2018-06-24  Faster response moving average( 10% to 20%). Circular buffer for status text. Move status text 
+                    into regular time slot.                                  
 */
 
+#include <CircularBuffer.h>
 #include <GCS_MAVLink.h>
 
 // Choose one (only) of these two target boards
-#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
-//#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
+//#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
+#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
+
+#define Use_Serial1_For_SPort   // The default, else use Serial3
 
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
 //#define Air_Mode             // Converter between FrSky receiver lke XRS and Flight Controller like Pixhawk
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
-#if defined Ground_Mode && defined Target_Teensy3x 
+#if defined Ground_Mode && defined Target_Teensy3x && defined Use_Serial1_For_SPort
  #define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough. 
 #endif
 
 #define Debug               Serial         // USB 
-#define frSerial            Serial1        // S.Port 
 #define frBaud              57600          // Use 57600
 #define mavSerial           Serial2        
 #define mavBaud             57600   
+
+#ifdef Use_Serial1_For_SPort     // The default
+  #define frSerial            Serial1        // S.Port 
+#else
+  #define frSerial            Serial3        // S.Port 
+#endif
 
 #if defined Aux_Port_Enabled 
 #define auxSerial           Serial3        // Mavlink telemetry to and from auxilliary adapter
@@ -200,8 +210,11 @@ v0.42   2018-06-20  FrSky Passthrough wants GPS co-cords in minutes and decimals
 //#define Mav_Debug_Text
 //#define Frs_Debug_Text          
 
-uint8_t StatusLed = 13; 
-uint8_t ledState = LOW; 
+
+uint8_t MavStatusLed = 13; 
+uint8_t MavLedState = LOW; 
+uint8_t BufStatusLed = 12; 
+uint8_t BufLedState = LOW; 
 
 uint8_t   buf[MAVLINK_MAX_PACKET_LEN];
 uint16_t  hb_count=0;
@@ -210,26 +223,25 @@ bool      ap_bat_paramsReq = false;
 bool      ap_bat_paramsRead=false; 
 bool      parm_msg_shown = false;
 bool      ap_paramsList=false;
-bool      fr_paramsSent=false; 
 uint8_t   paramsID=0;
 
 bool      homGood=false;      
 bool      mavGood=false;
 bool      rssiGood=false;
-bool      textFlag=false;
 
 uint32_t  hb_millis=0;
 uint32_t  rds_millis=0;
 uint32_t  acc_millis=0;
 uint32_t  em_millis=0;
 uint32_t  sp_millis=0;
-uint32_t  led_millis=0;
+uint32_t  mav_led_millis=0;
 
 uint32_t  now_millis = 0;
 uint32_t  prev_millis = 0;
 
 uint32_t  lat800_millis = 0;
 uint32_t  lon800_millis = 0;
+uint32_t  ST5000_millis = 0;
 uint32_t  AP5001_millis = 0;
 uint32_t  GPS5002_millis = 0;
 uint32_t  Bat1_5003_millis = 0;
@@ -239,8 +251,6 @@ uint32_t  Atti5006_millis = 0;
 uint32_t  Param5007_millis = 0;
 uint32_t  Bat2_5008_millis = 0;
 uint32_t  rssi_F101_millis=0;
-
-mavlink_message_t msg;
 
 float   lon1,lat1,lon2,lat2,alt1,alt2;  
 
@@ -275,7 +285,21 @@ struct Battery bat1     = {
 struct Battery bat2     = {
   0, 0, 0, 0, 0, 0, 0, true};   
 
+typedef struct  {
+  uint8_t   severity;
+  char      text[50];
+  uint8_t   txtlth;
+  bool      simple;
+  } ST_type;
+
+ST_type ST_record;
+
+ CircularBuffer<ST_type, 10> CircBuff; 
+
+
 // ******************************************
+
+mavlink_message_t msg;
 uint8_t len;
 // Mavlink Messages
 
@@ -417,15 +441,13 @@ int16_t    ap_current_battery2 = 0;    //  10 = 1A
 uint8_t    ap_cell_count2 = 0;
 
 // Message #253 STATUSTEXT
-uint8_t   ap_severity;
-char      ap_text[50];
-char      prev_ap_text[50];
-uint8_t   ap_txtlth;
-uint8_t   p_text = 0;  // pointer
-uint8_t   ap_simple=0;
+ uint8_t   ap_severity;
+ char      ap_text[60];
+ uint8_t   ap_txtlth;
+ bool      ap_simple=0;
+ 
 
-
-
+//***************************************************************
 // FrSky Passthrough Variables
 uint32_t  fr_payload;
 
@@ -436,13 +458,11 @@ uint32_t fr_lon = 0;
 
 // 0x5000 Text Msg
 uint32_t fr_textmsg;
-char     ct[5];
-char     p_ct[5];
-int      ct_dups=0;
+char     fr_text[60];
 uint8_t  fr_severity;
-char     fr_text[30];
 uint8_t  fr_txtlth;
-boolean  eot=false;
+char     fr_chunk[4];
+uint8_t  fr_chunk_pntr = 0;  // chunk pointer
 
 // 0x5001 AP Status
 uint8_t fr_flight_mode;
@@ -489,10 +509,9 @@ uint16_t fr_range;
 uint8_t fr_param_id ;
 uint32_t fr_param_val;
 uint32_t fr_frame_type;
-//uint32_t fr_fs_bat_volts;
-//uint32_t fr_fs_bat_mAh;
 uint32_t fr_bat1_capacity;
 uint32_t fr_bat2_capacity;
+bool fr_paramsSent = false;
 
 //0x5008 Batt
 float fr_bat2_volts;
@@ -542,7 +561,13 @@ void setup()  {
     #else 
       Debug.println(" for one-way telemetry, Tx in and Rx out"); 
     #endif 
-  #endif   
+  #endif  
+
+ #ifdef Use_Serial1_For_SPort
+   Debug.println("Using Serial_1 for S.Port"); 
+ #else
+   Debug.println("Using Serial_3 for S.Port"); 
+ #endif  
 }
 
 // ******************************************
@@ -588,12 +613,12 @@ void loop()  {
     }
   #endif 
 
-  MavLink_Receive();                      // Get Mavlink Data
+  MavLink_Receive();                       // Get Mavlink Data
 
   Aux_ReceiveAndForward();                 // Service aux incoming if enabled
 
   #ifdef Ground_Mode
-  if(mavGood && ((millis() - em_millis) > 22)) {   
+  if(mavGood && ((millis() - em_millis) > 0)) {   
      Emulate_ReadSPort();                // Emulate the sensor IDs received from XRS receiver on SPort
      em_millis=millis();
     }
@@ -605,7 +630,8 @@ void loop()  {
      sp_millis=millis();
     }
   #endif   
-  ServiceTheStatusLed();
+  
+  ServiceStatusLeds();
 }
 // ******************************************
 //*******************************************
@@ -992,9 +1018,6 @@ void MavLink_Receive() {
           ap_severity = mavlink_msg_statustext_get_severity(&msg);
           len=mavlink_msg_statustext_get_text(&msg, ap_text);
 
-    //      if (*prev_ap_text==*ap_text) break;  // Ignore duplicate text messages
-    //      *prev_ap_text=*ap_text;
-
           for (int i=0; i<=len ; i++) {       // Get real len
             if ((ap_text[i]==32 || ap_text[i]==0) && (ap_text[i+1]==32 || ap_text[i+1]==0)) {      // find first consecutive double-space
               len=i;
@@ -1002,22 +1025,38 @@ void MavLink_Receive() {
             }
           }
           ap_text[len+1]=0x00;
-          ap_txtlth =len;
-          textFlag = true;
-          p_text = 0;
+          ap_text[len+2]=0x00;  // mark the end of text chunk +
+          ap_text[len+3]=0x00;
+          ap_text[len+4]=0x00;
+          
+          ap_txtlth = len + 1;
+
+       //   fr_chunk_pntr = 0;
           
           if (strcmp (ap_text,"SIMPLE mode on") == 0)
-            ap_simple = 1;
+            ap_simple = true;
           else if
               (strcmp (ap_text,"SIMPLE mode off") == 0)
-                ap_simple = 0;
+                ap_simple = false;
 
+          if (CircBuff.isFull()) {
+            Debug.println("CircBuff is full!");
+          } else {
+            ST_record.severity = ap_severity;
+            memcpy(ST_record.text, ap_text, ap_txtlth+ 4);   // length + rest of last chunk at least
+       //     memcpy(&ST_record.text[0], &ap_text[0], ap_txtlth);
+            ST_record.txtlth = ap_txtlth;
+            ST_record.simple = ap_simple;
+            CircBuff.push(ST_record);
+          }
+          
           #if defined Mav_Debug_All || defined Mav_Debug_Text
-            Debug.print("Mavlink in #253 Statustext: ");
-            Debug.print("length="); Debug.print(len);
+            Debug.print("Mavlink in #253 Statustext pushed onto CircBuff: ");
+            Debug.print("Queue length= "); Debug.print(CircBuff.size());
+            Debug.print(" Msg lth="); Debug.print(len);
             Debug.print(" Severity="); Debug.print(ap_severity);
             Debug.print(" "); Debug.print(MavSeverity(ap_severity));
-            Debug.print("  Text= "); Debug.print(ap_text);
+            Debug.print("  Text= ");  Debug.print(" |"); Debug.print(ap_text); Debug.print("| ");
             Debug.print("  ap_simple "); Debug.println(ap_simple);
           #endif
           break;                                      
@@ -1133,26 +1172,37 @@ void Aux_ReceiveAndForward() {
    }
 #endif    
 }
- 
 //***************************************************
-void ServiceTheStatusLed() {
+void ServiceStatusLeds() {
+  ServiceMavStatusLed();
+  ServiceBufStatusLed();
+}
+void ServiceMavStatusLed() {
   if (mavGood) {
-      ledState = HIGH;
+      MavLedState = HIGH;
   }
     else 
-      BlinkLed(500);
-
-    digitalWrite(StatusLed, ledState);  
+      BlinkMavLed(500);
+    digitalWrite(MavStatusLed, MavLedState);  
 }
-//***************************************************
-void BlinkLed(uint32_t period) {
+
+void ServiceBufStatusLed() {
+  if (CircBuff.isFull()) {
+      BufLedState = HIGH;
+  }
+    else 
+      BufLedState = LOW;
+    digitalWrite(BufStatusLed, BufLedState);  
+}
+
+void BlinkMavLed(uint32_t period) {
   uint32_t cMillis = millis();
-     if (cMillis - led_millis >= period) {    // blink period
-        led_millis = cMillis;
-        if (ledState == LOW) {
-          ledState = HIGH; }   
+     if (cMillis - mav_led_millis >= period) {    // blink period
+        mav_led_millis = cMillis;
+        if (MavLedState == LOW) {
+          MavLedState = HIGH; }   
         else {
-          ledState = LOW;  } 
+          MavLedState = LOW;  } 
       }
 }
 

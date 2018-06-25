@@ -1,7 +1,7 @@
 
 // Frsky variables     
 short    crc;                         // of frsky-packet
-uint8_t  time_slot_max = 9;              
+uint8_t  time_slot_max = 12;              
 uint32_t time_slot = 1;
 float a, az, c, dis, dLat, dLon;
 
@@ -30,12 +30,14 @@ void setSPortMode(SPortMode mode) {   // To share single wire on TX pin
   }
 }
 #endif
+
 // ***********************************************************************
 void FrSkySPort_Init(void)  {
 
  frSerial.begin(frBaud); 
 
 #if defined Target_Teensy3x
+ #ifdef Use_Serial1_For_SPort
   // Manipulate UART registers for S.Port working
    uartC3   = &UART0_C3;  // UART0 is Serial1
    UART0_C3 = 0x10;       // Invert Serial1 Tx levels
@@ -44,7 +46,12 @@ void FrSkySPort_Init(void)  {
    
  //   UART0_C3 |= 0x20;    // Switch S.Port into send mode
  //   UART0_C3 ^= 0x20;    // Switch S.Port into receive modearmed
-
+ #else
+   uartC3   = &UART2_C3;  // UART2 is Serial3
+   UART2_C3 = 0x10;       // Invert Serial1 Tx levels
+   UART2_C1 = 0xA0;       // Switch Serial1 into single wire mode
+   UART2_S2 = 0x10;       // Invert Serial1 Rx levels;
+ #endif
 #endif   
 } 
 // ***********************************************************************
@@ -96,40 +103,34 @@ void FrSkySPort_Process() {
        
   fr_payload = 0; // Clear the payload field
     
-  // ******** Priority processes *********************** 
+  // ******** Priority processes ***********************
 
- #if defined Ground_Mode || defined Relay_Mode      // In Air_Mode the FrSky receiver provides rssi
- if (millis() - rssi_F101_millis > 500) {           // 2 Hz - if it's time, appropriate one of the polling slots 
-    rssi_F101_millis = millis();
-    SendRssiF101();                                 // Regularly tell LUA script in Taranis we are connected
-    return;                                         // Then go around
-  }
-  #endif
-  if (textFlag) {
-    if (p_text == 0) fr_txtlth = ap_txtlth;  //  it's the first time thru here
-    Send_TextMsg5000();  // Chunk of message until textFlag down
-    return; 
-  }
-
-  if (millis() - Param5007_millis > 5000) {        // 0.2 Hz resend the 5007 parameters to keep FlightDeck happy
-    fr_paramsSent = false;
-    Param5007_millis = millis();
-  }
-   
-  if (mavGood && ap_bat_paramsRead && (!fr_paramsSent)) {     // Send each parameter once
+  if (mavGood && ap_bat_paramsRead && (!fr_paramsSent)) {   // Send each parameter once early on
     SendParameters5007();
     return;                                        // Go around
   }
-
+  
+  if (!mavGood) return;  // Wait for good Mavlink data
+  
   // ********************************************************** 
   //  One time-slot per "sensor" ID, which ID type can use or donate to next in line 
     #ifdef Frs_Debug_All
       Debug.print(" time_slot=");
       Debug.println(time_slot);
     #endif
-    switch(time_slot) {  
+    switch(time_slot) {
+        case 1:
+         #if defined Ground_Mode || defined Relay_Mode      // In Air_Mode the FrSky receiver provides rssi
+         if (millis() - rssi_F101_millis > 500) {           // 2 Hz
+           rssi_F101_millis = millis();
+           SendRssiF101();                                 // Regularly tell LUA script in Taranis we are connected
+           break;
+           }
+         else
+            time_slot++;   // Donate the slot to next
+         #endif  
         
-        case 1:                  // data id 0x800 Latitude 
+        case 2:                  // data id 0x800 Latitude 
           if (millis() - lat800_millis > 333)  {  // 3 Hz
             SendLat800();
             lat800_millis = millis();
@@ -138,7 +139,7 @@ void FrSkySPort_Process() {
           else
             time_slot++;   // Donate the slot to next
                     
-        case 2:                  // data id 0x800 Longitude
+        case 3:                  // data id 0x800 Longitude
           if (millis() - lon800_millis > 333)  {  // 3 Hz
             SendLon800();
             lon800_millis = millis();
@@ -147,7 +148,16 @@ void FrSkySPort_Process() {
           else
             time_slot++;   // Donate the slot to next 
                          
-        case 3:                 // data id 0x5001 AP Status
+        case 4:                 // data id 0x5000 Status Text
+          if (((!CircBuff.isEmpty()) || (fr_chunk_pntr > 0)) && (millis() - ST5000_millis > 100)) { // 10 Hz
+            SendStatusTextChunk5000();
+            ST5000_millis = millis();
+            break;
+           }
+          else
+            time_slot++;   // Donate the slot to next 
+
+        case 5:                 // data id 0x5001 AP Status
           if (millis() - AP5001_millis > 333)  {  // 3 Hz
             SendAP_Status5001();
             AP5001_millis = millis();
@@ -155,8 +165,7 @@ void FrSkySPort_Process() {
              }
           else
             time_slot++;   // Donate the slot to next 
-
-        case 4:                 // data id 0x5002 GPS Status
+        case 6:                 // data id 0x5002 GPS Status
           if (millis() - GPS5002_millis > 333)  {  // 3 Hz
             Send_GPS_Status5002();
             GPS5002_millis = millis();
@@ -165,7 +174,7 @@ void FrSkySPort_Process() {
           else
             time_slot++;   // Donate the slot to next 
           
-        case 5:                  //data id 0x5003 Batt 1
+        case 7:                  //data id 0x5003 Batt 1
           if (millis() - Bat1_5003_millis > 1000)  {  // 1 Hz
             Send_Bat1_5003();
             Bat1_5003_millis = millis();
@@ -174,7 +183,7 @@ void FrSkySPort_Process() {
           else
             time_slot++;   // Donate the slot to next 
                    
-        case 6:                  // data id 0x5004 Home
+        case 8:                  // data id 0x5004 Home
           if (millis() - Home_5004_millis > 500)  {  // 2 Hz
             Send_Home_5004();
             Home_5004_millis = millis();
@@ -183,7 +192,7 @@ void FrSkySPort_Process() {
           else
             time_slot++;   // Donate the slot to next 
    
-        case 7:        // data id 0x5005 Velocity and yaw
+        case 9:        // data id 0x5005 Velocity and yaw
           if (millis() - VelYaw5005_millis > 500)  {  // 2 Hz
             Send_VelYaw_5005();
             VelYaw5005_millis = millis();
@@ -192,7 +201,7 @@ void FrSkySPort_Process() {
           else
             time_slot++;   // Donate the slot to next 
    
-        case 8:        // data id 0x5006 Attitude and range
+        case 10:        // data id 0x5006 Attitude and range
           if (millis() - Atti5006_millis > 200)  {  // 5 Hz 
             Send_Atti_5006();
             Atti5006_millis = millis();
@@ -200,9 +209,17 @@ void FrSkySPort_Process() {
             }
           else
             time_slot++;   // Donate the slot to next 
-           
-        case 9:          // data id 0x5008 Batt 2
-          if ((fr_bat2_capacity !=0) && (millis() - Bat2_5008_millis > 1000))  {  // 1 Hz
+            
+        case 11:       // data id 0x5007 Parameters 
+          if (millis() - Param5007_millis > 5000) {        // 0.2 Hz send the 5007 parameters to keep FlightDeck happy
+            Param5007_millis = millis();
+            break; 
+            }
+          else
+            time_slot++;   // Donate the slot to next
+              
+        case 12:          // data id 0x5008 Batt 2
+          if ((fr_bat2_capacity > 0) && (millis() - Bat2_5008_millis > 1000))  {  // 1 Hz
             Send_Bat2_5008();
             Bat2_5008_millis = millis();
             break; 
@@ -307,6 +324,11 @@ void FrSkySPort_SendDataFrame(uint8_t Instance, uint16_t Id, uint32_t value) {
    
 }
 //***************************************************
+  uint32_t bit32Extract(uint32_t dword,uint8_t displ, uint8_t lth) {
+  uint32_t r = (dword & createMask(displ,(displ+lth-1))) >> displ;
+  return r;
+}
+//***************************************************
 // Mask then AND the shifted bits, then OR them to the payload
   void bit32Pack(uint32_t dword ,uint8_t displ, uint8_t lth) {   
   uint32_t dw_and_mask =  (dword<<displ) & (createMask(displ, displ+lth-1)); 
@@ -362,46 +384,84 @@ void SendLon800() {
   FrSkySPort_SendDataFrame(0x1B, 0x800, fr_payload); 
 }
 // *****************************************************************
-void Send_TextMsg5000() {
+void SendStatusTextChunk5000() {
 
-  fr_severity = ap_severity;
-
-  while (p_text <= (fr_txtlth+2)) {                 // send multiple 4 byte (32b) chunks
-    #if defined Frs_Debug_All || defined Frs_Debug_Text
-      Debug.print("fr_txtlth="); Debug.print(fr_txtlth); 
-      Debug.print("  p_text="); Debug.print(p_text); 
-      Debug.println(" "); 
-    #endif     
-    bit32Pack(ap_text[p_text], 24, 8);
-    bit32Pack(ap_text[p_text+1], 16, 8);
-    bit32Pack(ap_text[p_text+2], 8, 8);    
-    bit32Pack(ap_text[p_text+3], 0, 8);      
+  if (fr_chunk_pntr == 0) { 
+    ST_record = (CircBuff.shift());  // Get a status text message from front of queue
+    fr_severity = ST_record.severity;
+    fr_txtlth = ST_record.txtlth;
+    memcpy(fr_text, ST_record.text, fr_txtlth+4);   // plus rest of last chunk at least
+    fr_simple = ST_record.simple;
 
     #if defined Frs_Debug_All || defined Frs_Debug_Text
-      fr_text[0] = ap_text[p_text];
-      fr_text[1] = ap_text[p_text+1];
-      fr_text[2] = ap_text[p_text+2];
-      fr_text[3] = ap_text[p_text+3];
-      Debug.print(" |"); Debug.print(fr_text); Debug.print("| ");
-    #endif 
-
-    FrSkySPort_SendDataFrame(0x1B, 0x5000, fr_payload); 
-    p_text +=4;
-    return;     // Go around again
+      Debug.print("Frsky out AP_Status 0x5000: ");  
+      Debug.print(" fr_severity="); Debug.print(fr_severity);
+      Debug.print(" "); Debug.print(MavSeverity(fr_severity)); 
+      Debug.print(" Text= ");  Debug.print(" |"); Debug.print(fr_text); Debug.print("| ");
+      Debug.print(" Queue length after shift= "); Debug.println(CircBuff.size());
+    #endif
   }
-  // finish by sending severity packet
+
+  while (fr_chunk_pntr+1 <= (fr_txtlth)) {                 // send multiple 4 byte (32b) chunks
   
-  bit32Pack(0x00, 0, 29);
-  bit32Pack(fr_severity, 30, 3);             
-  FrSkySPort_SendDataFrame(0x1B, 0x5000, fr_payload);
+    fr_chunk[0] = fr_text[fr_chunk_pntr];
+    fr_chunk[1] = fr_text[fr_chunk_pntr+1];
+    fr_chunk[2] = fr_text[fr_chunk_pntr+2];
+    fr_chunk[3] = fr_text[fr_chunk_pntr+3];
+    
+    #if defined Frs_Debug_All || defined Frs_Debug_Text
+      Debug.print(" fr_txtlth="); Debug.print(fr_txtlth); 
+      Debug.print(" fr_chunk_pntr="); Debug.print(fr_chunk_pntr); 
+      Debug.print(" "); 
+      Debug.print(" |"); Debug.print(fr_chunk); Debug.println("| ");
+    #endif  
+    
+    bit32Pack(fr_chunk[0], 24, 7);
+    bit32Pack(fr_chunk[1], 16, 7);
+    bit32Pack(fr_chunk[2], 8, 7);    
+    bit32Pack(fr_chunk[3], 0, 7);  
+
+    if ((fr_chunk[0] == 0x00) | (fr_chunk[1] == 0x00) | (fr_chunk[2] == 0x00) | (fr_chunk[3] == 0x00)) {
+
+      bit32Pack((fr_severity & 0x1), 7, 1);            // ls bit of severity
+      bit32Pack(((fr_severity & 0x2) >> 1), 15, 1);    // mid bit of severity
+      bit32Pack(((fr_severity & 0x4) >> 2) , 23, 1);   // ms bit of severity                
+      bit32Pack(0, 31, 1);     // filler
+
+   // debug    fr_severity = (bit32Extract(fr_payload,23,1) * 4) + (bit32Extract(fr_payload,15,1) * 2) + (bit32Extract(fr_payload,7,1) * 1);
+      
+      #if defined Frs_Debug_All || defined Frs_Debug_Text  
+        Debug.print(" fr_severity after pack/un[pack="); Debug.print(fr_severity);
+        Debug.print(" "); Debug.print(MavSeverity(fr_severity)); 
+        bool lsb = (fr_severity & 0x1);
+        bool sb = (fr_severity & 0x2) >> 1;
+        bool msb = (fr_severity & 0x4) >> 2;
+        Debug.print(" ls bit="); Debug.print(lsb); 
+        Debug.print(" mid bit="); Debug.print(sb); 
+        Debug.print(" ms bit ="); Debug.print(msb); 
+        Debug.print(" Payload ="); Debug.print(fr_payload); 
+        Debug.print(" (send order bytes) "); 
+        uint8_t *bytes;
+        bytes = (uint8_t*)&fr_payload;
+        DisplayByte(bytes[3]);
+        Debug.print(" "); 
+        DisplayByte(bytes[2]);
+        Debug.print(" "); 
+        DisplayByte(bytes[1]);
+        Debug.print(" "); 
+        DisplayByte(bytes[0]);   
+        Debug.println(); Debug.println();
+     #endif 
+     }
+
+    
+    FrSkySPort_SendDataFrame(0x1B, 0x5000, fr_payload); 
+    fr_chunk_pntr +=4;
+    return;     // Go around again
+ }
+  
+  fr_chunk_pntr = 0;
    
-  textFlag = false;   // We are done with this text message
-          
-  #if defined Frs_Debug_All || defined Frs_Debug_Text  
-     Debug.print(" fr_severity="); Debug.print(fr_severity);
-     Debug.print(" "); Debug.println(MavSeverity(fr_severity)); 
-  //   Debug.print(" fr_payload="); Debug.println(fr_payload); 
-  #endif
 }
 
 // *****************************************************************
@@ -605,8 +665,8 @@ void Send_Atti_5006() {
 void SendParameters5007() {
 
   if (paramsID >= 5) {
+    fr_paramsSent = true;          // get this done early on and then regularly thereafter
     paramsID = 0;
-    fr_paramsSent = true;
     return;
   }
   paramsID++;

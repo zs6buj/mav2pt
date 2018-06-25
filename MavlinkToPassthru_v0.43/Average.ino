@@ -1,10 +1,10 @@
 
 
 uint32_t Get_Volt_Average1(uint16_t mV)  {
-  
+
   if (bat1.avg_mV < 1) bat1.avg_mV = mV;  // Initialise first time
 
-  bat1.avg_mV = (bat1.avg_mV * 0.9) + (mV * 0.1);  // moving average
+  bat1.avg_mV = (bat1.avg_mV * 0.8) + (mV * 0.2);  // moving average
   Accum_Volts1(mV);  
   return bat1.avg_mV;
 }
@@ -50,7 +50,7 @@ uint32_t Get_Volt_Average2(uint16_t mV)  {
   
   if (bat2.avg_mV == 0) bat2.avg_mV = mV;  // Initialise first time
 
-  bat2.avg_mV = (bat2.avg_mV * 0.9) + (mV * 0.1);  // moving average
+  bat2.avg_mV = (bat2.avg_mV * 0.8) + (mV * 0.2);  // moving average
   Accum_Volts2(mV);  
   return bat2.avg_mV;
 }
