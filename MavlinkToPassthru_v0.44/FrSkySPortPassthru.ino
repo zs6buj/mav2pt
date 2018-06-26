@@ -149,7 +149,7 @@ void FrSkySPort_Process() {
             time_slot++;   // Donate the slot to next 
                          
         case 4:                 // data id 0x5000 Status Text
-          if (((!CircBuff.isEmpty()) || (fr_chunk_pntr > 0)) && (millis() - ST5000_millis > 100)) { // 10 Hz
+          if (((!CircBuff.isEmpty()) || (fr_chunk_pntr > 0)) && (millis() - ST5000_millis > 200)) { // 5 Hz
             SendStatusTextChunk5000();
             ST5000_millis = millis();
             break;
@@ -431,7 +431,7 @@ void SendStatusTextChunk5000() {
    // debug    fr_severity = (bit32Extract(fr_payload,23,1) * 4) + (bit32Extract(fr_payload,15,1) * 2) + (bit32Extract(fr_payload,7,1) * 1);
       
       #if defined Frs_Debug_All || defined Frs_Debug_Text  
-        Debug.print(" fr_severity after pack/un[pack="); Debug.print(fr_severity);
+        Debug.print(" fr_severity ="); Debug.print(fr_severity);
         Debug.print(" "); Debug.print(MavSeverity(fr_severity)); 
         bool lsb = (fr_severity & 0x1);
         bool sb = (fr_severity & 0x2) >> 1;

@@ -107,31 +107,7 @@
     8) GND
     
 Change log:
-v0.18   2018-05-09  Establish "home" position when we get 3D+ fix (fixtype 4) rather than after 5 seconds of fixtype 3
-v0.19   2018-05-12  Now works with FlightDeck. Changed 0x5007 param from once at start, to 0.2 Hz
-v0.20   2018-05-13  Tidy up
-v0.21   2018-05-15  Add byte-stuffing on outgoing frsky payload - thanks Alex
-v0.22   2018-05-15  Make txsw_pin (6 on Teensy) HIGH after battery parameters safely read shortly after start - for CMOS switch
-v0.23   2018-05-16  Include crc in byte-stuffing. Modify data stream request code slightly.
-v0.24   2018-05-16  Single source code targets Teensy 3.x or STM32F103C depending on #defines
-v0.25   2018-05-17  Make _txsw_pin (5 on Teensy) the inverse (inverted value) of txsw_pin. For 2nd bi-lateral cmos switch.
-v0.26   2018-05-23  Pass Mavlink auxiliary telemetry through Serial3 - bi-directional
-v0.27   2018-05-26  Rather use mAh from FC than my di/dt accumulation for bat1
-v0.28   2018-05-30  Enable receiver (like XSR) SPort polling of SPort, make emulation optional with #define
-v0.29   2018-06-01  As per yaapu: Respond only to sensor 0x1B, attitude 10Hz, rssi from FrSky receiver, not other
-v0.30   2018-06-05  Improve the technical explanation of ground_mode, air_mode and polling emulation 
-v0.31   2018-05-06  Change recommended wiring to eliminate receive latency
-v0.32   2018-06-08  Fine tuned polling, much improved latency. Fixed bug in groundspeed, vertical speed.
-v0.33   2018-06-08  Cleaned up STM32F103C8 build options and tested STM32 version
-v0.34   2018-06-09  Fix bitfield overlap in groundspeed and yaw in 0x5005 
-v0.35   2018-06-10  athertop - Use VFR_HUD data for vx and vy. Also fix 05004 fr_home_alt bit field, was one bit out
-                    was bit32Pack(fr_home_alt ,13, 12), should be bit32Pack(fr_home_alt ,12, 12).
-v0.36   2018-06-11  Fix fr_gps_status and advanced status. Do not send 0x5004 Home alt before homGood is true  
-v0.37   2018-06-12  Introduce support for three modes, 1-Ground, 2-Air, 3-Relay     
-v0.38   2018-06-13  #define auxDuplex, without which aux is simplex from BT to FC only
-                    Determine home position only when motors are armed  
-v0.39   2018-06-13  yaapu fix - ignore GCS heartbeat for armed status,  and timer start/stop. 
-                    Fix GPS co-ords out to FrSky  
+
 v0.40   2018-06-14  Use baro alt_ag from #33 for home alt (alt above home field)  
 v0.41   2018-06-15  Change home angle thru 180 degrees - athertop. Avoid buffer taint by GCS heartbeat.
                     Fix message text sometimes truncated - thanks yaapu  
@@ -140,15 +116,16 @@ v0.42   2018-06-20  FrSky Passthrough wants GPS co-cords in minutes and decimals
                     Set polling back to 22 ms for ground mode. Add startup status information.
                                         
 v0.43   2018-06-24  Faster response moving average( 10% to 20%). Circular buffer for status text. Move status text 
-                    into regular time slot.                                  
+                    into regular time slot.   
+v0.44   2018-06-26  Change status text message frequency to 5Hz                                                    
 */
 
 #include <CircularBuffer.h>
 #include <GCS_MAVLink.h>
 
 // Choose one (only) of these two target boards
-#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
-//#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
+//#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
+#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
 
 #define Use_Serial1_For_SPort   // The default, else use Serial3
 
