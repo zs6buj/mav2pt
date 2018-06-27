@@ -105,10 +105,7 @@ void FrSkySPort_Process() {
     
   // ******** Priority processes ***********************
 
-  if (mavGood && ap_bat_paramsRead && (!fr_paramsSent)) {   // Send each parameter once early on
-    SendParameters5007();
-    return;                                        // Go around
-  }
+  // NONE !
   
   if (!mavGood) return;  // Wait for good Mavlink data
   
@@ -212,6 +209,7 @@ void FrSkySPort_Process() {
             
         case 11:       // data id 0x5007 Parameters 
           if (millis() - Param5007_millis > 5000) {        // 0.2 Hz send the 5007 parameters to keep FlightDeck happy
+            SendParameters5007();
             Param5007_millis = millis();
             break; 
             }
@@ -537,7 +535,7 @@ void Send_Bat1_5003() {
   fr_bat1_volts = ap_voltage_battery1 / 100;         // Were mV, now dV  - V * 10
   fr_bat1_amps = ap_current_battery1 ;               // Remain       dA  - A * 10   
 //  fr_bat1_mAh = Total_mAh1();      // My accumulated mAh;   di/dt
-  fr_bat1_mAh =ap_current_consumed;  // Rather use mAh from flight computer
+  fr_bat1_mAh = ap_current_consumed;  // Rather use mAh from flight computer
   #if defined Frs_Debug_All || defined Debug_Batteries
     Debug.print("Frsky out Bat1 0x5003: ");   
     Debug.print(" fr_bat1_volts="); Debug.print(fr_bat1_volts);
@@ -694,7 +692,11 @@ void SendParameters5007() {
       break;
     case 4:                                   // Battery pack 1 capacity
       fr_param_id = paramsID;
-      fr_bat1_capacity = ap_bat1_capacity;
+      #ifdef Use_Local_Battery_mAh 
+        fr_bat1_capacity = bat1_capacity;
+      #else  
+        fr_bat1_capacity = ap_bat1_capacity;
+      #endif  
       bit32Pack(fr_bat1_capacity, 0, 24);
       bit32Pack(fr_param_id, 24, 4);
       FrSkySPort_SendDataFrame(0x1B, 0x5007,fr_payload); 
@@ -707,7 +709,11 @@ void SendParameters5007() {
       break;
     case 5:                                   // Battery pack 2 capacity
       fr_param_id = paramsID;
-      fr_bat2_capacity = ap_bat2_capacity;
+      #ifdef Use_Local_Battery_mAh 
+        fr_bat2_capacity = bat2_capacity;
+      #else  
+        fr_bat2_capacity = ap_bat2_capacity;
+      #endif  
       bit32Pack(fr_bat2_capacity, 0, 24);
       bit32Pack(fr_param_id, 24, 4);
       FrSkySPort_SendDataFrame(0x1B, 0x5007,fr_payload); 

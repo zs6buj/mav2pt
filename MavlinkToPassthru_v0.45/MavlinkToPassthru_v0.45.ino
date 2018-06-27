@@ -85,6 +85,13 @@
 
    Select the target mpu by un-commenting either //#define Target_Teensy3x or //#define Target_STM32
 
+   Battery capacities in mAh can either be requested from the flight controller via Mavlink, or 
+   defined within this firmware. When it is defined within this firmware, an outgoing Mavlink 
+   connection via the Orange trx to the flight controller is not necessay. This frees up the Orange's
+   RX (and TX) line for use for BlueTooth or other Mavlink connections.
+
+   Uncomment this line        #define Use_Local_Battery_mAh
+   
    Connections to Teensy3.2 are:
 
     1) SPort S     -->TX1 Pin 1    S.Port out to Taranis bay, bottom pin
@@ -117,26 +124,34 @@ v0.42   2018-06-20  FrSky Passthrough wants GPS co-cords in minutes and decimals
                                         
 v0.43   2018-06-24  Faster response moving average( 10% to 20%). Circular buffer for status text. Move status text 
                     into regular time slot.   
-v0.44   2018-06-26  Change status text message frequency to 5Hz                                                    
+v0.44   2018-06-26  Change status text message frequency to 5Hz  
+v0.45   2018-06-27  Optionally define battery capacities internally, don't ask Flight Controller for them.                                                  
 */
 
 #include <CircularBuffer.h>
 #include <GCS_MAVLink.h>
 
+//************************************* Please select your options here before compiling **************************
 // Choose one (only) of these two target boards
 //#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
 #define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
-
-#define Use_Serial1_For_SPort   // The default, else use Serial3
 
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
 //#define Air_Mode             // Converter between FrSky receiver lke XRS and Flight Controller like Pixhawk
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
-#if defined Ground_Mode && defined Target_Teensy3x && defined Use_Serial1_For_SPort
+#define Use_Local_Battery_mAh     //  Un-comment this if you want to define battery mAhs here, no FC tx line needed
+
+const uint16_t bat1_capacity = 5800;       //  These are ignored if the above #define is commented out
+const uint16_t bat2_capacity = 0;
+
+#define Use_Serial1_For_SPort   // The default, else use Serial3
+
+#if defined Ground_Mode && defined Target_Teensy3x && defined Use_Serial1_For_SPort && not defined Use_Local_Battery_mAh
  #define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough. 
 #endif
+//*****************************************************************************************************************
 
 #define Debug               Serial         // USB 
 #define frBaud              57600          // Use 57600
@@ -539,12 +554,15 @@ void setup()  {
       Debug.println(" for one-way telemetry, Tx in and Rx out"); 
     #endif 
   #endif  
+  #ifdef Use_Local_Battery_mAh
+    Debug.println("Using internally defined battery capacities"); 
+  #endif
+  #ifdef Use_Serial1_For_SPort
+    Debug.println("Using Serial_1 for S.Port"); 
+  #else
+    Debug.println("Using Serial_3 for S.Port"); 
+  #endif  
 
- #ifdef Use_Serial1_For_SPort
-   Debug.println("Using Serial_1 for S.Port"); 
- #else
-   Debug.println("Using Serial_3 for S.Port"); 
- #endif  
 }
 
 // ******************************************
@@ -567,6 +585,7 @@ void loop()  {
     hb_count = 0;
    } 
 
+#ifndef Use_Local_Battery_mAh  // If not use local battery mAhs then ask the Flight Controller for them
   // Request battery capacity params, and when they have safely arrived switch txsw_pin (6) high 
   if (mavGood) {
     if (!ap_bat_paramsReq) {
@@ -583,6 +602,8 @@ void loop()  {
       }
     } 
   }
+#endif 
+  
   #ifdef Mav_List_Params
     if(mavGood && (!ap_paramsList)) {
       Request_Param_List();
@@ -691,7 +712,7 @@ void MavLink_Receive() {
             Debug.print((float)ap_current_battery1/ 100, 1);   // now A
               
             Debug.print("  mAh="); Debug.print(bat1.mAh, 6);    
-            Debug.print("  Total mAh="); Debug.print(bat1.tot_mAh, 3);
+            Debug.print("  Total mAh="); Debug.print(bat1.tot_mAh, 3);  // Consumed so far, calculated in Average module
          
             Debug.print("  Bat1 cell count= "); 
             Debug.println(ap_ccell_count1);
@@ -710,7 +731,7 @@ void MavLink_Receive() {
           ap_param_count=mavlink_msg_param_value_get_param_count(&msg);
           ap_param_index=mavlink_msg_param_value_get_param_index(&msg); 
 
-          switch(ap_param_index) {  
+          switch(ap_param_index) {      // if #define Use_Local_Battery_mAh these will never arrive
             case 356:         // Bat1 Capacity
               ap_bat1_capacity = ap_param_value;
               #if defined Mav_Debug_All || defined Debug_Batteries
