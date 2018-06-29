@@ -1,7 +1,7 @@
   
 /*  *****************************************************************************
 
-    BETA
+    RELEASE CANDIDATE
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -88,8 +88,8 @@
    Battery capacities in mAh can either be requested from the flight controller via Mavlink, or 
    defined within this firmware. When it is defined within this firmware, an outgoing Mavlink 
    connection via the Orange trx to the flight controller is not necessay. This frees up the Orange's
-   RX (and TX) line for use for BlueTooth or other Mavlink connections.
-
+   RX (and TX) line for use for BlueTooth or other Mavlink connections. Alternatively, yaapu's LUA 
+   script supports the entering of battery capacities for each model.
    Uncomment this line        #define Use_Local_Battery_mAh
    
    Connections to Teensy3.2 are:
@@ -125,7 +125,8 @@ v0.42   2018-06-20  FrSky Passthrough wants GPS co-cords in minutes and decimals
 v0.43   2018-06-24  Faster response moving average( 10% to 20%). Circular buffer for status text. Move status text 
                     into regular time slot.   
 v0.44   2018-06-26  Change status text message frequency to 5Hz  
-v0.45   2018-06-27  Optionally define battery capacities internally, don't ask Flight Controller for them.                                                  
+v0.45   2018-06-27  Optionally define battery capacities internally, don't ask Flight Controller for them.     
+v0.46   2018/06/29  RELEASE CANDIDATE. Home arrow sorted out. Points relative to the heading of the craft.                                             
 */
 
 #include <CircularBuffer.h>
@@ -143,7 +144,7 @@ v0.45   2018-06-27  Optionally define battery capacities internally, don't ask F
 
 #define Use_Local_Battery_mAh     //  Un-comment this if you want to define battery mAhs here, no FC tx line needed
 
-const uint16_t bat1_capacity = 5800;       //  These are ignored if the above #define is commented out
+const uint16_t bat1_capacity = 3300;       //  These are ignored if the above #define is commented out
 const uint16_t bat2_capacity = 0;
 
 #define Use_Serial1_For_SPort   // The default, else use Serial3
@@ -201,7 +202,6 @@ const uint16_t bat2_capacity = 0;
 //#define Frs_Debug_Attitude
 //#define Mav_Debug_Text
 //#define Frs_Debug_Text          
-
 
 uint8_t MavStatusLed = 13; 
 uint8_t MavLedState = LOW; 
@@ -481,8 +481,9 @@ uint16_t fr_bat1_mAh;
 
 // 0x5004 Home
 uint16_t fr_home_dist;
-uint32_t fr_home_angle;
-int32_t fr_home_alt;
+int16_t  fr_home_angle;       // degrees
+int16_t  fr_home_arrow;       // 0 = heading pointing to home, unit = 3 degrees
+int16_t  fr_home_alt;
 
 short fr_pwr;
 

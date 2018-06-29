@@ -563,7 +563,11 @@ void Send_Home_5004() {
     a=atan2(sin(lon2-lon1)*cos(lat2), cos(lat1)*sin(lat2)-sin(lat1)*cos(lat2)*cos(lon2-lon1));
     az=a*180/PI;  // radians to degrees
     if (az<0) az=360+az;
- 
+
+  fr_home_angle = Add360(az, -180);                       // the angle from the craft to home in degrees
+  fr_home_arrow = Add360(fr_home_angle, -ap_hdg/100);     // arrow on screen, home relative to heading in degrees
+  fr_home_arrow /= 3;                                     // units of 3 degrees
+
     // Calculate the distance from home to craft
     dLat = (lat2-lat1);
     dLon = (lon2-lon1);
@@ -575,11 +579,6 @@ void Send_Home_5004() {
       fr_home_dist = (int)dis;
     else
       fr_home_dist = 0;
-  
-    if (az >180)
-      fr_home_angle = (int)(az) - 180;
-    else 
-      fr_home_angle = (int)(az) + 180;
 
    // fr_home_alt = cur.alt - hom.alt;  // Meaning alt relative to home
       fr_home_alt = ap_alt_ag / 100;    // mm->dm
@@ -588,7 +587,10 @@ void Send_Home_5004() {
      Debug.print("Frsky out Home 0x5004: ");         
      Debug.print("fr_home_dist=");  Debug.print(fr_home_dist);
      Debug.print(" fr_home_alt=");  Debug.print(fr_home_alt);
-     Debug.print(" fr_home_angle="); Debug.println(fr_home_angle);               
+     Debug.print(" az=");  Debug.print(az);
+     Debug.print(" ap_hdg=");  Debug.print(ap_hdg/100);
+     Debug.print(" fr_home_angle="); Debug.print(fr_home_angle);  
+     Debug.print(" fr_home_arrow="); Debug.println(fr_home_arrow * 3);           // * 3 to get back to degrees       
    #endif
    fr_home_dist = prep_number(roundf(fr_home_dist), 3, 2);
    bit32Pack(fr_home_dist ,0, 12);
@@ -598,7 +600,7 @@ void Send_Home_5004() {
      bit32Pack(1,24, 1);
    else  
      bit32Pack(0,24, 1);
-   bit32Pack((fr_home_angle * 0.00333f) ,27, 7);
+   bit32Pack(fr_home_arrow,25, 7);
    FrSkySPort_SendDataFrame(0x1B, 0x5004,fr_payload);
 
 }
@@ -613,7 +615,8 @@ void Send_VelYaw_5005() {
   fr_vy = ap_climb_rate * 10;   // from #74   m/s to dm/s;
   fr_vx = ap_groundspeed * 10;  // from #74  m/s to dm/s
 
-  fr_yaw = (float)ap_hdg / 10;
+  fr_yaw = (float)ap_hdg / 10;  // (degrees*100) -> (degrees*10)
+  
   #if defined Frs_Debug_All || defined Frs_Debug_YelYaw
     Debug.print("Frsky out VelYaw 0x5005:");  
     Debug.print(" fr_vy=");  Debug.print(fr_vy);       
@@ -781,6 +784,13 @@ uint32_t Abs(int32_t num) {
     return (num ^ 0xffffffff) + 1;
   else
     return num;  
+}
+//***************************************************
+int16_t Add360(int16_t arg1, int16_t arg2) {
+  int16_t ret = arg1 + arg2;
+  if (ret < 0) ret += 360;
+  if (ret > 359) ret -= 360;
+  return ret;
 }
 //***************************************************
 // From Arducopter 3.5.5 code
