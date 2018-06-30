@@ -126,7 +126,8 @@ v0.43   2018-06-24  Faster response moving average( 10% to 20%). Circular buffer
                     into regular time slot.   
 v0.44   2018-06-26  Change status text message frequency to 5Hz  
 v0.45   2018-06-27  Optionally define battery capacities internally, don't ask Flight Controller for them.     
-v0.46   2018/06/29  RELEASE CANDIDATE. Home arrow sorted out. Points relative to the heading of the craft.                                             
+v0.46   2018/06/29  RELEASE CANDIDATE. Home arrow sorted out. Points relative to the heading of the craft. 
+v0.47   2018-06-30  Found out yaw (hdg) is subtracted in OSD in Taranis. Don't do it in Teensy then.                                       
 */
 
 #include <CircularBuffer.h>
@@ -190,7 +191,7 @@ const uint16_t bat2_capacity = 0;
 //#define Frs_Debug_LatLon
 //#define Frs_Debug_APStatus
 //#define Debug_Batteries
-//#define Frs_Debug_Home
+#define Frs_Debug_Home
 //#define Mav_Debug_GPS_Raw     // #24
 //#define Mav_Debug_GPS_Int     // #33
 //#define Frs_Debug_YelYaw

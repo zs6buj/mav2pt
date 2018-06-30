@@ -564,9 +564,10 @@ void Send_Home_5004() {
     az=a*180/PI;  // radians to degrees
     if (az<0) az=360+az;
 
-  fr_home_angle = Add360(az, -180);                       // the angle from the craft to home in degrees
-  fr_home_arrow = Add360(fr_home_angle, -ap_hdg/100);     // arrow on screen, home relative to heading in degrees
-  fr_home_arrow /= 3;                                     // units of 3 degrees
+    fr_home_angle = Add360(az, -180);                            // now is the angle from the craft to home in degrees
+ // fr_home_arrow = Add360(fr_home_angle, -ap_hdg/100);        //  NO, this is done in OSD in Taranis
+  
+    fr_home_arrow = fr_home_angle * 0.3333;                     // units of 3 degrees
 
     // Calculate the distance from home to craft
     dLat = (lat2-lat1);
@@ -580,7 +581,6 @@ void Send_Home_5004() {
     else
       fr_home_dist = 0;
 
-   // fr_home_alt = cur.alt - hom.alt;  // Meaning alt relative to home
       fr_home_alt = ap_alt_ag / 100;    // mm->dm
         
    #if defined Frs_Debug_All || defined Frs_Debug_Home
@@ -590,7 +590,7 @@ void Send_Home_5004() {
      Debug.print(" az=");  Debug.print(az);
      Debug.print(" ap_hdg=");  Debug.print(ap_hdg/100);
      Debug.print(" fr_home_angle="); Debug.print(fr_home_angle);  
-     Debug.print(" fr_home_arrow="); Debug.println(fr_home_arrow * 3);           // * 3 to get back to degrees       
+     Debug.print(" fr_home_arrow="); Debug.println(fr_home_arrow);         // units of 3 deg   
    #endif
    fr_home_dist = prep_number(roundf(fr_home_dist), 3, 2);
    bit32Pack(fr_home_dist ,0, 12);
@@ -604,13 +604,9 @@ void Send_Home_5004() {
    FrSkySPort_SendDataFrame(0x1B, 0x5004,fr_payload);
 
 }
+
 // *****************************************************************
 void Send_VelYaw_5005() {
-
-  //ap_vz = -4.567 * 100;  //  for testing
-  //ap_vel = 5.67 * 100;
-  //fr_vy = 0-ap_vz * 0.1;    // from #33   dm/s  Ground Z Speed (Altitude, positive down)
-  //fr_vx = ap_vel * 0.1;     // from #24   dm/s  Check this order of magnitude
   
   fr_vy = ap_climb_rate * 10;   // from #74   m/s to dm/s;
   fr_vx = ap_groundspeed * 10;  // from #74  m/s to dm/s
