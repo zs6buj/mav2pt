@@ -493,8 +493,12 @@ void SendAP_Status5001() {
 }
 // *****************************************************************
 void Send_GPS_Status5002() {
-  fr_numsats = ap_sat_visible;
 
+  if (ap_sat_visible > 15)
+    fr_numsats = 15;
+  else
+    fr_numsats = ap_sat_visible;
+  
   bit32Pack(fr_numsats ,0, 4); 
           
   fr_gps_status = ap_fixtype < 3 ? ap_fixtype : 3;                   //  0 - 3

@@ -32,7 +32,7 @@
     firmware is available to convert Mavlink to the native S.Port protocol, the author is 
     unaware of a suitable solution to convert to the Passthrough protocol. 
 
-    Recently some excellent Lua scripts for Taris displays, like this one by yaapu 
+    Recently some excellent Lua scripts for Taranis displays, like this one by yaapu 
     https://github.com/yaapu/FrskyTelemetryScript 
     
     This firmware converts APM or PX4 Mavlink telemetry to FrSky SPort passthrough telemetry, 
@@ -127,7 +127,8 @@ v0.43   2018-06-24  Faster response moving average( 10% to 20%). Circular buffer
 v0.44   2018-06-26  Change status text message frequency to 5Hz  
 v0.45   2018-06-27  Optionally define battery capacities internally, don't ask Flight Controller for them.     
 v0.46   2018/06/29  RELEASE CANDIDATE. Home arrow sorted out. Points relative to the heading of the craft. 
-v0.47   2018-06-30  Found out yaw (hdg) is subtracted in OSD in Taranis. Don't do it in Teensy then.                                       
+v0.47   2018-06-30  Found out yaw (hdg) is subtracted in OSD in Taranis. Don't do it in Teensy then. 
+v0.48   2018-07-02  Declare home and current location structures volatile. Prevent overflow of sat count = 15                                      
 */
 
 #include <CircularBuffer.h>
@@ -135,8 +136,8 @@ v0.47   2018-06-30  Found out yaw (hdg) is subtracted in OSD in Taranis. Don't d
 
 //************************************* Please select your options here before compiling **************************
 // Choose one (only) of these two target boards
-#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
-//#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
+//#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
+#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
 
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
@@ -248,16 +249,16 @@ uint32_t  rssi_F101_millis=0;
 float   lon1,lat1,lon2,lat2,alt1,alt2;  
 
 // 3D Location vectors
-struct Location {
+ struct Location {
   float lat; 
   float lon;
   float alt;
   float hdg;
   };
-struct Location hom     = {
+volatile struct Location hom     = {
   0,0,0,0};   // home location
 
-struct Location cur      = {
+volatile struct Location cur      = {
   0,0,0,0};   // current location  
 
 struct Battery {
