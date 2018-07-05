@@ -1,4 +1,4 @@
-
+     
 // Frsky variables     
 short    crc;                         // of frsky-packet
 uint8_t  time_slot_max = 12;              

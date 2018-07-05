@@ -1,7 +1,7 @@
   
 /*  *****************************************************************************
 
-    RELEASE CANDIDATE
+    RELEASED v1.00 - 2018-07-05
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -128,7 +128,8 @@ v0.44   2018-06-26  Change status text message frequency to 5Hz
 v0.45   2018-06-27  Optionally define battery capacities internally, don't ask Flight Controller for them.     
 v0.46   2018/06/29  RELEASE CANDIDATE. Home arrow sorted out. Points relative to the heading of the craft. 
 v0.47   2018-06-30  Found out yaw (hdg) is subtracted in OSD in Taranis. Don't do it in Teensy then. 
-v0.48   2018-07-02  Declare home and current location structures volatile. Prevent overflow of sat count = 15                                      
+v0.48   2018-07-02  Declare home and current location structures volatile. Prevent overflow of sat count = 15 
+v1.00   2018-07-05  RELEASED for general use                                    
 */
 
 #include <CircularBuffer.h>
@@ -136,15 +137,16 @@ v0.48   2018-07-02  Declare home and current location structures volatile. Preve
 
 //************************************* Please select your options here before compiling **************************
 // Choose one (only) of these two target boards
-//#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
-#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
+#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
+//#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
 
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
 //#define Air_Mode             // Converter between FrSky receiver lke XRS and Flight Controller like Pixhawk
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
-#define Use_Local_Battery_mAh     //  Un-comment this if you want to define battery mAhs here, no FC tx line needed
+#define Use_Local_Battery_mAh     //  Un-comment this if you want to define battery mAhs here, no FC tx line needed. Alternatively
+                                  //    enter battery capacities into yaapu's LUA script menu
 
 const uint16_t bat1_capacity = 3300;       //  These are ignored if the above #define is commented out
 const uint16_t bat2_capacity = 0;
@@ -192,7 +194,7 @@ const uint16_t bat2_capacity = 0;
 //#define Frs_Debug_LatLon
 //#define Frs_Debug_APStatus
 //#define Debug_Batteries
-#define Frs_Debug_Home
+//#define Frs_Debug_Home
 //#define Mav_Debug_GPS_Raw     // #24
 //#define Mav_Debug_GPS_Int     // #33
 //#define Frs_Debug_YelYaw
