@@ -20,9 +20,11 @@
     Acknowledgements and thanks to Craft and Theory (http://www.craftandtheoryllc.com/) for
     the Mavlink / Frsky Passthrough protocol
 
-    Thank you to yaapu for advice on working with his excellent LUA scrip
+    Thank you to yaapu for advice and testing, and his excellent LUA scrip
 
     Thank you florent for advice on working with my FlightDeck
+
+    Thank you athertop for advice and extensive testing
 
     *****************************************************************************
 
@@ -306,6 +308,7 @@ uint8_t    target_component;
 uint8_t    mvType;
 
 // Message #0  HEARTHBEAT 
+uint8_t    ap_type_tmp = 0;              // hold the type until we know HB not from GCS or Tracket
 uint8_t    ap_type = 0;
 uint8_t    ap_autopilot = 0;
 uint8_t    ap_base_mode = 0;
@@ -664,8 +667,9 @@ void MavLink_Receive() {
       switch(msg.msgid) {
     
         case MAVLINK_MSG_ID_HEARTBEAT:    // #0   http://mavlink.org/messages/common
-          ap_type = mavlink_msg_heartbeat_get_type(&msg);
-          if (ap_type == 5 || ap_type == 6) break;    // Ignore heartbeats from GCS (6) or Ant Trackers(5)
+          ap_type_tmp = mavlink_msg_heartbeat_get_type(&msg);   // Alex - don't contaminate the ap-type variable
+          if (ap_type_tmp == 5 || ap_type_tmp == 6) break;      // Ignore heartbeats from GCS (6) or Ant Trackers(5)
+          ap_type = ap_type_tmp;
           ap_autopilot = mavlink_msg_heartbeat_get_autopilot(&msg);
           ap_base_mode = mavlink_msg_heartbeat_get_base_mode(&msg);
           ap_custom_mode = mavlink_msg_heartbeat_get_custom_mode(&msg);
