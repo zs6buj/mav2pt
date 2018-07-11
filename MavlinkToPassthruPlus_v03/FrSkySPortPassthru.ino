@@ -1,7 +1,7 @@
      
 // Frsky variables     
 short    crc;                         // of frsky-packet
-uint8_t  time_slot_max = 13;              
+uint8_t  time_slot_max = 14;              
 uint32_t time_slot = 1;
 float a, az, c, dis, dLat, dLon;
 uint8_t rc_count = 1;
@@ -232,7 +232,15 @@ void FrSkySPort_Process() {
             break; 
             }
           else
-            time_slot++;   // Donate the slot to next                 
+            time_slot++;   // Donate the slot to next        
+        case 14:          // data id 0x5010 HUD
+          if (millis() - Hud_5010_millis > 500)   {        // 2 Hz, same as 0x5005 velyaw
+            Send_Hud_5010();
+            Hud_5010_millis = millis();
+            break; 
+            }
+          else
+            time_slot++;   // Donate the slot to next                              
         default:
          // ERROR
          break;
@@ -577,7 +585,7 @@ void Send_Home_5004() {
     if (az<0) az=360+az;
 
     fr_home_angle = Add360(az, -180);                            // now is the angle from the craft to home in degrees
- // fr_home_arrow = Add360(fr_home_angle, -ap_hdg/100);        //  NO, this is done in OSD in Taranis
+ // fr_home_arrow = Add360(fr_home_angle, -ap_gps_hdg/100);        //  NO, this is done in OSD in Taranis
   
     fr_home_arrow = fr_home_angle * 0.3333;                     // units of 3 degrees
 
@@ -600,7 +608,6 @@ void Send_Home_5004() {
      Debug.print("fr_home_dist=");  Debug.print(fr_home_dist);
      Debug.print(" fr_home_alt=");  Debug.print(fr_home_alt);
      Debug.print(" az=");  Debug.print(az);
-     Debug.print(" ap_hdg=");  Debug.print(ap_hdg/100);
      Debug.print(" fr_home_angle="); Debug.print(fr_home_angle);  
      Debug.print(" fr_home_arrow="); Debug.println(fr_home_arrow);         // units of 3 deg   
    #endif
@@ -620,10 +627,11 @@ void Send_Home_5004() {
 // *****************************************************************
 void Send_VelYaw_5005() {
   
-  fr_vy = ap_climb_rate * 10;   // from #74   m/s to dm/s;
-  fr_vx = ap_groundspeed * 10;  // from #74  m/s to dm/s
+  fr_vy = ap_hud_climb * 10;   // from #74   m/s to dm/s;
+  fr_vx = ap_hud_grd_spd * 10;  // from #74  m/s to dm/s
 
-  fr_yaw = (float)ap_hdg / 10;  // (degrees*100) -> (degrees*10)
+  //fr_yaw = (float)ap_gps_hdg / 10;  // (degrees*100) -> (degrees*10)
+  fr_yaw = ap_hud_hdg * 10;              // degrees -> (degrees*10)
   
   #if defined Frs_Debug_All || defined Frs_Debug_YelYaw
     Debug.print("Frsky out VelYaw 0x5005:");  
@@ -636,10 +644,10 @@ void Send_VelYaw_5005() {
   else
     bit32Pack(0, 8, 1);
   fr_vy = prep_number(roundf(fr_vy), 2, 1);  // Vertical velocity
-  bit32Pack(fr_vy, 0, 7);   // what about negative
+  bit32Pack(fr_vy, 0, 8);   
 
   fr_vx = prep_number(roundf(fr_vx), 2, 1);  // Horizontal velocity
-  bit32Pack(fr_vx, 9, 7);    
+  bit32Pack(fr_vx, 9, 8);    
   fr_yaw = fr_yaw * 0.5f;                   // Unit = 0.2 deg
   bit32Pack(fr_yaw ,17, 11);  
 
@@ -811,6 +819,34 @@ void Send_RC_5009() {
   #endif
 
   rc_count += 4;   
+        
+}// ***************************************************************** 
+void Send_Hud_5010() {
+ 
+  fr_air_spd = ap_hud_air_spd * 10;      // from #74  m/s to dm/s
+  fr_throt = ap_hud_throt;               // 0 - 100%
+  fr_bar_alt = ap_hud_bar_alt * 10;      // m to dm
+
+  #if defined Frs_Debug_All || defined Frs_Debug_Hud
+    Debug.print("Frsky out RC 0x5010: ");   
+    Debug.print(" fr_air_spd="); Debug.print(fr_air_spd);
+    Debug.print(" fr_throt="); Debug.print(fr_throt);
+    Debug.print(" fr_bar_alt="); Debug.println(fr_bar_alt);       
+  #endif
+  
+  fr_air_spd = prep_number(roundf(fr_air_spd), 2, 1);  
+  bit32Pack(fr_air_spd, 0, 8);    
+
+  bit32Pack(fr_throt, 8, 7);
+
+  fr_bar_alt =  prep_number(roundf(fr_bar_alt), 3, 2);
+  bit32Pack(fr_bar_alt, 15, 12);
+  if (fr_bar_alt < 0)
+    bit32Pack(1, 27, 1);  
+  else
+   bit32Pack(0, 27, 1);  
+    
+  FrSkySPort_SendDataFrame(0x1B, 0x5010,fr_payload); 
         
 }
 // *****************************************************************  

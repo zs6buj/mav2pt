@@ -118,21 +118,8 @@
     
 Change log:
 
-v0.40   2018-06-14  Use baro alt_ag from #33 for home alt (alt above home field)  
-v0.41   2018-06-15  Change home angle thru 180 degrees - athertop. Avoid buffer taint by GCS heartbeat.
-                    Fix message text sometimes truncated - thanks yaapu  
-                    In Relay Mode send alternative instance of rssi (0x1c + 1) or 29
-v0.42   2018-06-20  FrSky Passthrough wants GPS co-cords in minutes and decimals, not degrees 
-                    Set polling back to 22 ms for ground mode. Add startup status information.
-                                        
-v0.43   2018-06-24  Faster response moving average( 10% to 20%). Circular buffer for status text. Move status text 
-                    into regular time slot.   
-v0.44   2018-06-26  Change status text message frequency to 5Hz  
-v0.45   2018-06-27  Optionally define battery capacities internally, don't ask Flight Controller for them.     
-v0.46   2018/06/29  RELEASE CANDIDATE. Home arrow sorted out. Points relative to the heading of the craft. 
-v0.47   2018-06-30  Found out yaw (hdg) is subtracted in OSD in Taranis. Don't do it in Teensy then. 
-v0.48   2018-07-02  Declare home and current location structures volatile. Prevent overflow of sat count = 15 
-v1.00   2018-07-05  RELEASED for general use                                    
+v0.03 2018-07-11  Add sensor types 0x5009 RX Channels, 0x5010 VFR Hud 
+                                  
 */
 
 #include <CircularBuffer.h>
@@ -193,7 +180,7 @@ const uint16_t bat2_capacity = 0;
 //#define Frs_Debug_Payload
 //#define Mav_Debug_Rssi
 //#define Mav_Debug_RC
-#define Frs_Debug_RC
+//#define Frs_Debug_RC
 //#define Mav_Debug_Heartbeat
 //#define Mav_Debug_SysStatus
 //#define Frs_Debug_LatLon
@@ -205,7 +192,8 @@ const uint16_t bat2_capacity = 0;
 //#define Frs_Debug_YelYaw
 //#define Frs_Debug_GPS_Status
 //#define Mav_Debug_Raw_IMU
-//#define Mav_Debug_VFR_HUD
+#define Mav_Debug_Hud
+#define Frs_Debug_Hud
 //#define Mav_Debug_Scaled_Pressure
 //#define Mav_Debug_Attitude
 //#define Frs_Debug_Attitude
@@ -252,6 +240,7 @@ uint32_t  Atti5006_millis = 0;
 uint32_t  Param5007_millis = 0;
 uint32_t  Bat2_5008_millis = 0;
 uint32_t  RC_5009_millis = 0; 
+uint32_t  Hud_5010_millis = 0; 
 uint32_t  rssi_F101_millis=0;
 
 float   lon1,lat1,lon2,lat2,alt1,alt2;  
@@ -386,7 +375,7 @@ int32_t ap_alt_ag;         // Altitude above ground (millimeters)
 int16_t ap_vx;             // Ground X Speed (Latitude, positive north), expressed as m/s * 100
 int16_t ap_vy;             // Ground Y Speed (Longitude, positive east), expressed as m/s * 100
 int16_t ap_vz;             // Ground Z Speed (Altitude, positive down), expressed as m/s * 100
-uint16_t ap_hdg;           // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees
+uint16_t ap_gps_hdg;           // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees
 
 // Message #65 RC_Channels
 bool      ap_rc_flag = false;    // true when rc record received
@@ -396,13 +385,13 @@ uint16_t  ap_chan_raw[17];       // 16 channels, [0] ignored use [1] thru [16] f
 //uint16_t ap_chan16_raw;        // Used for RSSI uS 1000=0%  2000=100%
 uint8_t  rssi;                   // Receive signal strength indicator, 0: 0%, 100: 100%, 255: invalid/unknown
 
-// Message #74 VFR_HUD   
-float    ap_airspeed;
-float    ap_groundspeed;
-int16_t  ap_heading;
-uint16_t ap_throttle;
-float    ap_bar_altitude;   
-float    ap_climb_rate;        
+// Message #74 VFR_HUD  
+float    ap_hud_air_spd;
+float    ap_hud_grd_spd;
+int16_t  ap_hud_hdg;
+uint16_t ap_hud_throt;
+float    ap_hud_bar_alt;   
+float    ap_hud_climb;        
 
 // Message  #125 POWER_STATUS 
 uint16_t  ap_Vcc;                 // 5V rail voltage in millivolts
@@ -502,16 +491,16 @@ short fr_pwr;
 
 // 0x5005 Velocity and yaw
 uint32_t fr_velyaw;
-float fr_vy;
-float fr_vx;
-float fr_yaw;
+float fr_vy;    // climb in decimeters/s
+float fr_vx;    // groundspeed in decimeters/s
+float fr_yaw;   // heading units of 0.2 degrees
 
 // 0x5006 Attitude and range
 uint16_t fr_roll;
 uint16_t fr_pitch;
 uint16_t fr_range;
 
-// 0x5007 Parameters  - Sent 3x each at init
+// 0x5007 Parameters  
 uint8_t  fr_param_id ;
 uint32_t fr_param_val;
 uint32_t fr_frame_type;
@@ -524,9 +513,14 @@ float fr_bat2_volts;
 float fr_bat2_amps;
 uint16_t fr_bat2_mAh;
 
-//0x5009 RC channels  // 4 ch per frame
+//0x5009 RC channels       // 4 ch per frame
 uint8_t  fr_chcnt; 
-int8_t   fr_rc[5];   // [0] ignored use [1] thu [4] for simplicity
+int8_t   fr_rc[5];         // [0] ignored use [1] thu [4] for simplicity
+
+//0x5010 HUD
+float    fr_air_spd;       // dm/s
+uint16_t fr_throt;         // 0 to 100%
+float    fr_bar_alt;       // metres
 
 //0xF103
 uint32_t fr_rssi;
@@ -877,12 +871,12 @@ void MavLink_Receive() {
           ap_vx = mavlink_msg_global_position_int_get_vx(&msg);               //  Ground X Speed (Latitude, positive north), expressed as m/s * 100
           ap_vy = mavlink_msg_global_position_int_get_vy(&msg);               //  Ground Y Speed (Longitude, positive east), expressed as m/s * 100
           ap_vz = mavlink_msg_global_position_int_get_vz(&msg);               // Ground Z Speed (Altitude, positive down), expressed as m/s * 100
-          ap_hdg = mavlink_msg_global_position_int_get_hdg(&msg);             // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees        
+          ap_gps_hdg = mavlink_msg_global_position_int_get_hdg(&msg);             // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees        
  
           cur.lat =  (float)ap_lat / 1E7;
           cur.lon = (float)ap_lon / 1E7;
           cur.alt = ap_amsl33 / 1E3;
-          cur.hdg = ap_hdg / 100;
+          cur.hdg = ap_gps_hdg / 100;
 
           #if defined Mav_Debug_All || defined Mav_Debug_GPS_Int
             Debug.print("Mavlink in #33 GPS Int: ");
@@ -893,7 +887,7 @@ void MavLink_Receive() {
             Debug.print(" ap_vx="); Debug.print((float)ap_vx / 100, 2);
             Debug.print(" ap_vy="); Debug.print((float)ap_vy / 100, 2);
             Debug.print(" ap_vz="); Debug.print((float)ap_vz / 100, 2);
-            Debug.print(" ap_hdg="); Debug.println((float)ap_hdg / 100, 1);
+            Debug.print(" ap_gps_hdg="); Debug.println((float)ap_gps_hdg / 100, 1);
           #endif  
                 
           break;  
@@ -950,21 +944,21 @@ void MavLink_Receive() {
           break;                             
         case MAVLINK_MSG_ID_VFR_HUD:                 //  #74
           if (!mavGood) break;      
-          ap_airspeed = mavlink_msg_vfr_hud_get_airspeed(&msg);
-          ap_groundspeed = mavlink_msg_vfr_hud_get_groundspeed(&msg);      //  in m/s
-          ap_heading = mavlink_msg_vfr_hud_get_heading(&msg);              //  in degrees
-          ap_throttle = mavlink_msg_vfr_hud_get_throttle(&msg);            //  integer percent
-          ap_bar_altitude = mavlink_msg_vfr_hud_get_alt(&msg);             //  m
-          ap_climb_rate=mavlink_msg_vfr_hud_get_climb(&msg);               //  m/s
+          ap_hud_air_spd = mavlink_msg_vfr_hud_get_airspeed(&msg);
+          ap_hud_grd_spd = mavlink_msg_vfr_hud_get_groundspeed(&msg);      //  in m/s
+          ap_hud_hdg = mavlink_msg_vfr_hud_get_heading(&msg);              //  in degrees
+          ap_hud_throt = mavlink_msg_vfr_hud_get_throttle(&msg);           //  integer percent
+          ap_hud_bar_alt = mavlink_msg_vfr_hud_get_alt(&msg);              //  m
+          ap_hud_climb = mavlink_msg_vfr_hud_get_climb(&msg);              //  m/s
 
-          #if defined Mav_Debug_All || defined Mav_Debug_VFR_HUD
+          #if defined Mav_Debug_All || defined Mav_Debug_Hud
             Debug.print("Mavlink in #74 VFR_HUD: ");
-            Debug.print("Airspeed= "); Debug.print(ap_airspeed, 2);                    // m/s    
-            Debug.print("  Groundspeed= "); Debug.print(ap_groundspeed, 2);            // m/s
-            Debug.print("  Heading= ");  Debug.print(ap_heading);                      // deg
-            Debug.print("  Throttle= ");  Debug.print(ap_throttle);                    // %
-            Debug.print("  Barometric altitude= "); Debug.print(ap_bar_altitude);      // m                  
-            Debug.print("  Climb rate= "); Debug.println(ap_climb_rate);               // m/s
+            Debug.print("Airspeed= "); Debug.print(ap_hud_air_spd, 2);                    // m/s    
+            Debug.print("  Groundspeed= "); Debug.print(ap_hud_grd_spd, 2);            // m/s
+            Debug.print("  Heading= ");  Debug.print(ap_hud_hdg);                      // deg
+            Debug.print("  Throttle %= ");  Debug.print(ap_hud_throt);                    // %
+            Debug.print("  Baro alt= "); Debug.print(ap_hud_bar_alt, 0);   // m                  
+            Debug.print("  Climb rate= "); Debug.println(ap_hud_climb);               // m/s
           #endif  
           break; 
         case MAVLINK_MSG_ID_SCALED_IMU2:       // #116   http://mavlink.org/messages/common
@@ -1118,7 +1112,7 @@ void MarkHome()  {
   hom.lat = (float)ap_lat / 1E7;
   hom.lon = (float)ap_lon / 1E7;
   hom.alt = (float)ap_amsl24 / 1E3;
-  hom.hdg = (float)ap_hdg / 100;
+  hom.hdg = (float)ap_gps_hdg / 100;
 
   #if defined Mav_Debug_All || defined Mav_Debug_GPS_Int
     Debug.print("******************************************Mavlink in #33 GPS Int: Home established: ");       
