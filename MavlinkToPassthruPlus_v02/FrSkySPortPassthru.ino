@@ -4,7 +4,7 @@ short    crc;                         // of frsky-packet
 uint8_t  time_slot_max = 13;              
 uint32_t time_slot = 1;
 float a, az, c, dis, dLat, dLon;
-uint8_t rc_ch = 1;
+uint8_t rc_count = 1;
 
 #if defined Target_Teensy3x
 volatile uint8_t *uartC3;
@@ -226,7 +226,7 @@ void FrSkySPort_Process() {
           else
             time_slot++;   // Donate the slot to next 
         case 13:          // data id 0x5009 RC
-          if (millis() - RC_5009_millis > 1000)  {  // 1 Hz
+          if (ap_rc_flag)   {                       // Use the slot or lose the slot
             Send_RC_5009();
             RC_5009_millis = millis();
             break; 
@@ -761,68 +761,57 @@ void Send_Bat2_5008() {
 // ***************************************************************** 
 void Send_RC_5009() {
   
-  if (rc_ch > ap_chancount) { 
-    rc_ch = 1;
-  }
-      
-  if (rc_ch == 1) {
-    fr_chancount = ap_chancount;
-    for (int i=1 ; i <= ap_chancount ; i++) {       // calc all the fr_rc %
-      fr_rc[0] = (ap_chan_raw[rc_ch] - 1000) / 100;  // +- 100% , use [0] as temop
-      if (fr_rc[0] > 112)
-        fr_rc[i] = 112;
-      else
-        fr_rc[i] = fr_rc[0];
-    }
-    
-    bit32Pack(0xF ,0, 4);           // first frame marker, note % may never be >=112
-    bit32Pack(fr_chancount , 4, 4); // rest of byte 1 of fram
-    bit32Pack(fr_rc[1] ,7, 8);        // byte 2 of frame
-    bit32Pack(fr_rc[2] ,15, 8);       // byte 3  
-    bit32Pack(fr_rc[3] ,23, 8);       // byte 4 
-    FrSkySPort_SendDataFrame(0x1B, 0x5009,fr_payload); // frame 1 of RC 0x5009
+  if (rc_count > ap_chcnt) { 
+    rc_count = 1;
+    ap_rc_flag = false;  // done with the ap_rc record received
+  } 
+   
+  if (rc_count == 1) 
+    fr_chcnt = ap_chcnt - 1;  // 1 to 16  ->  0 to 15  
+  else 
+    fr_chcnt = 0;
+  
+  fr_rc[1] = (ap_chan_raw[rc_count] - 1500) / 5;     // PWM 1000 to 2000   ->    +- percent
+  fr_rc[2] = (ap_chan_raw[rc_count+1] - 1500) / 5; 
+  fr_rc[3] = (ap_chan_raw[rc_count+2] - 1500) / 5; 
+  fr_rc[4] = (ap_chan_raw[rc_count+3] - 1500) / 5; 
 
-    #if defined Frs_Debug_All || defined Debug_RC
-      Debug.print("Frsky out RC 0x5009: ");   
-      Debug.print(" fr_chancount="); Debug.print(fr_chancount);
-      Debug.print(" fr_rc1="); Debug.print(fr_rc[1]);
-      Debug.print(" fr_rc2="); Debug.print(fr_rc[2]);
-      Debug.print(" fr_rc3="); Debug.println(fr_rc[3]);      
-    #endif
+  bit32Pack(fr_chcnt, 28, 4);       //  channel count, if > 0 marks first frame
+  bit32Pack(fr_rc[1] ,4, 6);        // fragment 1 
+  if (fr_rc[1] < 0)
+    bit32Pack(1, 10, 1);            // neg
+  else 
+    bit32Pack(0, 10, 1);            // pos          
+  bit32Pack(fr_rc[2] ,11, 6);       // fragment 2 
+  if (fr_rc[2] < 0)
+    bit32Pack(1, 17, 1);            // neg
+  else 
+    bit32Pack(0, 17, 1);            // pos   
+  bit32Pack(fr_rc[3] ,18, 6);       // fragment 3
+  if (fr_rc[3] < 0)
+    bit32Pack(1, 24, 1);            // neg
+  else 
+    bit32Pack(0, 24, 1);            // pos      
+  bit32Pack(fr_rc[4] ,25, 6);       // fragment 4 
+  if (fr_rc[4] < 0)
+    bit32Pack(1, 31, 1);            // neg
+  else 
+    bit32Pack(0, 31, 1);            // pos  
+        
+  FrSkySPort_SendDataFrame(0x1B, 0x5007,fr_payload); 
 
-    rc_ch += 3;   
-  }
-  
-  bit32Pack(fr_rc[rc_ch] ,0, 8);
-  
-  if (rc_ch+1 > ap_chancount)
-    bit32Pack(0 ,7, 8);
-  else 
-    bit32Pack(fr_rc[rc_ch+1] ,7, 8); 
-    
-   if (rc_ch+2 > ap_chancount)
-    bit32Pack(0 ,15, 8);
-  else 
-    bit32Pack(fr_rc[rc_ch+2] ,15, 8);  
-      
-  if (rc_ch+3 > ap_chancount)
-    bit32Pack(0 ,23, 8);
-  else 
-    bit32Pack(fr_rc[rc_ch+3] ,23, 8); 
-          
-  FrSkySPort_SendDataFrame(0x1B, 0x5009,fr_payload); 
-  
-  #if defined Frs_Debug_All || defined Debug_RC
+  #if defined Frs_Debug_All || defined Frs_Debug_RC
     Debug.print("Frsky out RC 0x5009: ");   
-    Debug.print(" fr_rc"); Debug.print(rc_ch); Debug.print("="); Debug.print(fr_rc[rc_ch]);
-    Debug.print(" fr_rc"); Debug.print(rc_ch+1); Debug.print("="); Debug.print(fr_rc[rc_ch+1]); 
-    Debug.print(" fr_rc"); Debug.print(rc_ch+2); Debug.print("="); Debug.print(fr_rc[rc_ch+2]); 
-    Debug.print(" fr_rc"); Debug.print(rc_ch+3); Debug.print("="); Debug.println(fr_rc[rc_ch+3]);     
+    Debug.print(" rc_count="); Debug.print(rc_count);
+    Debug.print(" fr_chcnt="); Debug.print(fr_chcnt);
+    Debug.print(" fr_rc1="); Debug.print(fr_rc[1]);
+    Debug.print(" fr_rc2="); Debug.print(fr_rc[2]);
+    Debug.print(" fr_rc3="); Debug.print(fr_rc[3]);   
+    Debug.print(" fr_rc4="); Debug.println(fr_rc[4]);       
   #endif
-               
-  FrSkySPort_SendDataFrame(0x1B, 0x5009,fr_payload); 
 
-  rc_ch += 4;         
+  rc_count += 4;   
+        
 }
 // *****************************************************************  
 void SendRssiF101() {          // data id 0xF101 RSSI tell LUA script in Taranis we are connected

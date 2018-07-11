@@ -192,7 +192,8 @@ const uint16_t bat2_capacity = 0;
 //#define Frs_Debug_Params
 //#define Frs_Debug_Payload
 //#define Mav_Debug_Rssi
-#define Debug_RC
+//#define Mav_Debug_RC
+#define Frs_Debug_RC
 //#define Mav_Debug_Heartbeat
 //#define Mav_Debug_SysStatus
 //#define Frs_Debug_LatLon
@@ -388,13 +389,14 @@ int16_t ap_vz;             // Ground Z Speed (Altitude, positive down), expresse
 uint16_t ap_hdg;           // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees
 
 // Message #65 RC_Channels
-uint8_t  ap_chancount; 
-uint8_t  ap_chan_raw[17];          // 16 channels, 0 ignored use 1 thru 16
+bool      ap_rc_flag = false;    // true when rc record received
+uint8_t   ap_chcnt; 
+uint16_t  ap_chan_raw[17];       // 16 channels, [0] ignored use [1] thru [16] for simplicity
 
-//uint16_t ap_chan16_raw;          // Used for RSSI uS 1000=0%  2000=100%
+//uint16_t ap_chan16_raw;        // Used for RSSI uS 1000=0%  2000=100%
 uint8_t  rssi;                   // Receive signal strength indicator, 0: 0%, 100: 100%, 255: invalid/unknown
 
-// Message #74 VFR_HUD   // Not used at present
+// Message #74 VFR_HUD   
 float    ap_airspeed;
 float    ap_groundspeed;
 int16_t  ap_heading;
@@ -510,12 +512,12 @@ uint16_t fr_pitch;
 uint16_t fr_range;
 
 // 0x5007 Parameters  - Sent 3x each at init
-uint8_t fr_param_id ;
+uint8_t  fr_param_id ;
 uint32_t fr_param_val;
 uint32_t fr_frame_type;
 uint32_t fr_bat1_capacity;
 uint32_t fr_bat2_capacity;
-bool fr_paramsSent = false;
+bool     fr_paramsSent = false;
 
 //0x5008 Batt
 float fr_bat2_volts;
@@ -523,8 +525,8 @@ float fr_bat2_amps;
 uint16_t fr_bat2_mAh;
 
 //0x5009 RC channels  // 4 ch per frame
-uint8_t  fr_chancount; 
-int8_t   fr_rc[5];   // 0 ignored use 1 thu 4
+uint8_t  fr_chcnt; 
+int8_t   fr_rc[5];   // [0] ignored use [1] thu [4] for simplicity
 
 //0xF103
 uint32_t fr_rssi;
@@ -910,7 +912,7 @@ void MavLink_Receive() {
         case MAVLINK_MSG_ID_RC_CHANNELS:             // #65
           if (!mavGood) break; 
           rssiGood=true;               //  We have received at least one rssi packet from air mavlink   
-          ap_chancount = mavlink_msg_rc_channels_get_chancount(&msg);
+          ap_chcnt = mavlink_msg_rc_channels_get_chancount(&msg);
           ap_chan_raw[1] = mavlink_msg_rc_channels_get_chan1_raw(&msg);   
           ap_chan_raw[2] = mavlink_msg_rc_channels_get_chan2_raw(&msg);
           ap_chan_raw[3]= mavlink_msg_rc_channels_get_chan3_raw(&msg);   
@@ -929,14 +931,15 @@ void MavLink_Receive() {
           ap_chan_raw[16] = mavlink_msg_rc_channels_get_chan16_raw(&msg);
           
           ap_rssi = mavlink_msg_rc_channels_get_rssi(&msg);   // Receive RSSI 0: 0%, 254: 100%, 255: invalid/unknown
-          
-          #if defined Mav_Debug_All || defined Mav_Debug_Rssi || defined Debug_RC
+          ap_rc_flag = true;                                  // tell fr routine we have an rc records
+          #if defined Mav_Debug_All || defined Mav_Debug_Rssi || defined Mav_Debug_RC
             Debug.print("Mavlink in #65 RC_Channels: ");
-            Debug.print("Channel count= "); Debug.print(ap_chancount); 
-            for (int i=1 ; i <= ap_chancount ; i++) {
-              Debug.print("  Channel ");
+            Debug.print("Channel count= "); Debug.print(ap_chcnt); 
+            Debug.print(" values: ");
+            for (int i=1 ; i <= ap_chcnt ; i++) {
+              Debug.print(" "); 
               Debug.print(i);
-              Debug.print(" = ");  
+              Debug.print("=");  
               Debug.print(ap_chan_raw[i]);   
             }                         
             Debug.print("  Receive RSSI=");  Debug.println(ap_rssi/ 2.54);        
