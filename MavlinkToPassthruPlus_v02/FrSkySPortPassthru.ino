@@ -798,7 +798,7 @@ void Send_RC_5009() {
   else 
     bit32Pack(0, 31, 1);            // pos  
         
-  FrSkySPort_SendDataFrame(0x1B, 0x5007,fr_payload); 
+  FrSkySPort_SendDataFrame(0x1B, 0x5009,fr_payload); 
 
   #if defined Frs_Debug_All || defined Frs_Debug_RC
     Debug.print("Frsky out RC 0x5009: ");   
