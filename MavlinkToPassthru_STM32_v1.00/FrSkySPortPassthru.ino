@@ -630,7 +630,6 @@ void Send_VelYaw_5005() {
   fr_vy = prep_number(roundf(fr_vy), 2, 1);  // Vertical velocity
 //  bit32Pack(fr_vy, 0, 7);   
   bit32Pack(fr_vy, 0, 8);   
-
   fr_vx = prep_number(roundf(fr_vx), 2, 1);  // Horizontal velocity
 //  bit32Pack(fr_vx, 9, 7);  
   bit32Pack(fr_vx, 9, 8);     
