@@ -192,8 +192,8 @@ const uint16_t bat2_capacity = 0;
 //#define Frs_Debug_YelYaw
 //#define Frs_Debug_GPS_Status
 //#define Mav_Debug_Raw_IMU
-#define Mav_Debug_Hud
-#define Frs_Debug_Hud
+//#define Mav_Debug_Hud
+//#define Frs_Debug_Hud
 //#define Mav_Debug_Scaled_Pressure
 //#define Mav_Debug_Attitude
 //#define Frs_Debug_Attitude
