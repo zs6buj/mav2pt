@@ -118,7 +118,7 @@
     
 Change log:
 
-v0.03 2018-07-11  Add sensor types 0x5009 RX Channels, 0x5010 VFR Hud 
+v0.03 2018-07-11  Add sensor types 0x5009 RX Channels, 0x5010 VFR Hud 2018-07-17 board LED solid when mavGood  
                                   
 */
 
@@ -575,6 +575,9 @@ void setup()  {
     Debug.println("Using Serial_3 for S.Port"); 
   #endif  
 
+   pinMode(MavStatusLed, OUTPUT); 
+   pinMode(BufStatusLed, OUTPUT); 
+   
 }
 
 // ******************************************
@@ -1211,10 +1214,12 @@ void ServiceStatusLeds() {
 void ServiceMavStatusLed() {
   if (mavGood) {
       MavLedState = HIGH;
+      digitalWrite(MavStatusLed, MavLedState); 
   }
-    else 
+    else {
       BlinkMavLed(500);
-    digitalWrite(MavStatusLed, MavLedState);  
+    }
+  digitalWrite(MavStatusLed, MavLedState); 
 }
 
 void ServiceBufStatusLed() {
