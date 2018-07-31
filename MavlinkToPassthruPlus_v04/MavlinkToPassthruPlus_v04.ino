@@ -1,4 +1,4 @@
-  
+ 
 /*  *****************************************************************************
 
     MavToPassthruPlus  July 2018
@@ -86,7 +86,7 @@
    box to the Taranis.  To enable Relay_Mode :
    Un-comment this line      #define Relay_Mode    like this
 
-   Select the target mpu by un-commenting either //#define Target_Teensy3x or //#define Target_STM32
+   Select the target mpu by un-commenting either //#define Target_Teensy3x or //#define Target_Blue_Pill or //#define Target_Maple_Mini
 
    Battery capacities in mAh can either be requested from the flight controller via Mavlink, or 
    defined within this firmware. When it is defined within this firmware, an outgoing Mavlink 
@@ -105,20 +105,32 @@
     6) Vcc 3.3V !
     7) GND
 
-   Connections to STM32F103C are:
+   Connections to Blue Pill STM32F103C  are:
 
     1) SPort S     -->TX2 Pin A2   Serial1 to inverter, convert to single wire then to S.Port
     2) SPort S     <--RX2 Pin A3   Serial1 To inverter, convert to single wire then to S.Port
-    3) Mavlink     <--RX3 Pin B11  Mavlink from Taranis to STM32 
-    4) Mavlink     -->TX3 Pin B10  Mavlink from STM32 to Taranis
+    3) Mavlink     -->TX3 Pin B10  Mavlink from STM32 to Taranis 
+    4) Mavlink     <--RX3 Pin B11  Mavlink from Taranis to STM32  
     5) Aux_Mavlink    Not available   
     6) Aux_Mavlink    Not available
     7) Vcc 3.3V !
     8) GND
+
+   Connections to Maple Mini STM32F103C are:
+
+    1) SPort S     -->TX1 Pin A10   Serial1 to inverter, convert to single wire then to S.Port
+    2) SPort S     <--RX1 Pin A9    Serial1 To inverter, convert to single wire then to S.Port
+    3) Mavlink     -->TX2 Pin A2    Serial2 Mavlink from STM32 to Taranis
+    4) Mavlink     <--RX2 Pin A3    Serial2 Mavlink from Taranis to STM32 
+    5) Aux_Mavlink -->TX3 Pin B10   Serial3 NOT NECESSARY - wire direct from Orange TX to BT RX
+    6) Aux_Mavlink <--RX3 Pin B11   Serial3 Auxiliary Mavlink From BT Module to Teensy  
+    7) Vcc 3.3V !
+    8) GND    
     
 Change log:
 
-v0.03 2018-07-11  Add sensor types 0x5009 RX Channels, 0x5010 VFR Hud 2018-07-17 board LED solid when mavGood  
+v0.03 2018-07-11  Add sensor types 0x5009 RX Channels, 0x5010 VFR Hud 2018-07-17 board LED solid when mavGood
+v0.04 2018-07-31  Add support for Maple Mini. Change rc channel 0x5009 as per yaapu's proposal  
                                   
 */
 
@@ -126,9 +138,10 @@ v0.03 2018-07-11  Add sensor types 0x5009 RX Channels, 0x5010 VFR Hud 2018-07-17
 #include <GCS_MAVLink.h>
 
 //************************************* Please select your options here before compiling **************************
-// Choose one (only) of these two target boards
-//#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
-#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
+// Choose one (only) of these target boards
+#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
+//#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
+//#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
 
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
@@ -138,42 +151,53 @@ v0.03 2018-07-11  Add sensor types 0x5009 RX Channels, 0x5010 VFR Hud 2018-07-17
 #define Use_Local_Battery_mAh     //  Un-comment this if you want to define battery mAhs here, no FC tx line needed. Alternatively
                                   //    enter battery capacities into yaapu's LUA script menu
 
-const uint16_t bat1_capacity = 3300;       //  These are ignored if the above #define is commented out
+const uint16_t bat1_capacity = 5200;       //  These are ignored if the above #define is commented out
 const uint16_t bat2_capacity = 0;
 
-#define Use_Serial1_For_SPort   // The default, else use Serial3
+#define SPort_Serial   1    // The default is Serial 1, but 3 is possible if we don't want aux port
 
-#if defined Ground_Mode && defined Target_Teensy3x && defined Use_Serial1_For_SPort && not defined Use_Local_Battery_mAh
- #define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough. 
-#endif
+//#define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough
+
 //*****************************************************************************************************************
+
+#if (Target_Board == 1) // Blue Pill
+  #if defined Aux_Port_Enabled       
+    #error Blue Pill board does not have enough UARTS for Auxilliary port. Un-comment #define Aux_Port_Enabled.
+  #endif
+#endif
 
 #define Debug               Serial         // USB 
 #define frBaud              57600          // Use 57600
 #define mavSerial           Serial2        
 #define mavBaud             57600   
 
-#ifdef Use_Serial1_For_SPort     // The default
-  #define frSerial            Serial1        // S.Port 
-#else
-  #define frSerial            Serial3        // S.Port 
-#endif
-
-#if defined Aux_Port_Enabled 
-#define auxSerial           Serial3        // Mavlink telemetry to and from auxilliary adapter
-#define auxBaud              57600         // Use 57600
-//#define auxDuplex                          // Pass aux <-> FC traffic up and down, else only up to FC
+#if (SPort_Serial == 1) 
+  #define frSerial              Serial1        // S.Port 
+  #elif (SPort_Serial == 3)
+    #define frSerial            Serial3        // S.Port 
+  #else
+    #error SPort_Serial can only be 1 or 3. Please correct.
+#endif  
+   
+#if defined Aux_Port_Enabled
+  #if (SPort_Serial == 3) 
+   #error Aux port and SPort both configured for Serial3. Please correct.
+  #else 
+    #define auxSerial             Serial3        // Mavlink telemetry to and from auxilliary adapter     
+    #define auxBaud               57600          // Use 57600
+    //#define auxDuplex                          // Pass aux <-> FC traffic up and down, else only up to FC
+  #endif
 #endif
 
 //#define Frs_Dummy_rssi       // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
 //#define Data_Streams_Enabled // Rather set SRn in Mission Planner
 
 // Debugging options below
+//#define Frs_Debug_All
 //#define Debug_Air_Mode
 //#define Mav_List_Params
 //#define Aux_Debug_All
 //#define Aux_Debug_Params
-//#define Frs_Debug_All
 //#define Aux_Port_Debug
 //#define Mav_Debug_Params
 //#define Frs_Debug_Params
@@ -569,7 +593,7 @@ void setup()  {
   #ifdef Use_Local_Battery_mAh
     Debug.println("Using internally defined battery capacities"); 
   #endif
-  #ifdef Use_Serial1_For_SPort
+#if (SPort_Serial == 1) 
     Debug.println("Using Serial_1 for S.Port"); 
   #else
     Debug.println("Using Serial_3 for S.Port"); 

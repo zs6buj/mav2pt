@@ -4,9 +4,9 @@ short    crc;                         // of frsky-packet
 uint8_t  time_slot_max = 14;              
 uint32_t time_slot = 1;
 float a, az, c, dis, dLat, dLon;
-uint8_t rc_count = 1;
+uint8_t rc_count = 0;
 
-#if defined Target_Teensy3x
+#if (Target_Board == 0) // Teensy3x
 volatile uint8_t *uartC3;
 enum SPortMode { RX = 0, TX = 1 };
 SPortMode mode, modeNow;
@@ -37,8 +37,8 @@ void FrSkySPort_Init(void)  {
 
  frSerial.begin(frBaud); 
 
-#if defined Target_Teensy3x
- #ifdef Use_Serial1_For_SPort
+#if (Target_Board == 0) // Teensy3x
+ #if (SPort_Serial == 1)
   // Manipulate UART registers for S.Port working
    uartC3   = &UART0_C3;  // UART0 is Serial1
    UART0_C3 = 0x10;       // Invert Serial1 Tx levels
@@ -769,13 +769,13 @@ void Send_Bat2_5008() {
 // ***************************************************************** 
 void Send_RC_5009() {
   
-  if (rc_count > ap_chcnt) { 
-    rc_count = 1;
+  if (((rc_count+1) *4) > ap_chcnt) { // 4 channels at a time
+    rc_count = 0;
     ap_rc_flag = false;  // done with the ap_rc record received
   } 
    
   if (rc_count == 1) 
-    fr_chcnt = ap_chcnt - 1;  // 1 to 16  ->  0 to 15  
+    fr_chcnt = ap_chcnt - 1;  // translate (1 to 16)  ->  (0 to 15), but likely to be 8(7) or 16(15)  
   else 
     fr_chcnt = 0;
   
@@ -784,7 +784,7 @@ void Send_RC_5009() {
   fr_rc[3] = (ap_chan_raw[rc_count+2] - 1500) / 5; 
   fr_rc[4] = (ap_chan_raw[rc_count+3] - 1500) / 5; 
 
-  bit32Pack(fr_chcnt, 28, 4);       //  channel count, if > 0 marks first frame
+  bit32Pack(fr_chcnt, 0, 4);        //  channel count, 0 = chans 1-4, 1=chans 5-8, 2 = chans 9-12, 3 = chans 13 -16 .....
   bit32Pack(fr_rc[1] ,4, 6);        // fragment 1 
   if (fr_rc[1] < 0)
     bit32Pack(1, 10, 1);            // neg
@@ -818,7 +818,7 @@ void Send_RC_5009() {
     Debug.print(" fr_rc4="); Debug.println(fr_rc[4]);       
   #endif
 
-  rc_count += 4;   
+  rc_count ++;   
         
 }// ***************************************************************** 
 void Send_Hud_5010() {
