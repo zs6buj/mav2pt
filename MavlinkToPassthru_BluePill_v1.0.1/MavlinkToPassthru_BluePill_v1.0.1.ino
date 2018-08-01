@@ -1,7 +1,7 @@
   
 /*  *****************************************************************************
 
-    RELEASED v1.00 - 2018-07-05
+    RELEASED v1.0.1 
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -131,7 +131,8 @@ v0.45   2018-06-27  Optionally define battery capacities internally, don't ask F
 v0.46   2018/06/29  RELEASE CANDIDATE. Home arrow sorted out. Points relative to the heading of the craft. 
 v0.47   2018-06-30  Found out yaw (hdg) is subtracted in OSD in Taranis. Don't do it in Teensy then. 
 v0.48   2018-07-02  Declare home and current location structures volatile. Prevent overflow of sat count = 15 
-v1.00   2018-07-05  RELEASED for general use  2018-07-17 board LED solid when mavGood                                  
+v1.00   2018-07-05  RELEASED for general use  2018-07-17 board LED solid when mavGood   
+v1.0.1  2018-08-01  Missing comma in #define Data_Streams_Enabled code, to include MAV_DATA_STREAM_EXTRA3 for VFR HUD                              
 */
 
 #include <CircularBuffer.h>

@@ -1,7 +1,7 @@
-  
+ 
 /*  *****************************************************************************
 
-    RELEASED v1.00 - 2018-07-05
+    MavToPassthruPlus  July 2018
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 
     Inspired by original S.Port firmware by Rolf Blomgren
 
-    Written from scratch by Eric Stockenstrom - April/May 2018
+    Author: Eric Stockenstrom
 
     Acknowledgements and thanks to Craft and Theory (http://www.craftandtheoryllc.com/) for
     the Mavlink / Frsky Passthrough protocol
@@ -27,6 +27,7 @@
     Thank you athertop for advice and extensive testing
 
     *****************************************************************************
+    PLUS version adds additional sensor IDs to Mavlink Passthrough protocol DIY range
 
     Whereas the Orange (and some other) UHF Long Range RC and telemetry radio systems deliver 
     19.2kb/s two-way Mavlink link, the FrSky Taranis and Horus hand-held RC controllers expect
@@ -85,7 +86,7 @@
    box to the Taranis.  To enable Relay_Mode :
    Un-comment this line      #define Relay_Mode    like this
 
-   Select the target mpu by un-commenting either //#define Target_Teensy3x or //#define Target_STM32
+   Select the target mpu by un-commenting either //#define Target_Teensy3x or //#define Target_Blue_Pill or //#define Target_Maple_Mini
 
    Battery capacities in mAh can either be requested from the flight controller via Mavlink, or 
    defined within this firmware. When it is defined within this firmware, an outgoing Mavlink 
@@ -104,93 +105,120 @@
     6) Vcc 3.3V !
     7) GND
 
-   Connections to STM32F103C are:
+   Connections to Blue Pill STM32F103C  are:
 
     1) SPort S     -->TX2 Pin A2   Serial1 to inverter, convert to single wire then to S.Port
     2) SPort S     <--RX2 Pin A3   Serial1 To inverter, convert to single wire then to S.Port
-    3) Mavlink     <--RX3 Pin B11  Mavlink from Taranis to STM32 
-    4) Mavlink     -->TX3 Pin B10  Mavlink from STM32 to Taranis
+    3) Mavlink     -->TX3 Pin B10  Mavlink from STM32 to Taranis 
+    4) Mavlink     <--RX3 Pin B11  Mavlink from Taranis to STM32  
     5) Aux_Mavlink    Not available   
     6) Aux_Mavlink    Not available
     7) Vcc 3.3V !
     8) GND
+
+   Connections to Maple Mini STM32F103C are:
+
+    1) SPort S     -->TX1 Pin A10   Serial1 to inverter, convert to single wire then to S.Port
+    2) SPort S     <--RX1 Pin A9    Serial1 To inverter, convert to single wire then to S.Port
+    3) Mavlink     -->TX2 Pin A2    Serial2 Mavlink from STM32 to Taranis
+    4) Mavlink     <--RX2 Pin A3    Serial2 Mavlink from Taranis to STM32 
+    5) Aux_Mavlink -->TX3 Pin B10   Serial3 NOT NECESSARY - wire direct from Orange TX to BT RX
+    6) Aux_Mavlink <--RX3 Pin B11   Serial3 Auxiliary Mavlink From BT Module to Teensy  
+    7) Vcc 3.3V !
+    8) GND    
     
 Change log:
 
-v0.40   2018-06-14  Use baro alt_ag from #33 for home alt (alt above home field)  
-v0.41   2018-06-15  Change home angle thru 180 degrees - athertop. Avoid buffer taint by GCS heartbeat.
-                    Fix message text sometimes truncated - thanks yaapu  
-                    In Relay Mode send alternative instance of rssi (0x1c + 1) or 29
-v0.42   2018-06-20  FrSky Passthrough wants GPS co-cords in minutes and decimals, not degrees 
-                    Set polling back to 22 ms for ground mode. Add startup status information.
-                                        
-v0.43   2018-06-24  Faster response moving average( 10% to 20%). Circular buffer for status text. Move status text 
-                    into regular time slot.   
-v0.44   2018-06-26  Change status text message frequency to 5Hz  
-v0.45   2018-06-27  Optionally define battery capacities internally, don't ask Flight Controller for them.     
-v0.46   2018/06/29  RELEASE CANDIDATE. Home arrow sorted out. Points relative to the heading of the craft. 
-v0.47   2018-06-30  Found out yaw (hdg) is subtracted in OSD in Taranis. Don't do it in Teensy then. 
-v0.48   2018-07-02  Declare home and current location structures volatile. Prevent overflow of sat count = 15 
-v1.00   2018-07-05  RELEASED for general use  2018-07-17 board LED solid when mavGood                                  
+v0.03 2018-07-11  Add sensor types 0x5009 RX Channels, 0x5010 VFR Hud 2018-07-17 board LED solid when mavGood
+v0.04 2018-07-31  Add support for Maple Mini. Change rc channel 0x5009 as per yaapu's proposal  
+                                  
 */
 
 #include <CircularBuffer.h>
 #include <GCS_MAVLink.h>
 
 //************************************* Please select your options here before compiling **************************
-// Choose one (only) of these two target boards
-//#define Target_STM32       // Un-comment this line if you are using an STM32F103C and an inverter+single wire
-#define Target_Teensy3x      // OR  Un-comment this line if you are using a Teensy 3.x
+// Choose one (only) of these target boards
+//#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
+//#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
+#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
 
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
-//#define Air_Mode             // Converter between FrSky receiver lke XRS and Flight Controller like Pixhawk
+//#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
 #define Use_Local_Battery_mAh     //  Un-comment this if you want to define battery mAhs here, no FC tx line needed. Alternatively
                                   //    enter battery capacities into yaapu's LUA script menu
 
-const uint16_t bat1_capacity = 3300;       //  These are ignored if the above #define is commented out
+const uint16_t bat1_capacity = 5200;       //  These are ignored if the above #define is commented out
 const uint16_t bat2_capacity = 0;
 
-#define Use_Serial1_For_SPort   // The default, else use Serial3
+#define SPort_Serial   1    // The default is Serial 1, but 3 is possible if we don't want aux port
 
-#if defined Ground_Mode && defined Target_Teensy3x && defined Use_Serial1_For_SPort && not defined Use_Local_Battery_mAh
- #define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough. 
+#define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough
+
+//*** LEDS ********************************************************************************************************
+//uint16_t MavStatusLed = 13; 
+uint8_t MavLedState = LOW; 
+uint16_t BufStatusLed = 12; 
+uint8_t BufLedState = LOW; 
+
+#if (Target_Board == 0) // Teensy3x
+  #define MavStatusLed  13
+#elif (Target_Board == 1) // Blue Pill
+  #define MavStatusLed  PC13
+#elif (Target_Board == 2) //  Maple Mini
+  #define MavStatusLed  33  // PB1
 #endif
-//*****************************************************************************************************************
+//********************************************************* 
+#if (Target_Board == 1) // Blue Pill
+  #if defined Aux_Port_Enabled       
+    #error Blue Pill board does not have enough UARTS for Auxilliary port. Un-comment #define Aux_Port_Enabled.
+  #endif
+#endif
 
 #define Debug               Serial         // USB 
 #define frBaud              57600          // Use 57600
 #define mavSerial           Serial2        
 #define mavBaud             57600   
 
-#ifdef Use_Serial1_For_SPort     // The default
-  #define frSerial            Serial1        // S.Port 
-#else
-  #define frSerial            Serial3        // S.Port 
-#endif
-
-#if defined Aux_Port_Enabled 
-#define auxSerial           Serial3        // Mavlink telemetry to and from auxilliary adapter
-#define auxBaud              57600         // Use 57600
-//#define auxDuplex                          // Pass aux <-> FC traffic up and down, else only up to FC
+#if (SPort_Serial == 1) 
+  #define frSerial              Serial1        // S.Port 
+  #elif (SPort_Serial == 3)
+    #define frSerial            Serial3        // S.Port 
+  #else
+    #error SPort_Serial can only be 1 or 3. Please correct.
+#endif  
+   
+#if defined Aux_Port_Enabled
+  #if (SPort_Serial == 3) 
+   #error Aux port and SPort both configured for Serial3. Please correct.
+  #else 
+    #define auxSerial             Serial3        // Mavlink telemetry to and from auxilliary adapter     
+    #define auxBaud               57600          // Use 57600
+    #define auxDuplex                          // Pass aux <-> FC traffic up and down, else only up to FC
+  #endif
 #endif
 
 //#define Frs_Dummy_rssi       // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
 //#define Data_Streams_Enabled // Rather set SRn in Mission Planner
 
-// Debugging options below
+// Debugging options below ***************************************************************************************
+//#define Mav_Debug_All
+//#define Frs_Debug_All
+//#define Mav_Debug_RingBuff
 //#define Debug_Air_Mode
 //#define Mav_List_Params
 //#define Aux_Debug_All
 //#define Aux_Debug_Params
-//#define Frs_Debug_All
 //#define Aux_Port_Debug
 //#define Mav_Debug_Params
 //#define Frs_Debug_Params
 //#define Frs_Debug_Payload
 //#define Mav_Debug_Rssi
+//#define Mav_Debug_RC
+//#define Frs_Debug_RC
 //#define Mav_Debug_Heartbeat
 //#define Mav_Debug_SysStatus
 //#define Frs_Debug_LatLon
@@ -202,17 +230,14 @@ const uint16_t bat2_capacity = 0;
 //#define Frs_Debug_YelYaw
 //#define Frs_Debug_GPS_Status
 //#define Mav_Debug_Raw_IMU
-//#define Mav_Debug_VFR_HUD
+//#define Mav_Debug_Hud
+//#define Frs_Debug_Hud
 //#define Mav_Debug_Scaled_Pressure
 //#define Mav_Debug_Attitude
 //#define Frs_Debug_Attitude
 //#define Mav_Debug_Text
 //#define Frs_Debug_Text          
-
-uint8_t MavStatusLed = 13; 
-uint8_t MavLedState = LOW; 
-uint8_t BufStatusLed = 12; 
-uint8_t BufLedState = LOW; 
+//*****************************************************************************************************************
 
 uint8_t   buf[MAVLINK_MAX_PACKET_LEN];
 uint16_t  hb_count=0;
@@ -248,6 +273,8 @@ uint32_t  VelYaw5005_millis = 0;
 uint32_t  Atti5006_millis = 0;
 uint32_t  Param5007_millis = 0;
 uint32_t  Bat2_5008_millis = 0;
+uint32_t  RC_5009_millis = 0; 
+uint32_t  Hud_5010_millis = 0; 
 uint32_t  rssi_F101_millis=0;
 
 float   lon1,lat1,lon2,lat2,alt1,alt2;  
@@ -282,17 +309,6 @@ struct Battery bat1     = {
 
 struct Battery bat2     = {
   0, 0, 0, 0, 0, 0, 0, true};   
-
-typedef struct  {
-  uint8_t   severity;
-  char      text[50];
-  uint8_t   txtlth;
-  bool      simple;
-  } ST_type;
-
-ST_type ST_record;
-
- CircularBuffer<ST_type, 10> CircBuff; 
 
 
 // ******************************************
@@ -382,21 +398,23 @@ int32_t ap_alt_ag;         // Altitude above ground (millimeters)
 int16_t ap_vx;             // Ground X Speed (Latitude, positive north), expressed as m/s * 100
 int16_t ap_vy;             // Ground Y Speed (Longitude, positive east), expressed as m/s * 100
 int16_t ap_vz;             // Ground Z Speed (Altitude, positive down), expressed as m/s * 100
-uint16_t ap_hdg;           // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees
+uint16_t ap_gps_hdg;           // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees
 
 // Message #65 RC_Channels
-uint8_t  ap_chancount;  
-uint16_t ap_chan3_raw;           // Throttle - just for reference
-uint16_t ap_chan16_raw;          // Used for RSSI uS 1000=0%  2000=100%
+bool      ap_rc_flag = false;    // true when rc record received
+uint8_t   ap_chcnt; 
+uint16_t  ap_chan_raw[17];       // 16 channels, [0] ignored use [1] thru [16] for simplicity
+
+//uint16_t ap_chan16_raw;        // Used for RSSI uS 1000=0%  2000=100%
 uint8_t  rssi;                   // Receive signal strength indicator, 0: 0%, 100: 100%, 255: invalid/unknown
 
-// Message #74 VFR_HUD   // Not used at present
-float    ap_airspeed;
-float    ap_groundspeed;
-int16_t  ap_heading;
-uint16_t ap_throttle;
-float    ap_bar_altitude;   
-float    ap_climb_rate;        
+// Message #74 VFR_HUD  
+float    ap_hud_air_spd;
+float    ap_hud_grd_spd;
+int16_t  ap_hud_hdg;
+uint16_t ap_hud_throt;
+float    ap_hud_bar_alt;   
+float    ap_hud_climb;        
 
 // Message  #125 POWER_STATUS 
 uint16_t  ap_Vcc;                 // 5V rail voltage in millivolts
@@ -496,30 +514,54 @@ short fr_pwr;
 
 // 0x5005 Velocity and yaw
 uint32_t fr_velyaw;
-float fr_vy;
-float fr_vx;
-float fr_yaw;
+float fr_vy;    // climb in decimeters/s
+float fr_vx;    // groundspeed in decimeters/s
+float fr_yaw;   // heading units of 0.2 degrees
 
 // 0x5006 Attitude and range
 uint16_t fr_roll;
 uint16_t fr_pitch;
 uint16_t fr_range;
 
-// 0x5007 Parameters  - Sent 3x each at init
-uint8_t fr_param_id ;
+// 0x5007 Parameters  
+uint8_t  fr_param_id ;
 uint32_t fr_param_val;
 uint32_t fr_frame_type;
 uint32_t fr_bat1_capacity;
 uint32_t fr_bat2_capacity;
-bool fr_paramsSent = false;
+bool     fr_paramsSent = false;
 
 //0x5008 Batt
 float fr_bat2_volts;
 float fr_bat2_amps;
 uint16_t fr_bat2_mAh;
 
+//0x5009 RC channels       // 4 ch per frame
+uint8_t  fr_chcnt; 
+int8_t   fr_rc[5];         // [0] ignored use [1] thu [4] for simplicity
+
+//0x5010 HUD
+float    fr_air_spd;       // dm/s
+uint16_t fr_throt;         // 0 to 100%
+float    fr_bar_alt;       // metres
+
 //0xF103
 uint32_t fr_rssi;
+
+
+//****************** Ring Buffers *************************
+typedef struct  {
+  uint8_t   severity;
+  char      text[50];
+  uint8_t   txtlth;
+  bool      simple;
+  } ST_type;
+
+ST_type ST_record;
+
+CircularBuffer<ST_type, 10> MsgRingBuff; 
+
+CircularBuffer<mavlink_message_t, 10> MavRingBuff; 
 
 // ******************************************
 void setup()  {
@@ -541,9 +583,18 @@ void setup()  {
   rds_millis=millis();
   em_millis=millis();
   
-  delay(2000);
+  delay(2500);
+  
+  Debug.print("Target Board is ");
+  #if (Target_Board == 0) // Teensy3x
+  Debug.println("Teensy 3.x");
+  #elif (Target_Board == 1) // Blue Pill
+  Debug.println("Blue Pill STM32F103C");
+  #elif (Target_Board == 2) //  Maple Mini
+  Debug.println("Maple Mini STM32F103C");
+  #endif
+  
   Debug.print("Starting ");
-
   #ifdef Ground_Mode
   Debug.println("Ground Mode....");
   #endif
@@ -555,7 +606,7 @@ void setup()  {
   #endif
 
   #if defined Aux_Port_Enabled
-  Debug.print("Teensy auxilliary Mavlink port enabled");
+  Debug.print("Auxilliary Mavlink port enabled");
     #ifdef auxDuplex
       Debug.println(" for two-way telemetry"); 
     #else 
@@ -565,15 +616,15 @@ void setup()  {
   #ifdef Use_Local_Battery_mAh
     Debug.println("Using internally defined battery capacities"); 
   #endif
-  #ifdef Use_Serial1_For_SPort
+#if (SPort_Serial == 1) 
     Debug.println("Using Serial_1 for S.Port"); 
   #else
     Debug.println("Using Serial_3 for S.Port"); 
   #endif  
 
-  pinMode(MavStatusLed, OUTPUT); 
-  pinMode(BufStatusLed, OUTPUT); 
-
+   pinMode(MavStatusLed, OUTPUT); 
+   pinMode(BufStatusLed, OUTPUT); 
+   
 }
 
 // ******************************************
@@ -622,12 +673,14 @@ void loop()  {
     }
   #endif 
 
-  MavLink_Receive();                       // Get Mavlink Data
+  if(mavSerial.available()) QueueOneMavFrame(); // Add one Mavlink frame to the ring buffer
+
+  DecodeOneMavFrame();                        // Decode a Mavlink frame from the ring buffer if there is one
 
   Aux_ReceiveAndForward();                 // Service aux incoming if enabled
 
   #ifdef Ground_Mode
-  if(mavGood && ((millis() - em_millis) > 0)) {   
+  if(mavGood && ((millis() - em_millis) > 10)) {   
      Emulate_ReadSPort();                // Emulate the sensor IDs received from XRS receiver on SPort
      em_millis=millis();
     }
@@ -645,29 +698,50 @@ void loop()  {
 // ******************************************
 //*******************************************
 
-void MavLink_Receive() { 
-  mavlink_message_t msg;
+void QueueOneMavFrame() {
+  mavlink_message_t ring_msg;
   mavlink_status_t status;
-
-  while(mavSerial.available()) 
-                { 
+  while(mavSerial.available())             { 
     uint8_t c = mavSerial.read();
-    if(mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status)) {
-       
-      //   PrintMavBuffer(&msg);
+    if(mavlink_parse_char(MAVLINK_COMM_0, c, &ring_msg, &status)) {
+      if (MavRingBuff.isFull()) 
+        Debug.println("MavRingBuff is full. Dropping records!");
+       else {
+        MavRingBuff.push(ring_msg);
+        #if defined Mav_Debug_RingBuff
+          Debug.print(" Mav queue length after push= "); 
+          Debug.println(MavRingBuff.size());
+        #endif
+       }
+    }
+  }
+}
+//*******************************************
+void DecodeOneMavFrame() { 
+
+  if (!MavRingBuff.isEmpty()) {
+    
+    msg = (MavRingBuff.shift());  // Get a mavlink message from front of queue
+    
+    #if defined Mav_Debug_RingBuff
+      Debug.print("Mavlink ring buffer msg: ");  
+      PrintMavBuffer(&msg);
+      Debug.print(" Mav queue length after shift= "); Debug.println(MavRingBuff.size());
+    #endif
+
       
-      #if defined  Aux_Port_Enabled && defined auxDuplex
-      len = mavlink_msg_to_send_buffer(buf, &msg);
-      #ifdef  Aux_Port_Debug
-        Debug.println("auxSerial passed down from FC:");
-        PrintMavBuffer(&msg);
-      #endif
-      auxSerial.write(buf,len);
-      #endif
+    #if defined  Aux_Port_Enabled && defined auxDuplex
+    len = mavlink_msg_to_send_buffer(buf, &msg);
+    #ifdef  Aux_Port_Debug
+      Debug.println("auxSerial passed down from FC:");
+      PrintMavBuffer(&msg);
+    #endif
+    auxSerial.write(buf,len);
+    #endif
      
     // Debug.print(" msgid="); Debug.println(msg.msgid); 
 
-      switch(msg.msgid) {
+    switch(msg.msgid) {
     
         case MAVLINK_MSG_ID_HEARTBEAT:    // #0   http://mavlink.org/messages/common
           ap_type_tmp = mavlink_msg_heartbeat_get_type(&msg);   // Alex - don't contaminate the ap-type variable
@@ -870,12 +944,12 @@ void MavLink_Receive() {
           ap_vx = mavlink_msg_global_position_int_get_vx(&msg);               //  Ground X Speed (Latitude, positive north), expressed as m/s * 100
           ap_vy = mavlink_msg_global_position_int_get_vy(&msg);               //  Ground Y Speed (Longitude, positive east), expressed as m/s * 100
           ap_vz = mavlink_msg_global_position_int_get_vz(&msg);               // Ground Z Speed (Altitude, positive down), expressed as m/s * 100
-          ap_hdg = mavlink_msg_global_position_int_get_hdg(&msg);             // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees        
+          ap_gps_hdg = mavlink_msg_global_position_int_get_hdg(&msg);             // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees        
  
           cur.lat =  (float)ap_lat / 1E7;
           cur.lon = (float)ap_lon / 1E7;
           cur.alt = ap_amsl33 / 1E3;
-          cur.hdg = ap_hdg / 100;
+          cur.hdg = ap_gps_hdg / 100;
 
           #if defined Mav_Debug_All || defined Mav_Debug_GPS_Int
             Debug.print("Mavlink in #33 GPS Int: ");
@@ -886,7 +960,7 @@ void MavLink_Receive() {
             Debug.print(" ap_vx="); Debug.print((float)ap_vx / 100, 2);
             Debug.print(" ap_vy="); Debug.print((float)ap_vy / 100, 2);
             Debug.print(" ap_vz="); Debug.print((float)ap_vz / 100, 2);
-            Debug.print(" ap_hdg="); Debug.println((float)ap_hdg / 100, 1);
+            Debug.print(" ap_gps_hdg="); Debug.println((float)ap_gps_hdg / 100, 1);
           #endif  
                 
           break;  
@@ -905,16 +979,36 @@ void MavLink_Receive() {
         case MAVLINK_MSG_ID_RC_CHANNELS:             // #65
           if (!mavGood) break; 
           rssiGood=true;               //  We have received at least one rssi packet from air mavlink   
-          ap_chancount = mavlink_msg_rc_channels_get_chancount(&msg);
-          ap_chan3_raw = mavlink_msg_rc_channels_get_chan3_raw(&msg);   
-          ap_chan16_raw = mavlink_msg_rc_channels_get_chan16_raw(&msg);
-          ap_rssi = mavlink_msg_rc_channels_get_rssi(&msg);   // Receive RSSI 0: 0%, 254: 100%, 255: invalid/unknown
+          ap_chcnt = mavlink_msg_rc_channels_get_chancount(&msg);
+          ap_chan_raw[1] = mavlink_msg_rc_channels_get_chan1_raw(&msg);   
+          ap_chan_raw[2] = mavlink_msg_rc_channels_get_chan2_raw(&msg);
+          ap_chan_raw[3]= mavlink_msg_rc_channels_get_chan3_raw(&msg);   
+          ap_chan_raw[4] = mavlink_msg_rc_channels_get_chan4_raw(&msg);  
+          ap_chan_raw[5] = mavlink_msg_rc_channels_get_chan5_raw(&msg);   
+          ap_chan_raw[6] = mavlink_msg_rc_channels_get_chan6_raw(&msg);
+          ap_chan_raw[7]= mavlink_msg_rc_channels_get_chan7_raw(&msg);   
+          ap_chan_raw[8] = mavlink_msg_rc_channels_get_chan8_raw(&msg);  
+          ap_chan_raw[9] = mavlink_msg_rc_channels_get_chan9_raw(&msg);   
+          ap_chan_raw[10] = mavlink_msg_rc_channels_get_chan10_raw(&msg);
+          ap_chan_raw[11] = mavlink_msg_rc_channels_get_chan11_raw(&msg);   
+          ap_chan_raw[12] = mavlink_msg_rc_channels_get_chan12_raw(&msg); 
+          ap_chan_raw[13] = mavlink_msg_rc_channels_get_chan13_raw(&msg);   
+          ap_chan_raw[14] = mavlink_msg_rc_channels_get_chan14_raw(&msg);
+          ap_chan_raw[15] = mavlink_msg_rc_channels_get_chan15_raw(&msg);   
+          ap_chan_raw[16] = mavlink_msg_rc_channels_get_chan16_raw(&msg);
           
-          #if defined Mav_Debug_All || defined Mav_Debug_Rssi
+          ap_rssi = mavlink_msg_rc_channels_get_rssi(&msg);   // Receive RSSI 0: 0%, 254: 100%, 255: invalid/unknown
+          ap_rc_flag = true;                                  // tell fr routine we have an rc records
+          #if defined Mav_Debug_All || defined Mav_Debug_Rssi || defined Mav_Debug_RC
             Debug.print("Mavlink in #65 RC_Channels: ");
-            Debug.print("Channel count= "); Debug.print(ap_chancount); 
-            Debug.print("  Channel 3= ");  Debug.print(ap_chan3_raw);            
-            Debug.print("  Channel 16= ");  Debug.print(ap_chan16_raw);       
+            Debug.print("Channel count= "); Debug.print(ap_chcnt); 
+            Debug.print(" values: ");
+            for (int i=1 ; i <= ap_chcnt ; i++) {
+              Debug.print(" "); 
+              Debug.print(i);
+              Debug.print("=");  
+              Debug.print(ap_chan_raw[i]);   
+            }                         
             Debug.print("  Receive RSSI=");  Debug.println(ap_rssi/ 2.54);        
           #endif             
           break;      
@@ -923,21 +1017,21 @@ void MavLink_Receive() {
           break;                             
         case MAVLINK_MSG_ID_VFR_HUD:                 //  #74
           if (!mavGood) break;      
-          ap_airspeed = mavlink_msg_vfr_hud_get_airspeed(&msg);
-          ap_groundspeed = mavlink_msg_vfr_hud_get_groundspeed(&msg);      //  in m/s
-          ap_heading = mavlink_msg_vfr_hud_get_heading(&msg);              //  in degrees
-          ap_throttle = mavlink_msg_vfr_hud_get_throttle(&msg);            //  integer percent
-          ap_bar_altitude = mavlink_msg_vfr_hud_get_alt(&msg);             //  m
-          ap_climb_rate=mavlink_msg_vfr_hud_get_climb(&msg);               //  m/s
+          ap_hud_air_spd = mavlink_msg_vfr_hud_get_airspeed(&msg);
+          ap_hud_grd_spd = mavlink_msg_vfr_hud_get_groundspeed(&msg);      //  in m/s
+          ap_hud_hdg = mavlink_msg_vfr_hud_get_heading(&msg);              //  in degrees
+          ap_hud_throt = mavlink_msg_vfr_hud_get_throttle(&msg);           //  integer percent
+          ap_hud_bar_alt = mavlink_msg_vfr_hud_get_alt(&msg);              //  m
+          ap_hud_climb = mavlink_msg_vfr_hud_get_climb(&msg);              //  m/s
 
-          #if defined Mav_Debug_All || defined Mav_Debug_VFR_HUD
+          #if defined Mav_Debug_All || defined Mav_Debug_Hud
             Debug.print("Mavlink in #74 VFR_HUD: ");
-            Debug.print("Airspeed= "); Debug.print(ap_airspeed, 2);                    // m/s    
-            Debug.print("  Groundspeed= "); Debug.print(ap_groundspeed, 2);            // m/s
-            Debug.print("  Heading= ");  Debug.print(ap_heading);                      // deg
-            Debug.print("  Throttle= ");  Debug.print(ap_throttle);                    // %
-            Debug.print("  Barometric altitude= "); Debug.print(ap_bar_altitude);      // m                  
-            Debug.print("  Climb rate= "); Debug.println(ap_climb_rate);               // m/s
+            Debug.print("Airspeed= "); Debug.print(ap_hud_air_spd, 2);                    // m/s    
+            Debug.print("  Groundspeed= "); Debug.print(ap_hud_grd_spd, 2);            // m/s
+            Debug.print("  Heading= ");  Debug.print(ap_hud_hdg);                      // deg
+            Debug.print("  Throttle %= ");  Debug.print(ap_hud_throt);                    // %
+            Debug.print("  Baro alt= "); Debug.print(ap_hud_bar_alt, 0);   // m                  
+            Debug.print("  Climb rate= "); Debug.println(ap_hud_climb);               // m/s
           #endif  
           break; 
         case MAVLINK_MSG_ID_SCALED_IMU2:       // #116   http://mavlink.org/messages/common
@@ -1049,20 +1143,20 @@ void MavLink_Receive() {
               (strcmp (ap_text,"SIMPLE mode off") == 0)
                 ap_simple = false;
 
-          if (CircBuff.isFull()) {
-            Debug.println("CircBuff is full!");
+          if (MsgRingBuff.isFull()) {
+            Debug.println("MsgRingBuff is full!");
           } else {
             ST_record.severity = ap_severity;
             memcpy(ST_record.text, ap_text, ap_txtlth+ 4);   // length + rest of last chunk at least
        //     memcpy(&ST_record.text[0], &ap_text[0], ap_txtlth);
             ST_record.txtlth = ap_txtlth;
             ST_record.simple = ap_simple;
-            CircBuff.push(ST_record);
+            MsgRingBuff.push(ST_record);
           }
           
           #if defined Mav_Debug_All || defined Mav_Debug_Text
-            Debug.print("Mavlink in #253 Statustext pushed onto CircBuff: ");
-            Debug.print("Queue length= "); Debug.print(CircBuff.size());
+            Debug.print("Mavlink in #253 Statustext pushed onto MsgRingBuff: ");
+            Debug.print("Queue length= "); Debug.print(MsgRingBuff.size());
             Debug.print(" Msg lth="); Debug.print(len);
             Debug.print(" Severity="); Debug.print(ap_severity);
             Debug.print(" "); Debug.print(MavSeverity(ap_severity));
@@ -1082,7 +1176,6 @@ void MavLink_Receive() {
           break;
       }
     }
-  }
 }
 
 //***************************************************
@@ -1091,7 +1184,7 @@ void MarkHome()  {
   hom.lat = (float)ap_lat / 1E7;
   hom.lon = (float)ap_lon / 1E7;
   hom.alt = (float)ap_amsl24 / 1E3;
-  hom.hdg = (float)ap_hdg / 100;
+  hom.hdg = (float)ap_gps_hdg / 100;
 
   #if defined Mav_Debug_All || defined Mav_Debug_GPS_Int
     Debug.print("******************************************Mavlink in #33 GPS Int: Home established: ");       
@@ -1190,14 +1283,16 @@ void ServiceStatusLeds() {
 void ServiceMavStatusLed() {
   if (mavGood) {
       MavLedState = HIGH;
+      digitalWrite(MavStatusLed, MavLedState); 
   }
-    else 
+    else {
       BlinkMavLed(500);
-    digitalWrite(MavStatusLed, MavLedState);  
+    }
+  digitalWrite(MavStatusLed, MavLedState); 
 }
 
 void ServiceBufStatusLed() {
-  if (CircBuff.isFull()) {
+  if (MsgRingBuff.isFull()) {
       BufLedState = HIGH;
   }
     else 
