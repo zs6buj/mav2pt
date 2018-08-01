@@ -197,7 +197,7 @@ uint8_t BufLedState = LOW;
   #else 
     #define auxSerial             Serial3        // Mavlink telemetry to and from auxilliary adapter     
     #define auxBaud               57600          // Use 57600
-    #define auxDuplex                          // Pass aux <-> FC traffic up and down, else only up to FC
+    #define auxDuplex                          // Pass aux <-> FC traffic up and down, else only down from FC
   #endif
 #endif
 
@@ -210,7 +210,6 @@ uint8_t BufLedState = LOW;
 //#define Mav_Debug_RingBuff
 //#define Debug_Air_Mode
 //#define Mav_List_Params
-//#define Aux_Debug_All
 //#define Aux_Debug_Params
 //#define Aux_Port_Debug
 //#define Mav_Debug_Params
@@ -608,9 +607,9 @@ void setup()  {
   #if defined Aux_Port_Enabled
   Debug.print("Auxilliary Mavlink port enabled");
     #ifdef auxDuplex
-      Debug.println(" for two-way telemetry"); 
+      Debug.println(" for two-way telemetry to/from Flight Control computer"); 
     #else 
-      Debug.println(" for one-way telemetry, Tx in and Rx out"); 
+      Debug.println(" for one-way telemetry down from Flight Control computer"); 
     #endif 
   #endif  
   #ifdef Use_Local_Battery_mAh
@@ -730,7 +729,7 @@ void DecodeOneMavFrame() {
     #endif
 
       
-    #if defined  Aux_Port_Enabled && defined auxDuplex
+    #if defined  Aux_Port_Enabled 
     len = mavlink_msg_to_send_buffer(buf, &msg);
     #ifdef  Aux_Port_Debug
       Debug.println("auxSerial passed down from FC:");
@@ -769,7 +768,7 @@ void DecodeOneMavFrame() {
 
           if(!mavGood) {
             hb_count++; 
-            Debug.print(" hb_count=");
+            Debug.print("hb_count=");
             Debug.print(hb_count);
             Debug.println("");
 
@@ -1254,8 +1253,8 @@ const uint16_t mavRates[] = { 0x04, 0x0a, 0x04, 0x0a, 0x04, 0x04 0x04};
 
 //***************************************************
 
-void Aux_ReceiveAndForward() { 
-  #if defined Aux_Port_Enabled 
+void Aux_ReceiveAndForward() {   // up to FC, optional
+  #if defined Aux_Port_Enabled && defined auxDuplex
   mavlink_message_t msg; 
   mavlink_status_t status;
 

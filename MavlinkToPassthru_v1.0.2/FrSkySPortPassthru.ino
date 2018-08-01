@@ -4,8 +4,9 @@ short    crc;                         // of frsky-packet
 uint8_t  time_slot_max = 12;              
 uint32_t time_slot = 1;
 float a, az, c, dis, dLat, dLon;
+uint8_t rc_count = 0;
 
-#if defined Target_Teensy3x
+#if (Target_Board == 0) // Teensy3x
 volatile uint8_t *uartC3;
 enum SPortMode { RX = 0, TX = 1 };
 SPortMode mode, modeNow;
@@ -36,8 +37,8 @@ void FrSkySPort_Init(void)  {
 
  frSerial.begin(frBaud); 
 
-#if defined Target_Teensy3x
- #ifdef Use_Serial1_For_SPort
+#if (Target_Board == 0) // Teensy3x
+ #if (SPort_Serial == 1)
   // Manipulate UART registers for S.Port working
    uartC3   = &UART0_C3;  // UART0 is Serial1
    UART0_C3 = 0x10;       // Invert Serial1 Tx levels
@@ -146,7 +147,7 @@ void FrSkySPort_Process() {
             time_slot++;   // Donate the slot to next 
                          
         case 4:                 // data id 0x5000 Status Text
-          if (((!CircBuff.isEmpty()) || (fr_chunk_pntr > 0)) && (millis() - ST5000_millis > 200)) { // 5 Hz
+          if (((!MsgRingBuff.isEmpty()) || (fr_chunk_pntr > 0)) && (millis() - ST5000_millis > 200)) { // 5 Hz
             SendStatusTextChunk5000();
             ST5000_millis = millis();
             break;
@@ -223,8 +224,7 @@ void FrSkySPort_Process() {
             break; 
             }
           else
-            time_slot++;   // Donate the slot to next 
-                   
+            time_slot++;   // Donate the slot to next                             
         default:
          // ERROR
          break;
@@ -385,7 +385,7 @@ void SendLon800() {
 void SendStatusTextChunk5000() {
 
   if (fr_chunk_pntr == 0) { 
-    ST_record = (CircBuff.shift());  // Get a status text message from front of queue
+    ST_record = (MsgRingBuff.shift());  // Get a status text message from front of queue
     fr_severity = ST_record.severity;
     fr_txtlth = ST_record.txtlth;
     memcpy(fr_text, ST_record.text, fr_txtlth+4);   // plus rest of last chunk at least
@@ -396,7 +396,7 @@ void SendStatusTextChunk5000() {
       Debug.print(" fr_severity="); Debug.print(fr_severity);
       Debug.print(" "); Debug.print(MavSeverity(fr_severity)); 
       Debug.print(" Text= ");  Debug.print(" |"); Debug.print(fr_text); Debug.print("| ");
-      Debug.print(" Queue length after shift= "); Debug.println(CircBuff.size());
+      Debug.print(" Msg queue length after shift= "); Debug.println(MsgRingBuff.size());
     #endif
   }
 
@@ -569,7 +569,7 @@ void Send_Home_5004() {
     if (az<0) az=360+az;
 
     fr_home_angle = Add360(az, -180);                            // now is the angle from the craft to home in degrees
- // fr_home_arrow = Add360(fr_home_angle, -ap_hdg/100);        //  NO, this is done in OSD in Taranis
+ // fr_home_arrow = Add360(fr_home_angle, -ap_gps_hdg/100);        //  NO, this is done in OSD in Taranis
   
     fr_home_arrow = fr_home_angle * 0.3333;                     // units of 3 degrees
 
@@ -592,7 +592,6 @@ void Send_Home_5004() {
      Debug.print("fr_home_dist=");  Debug.print(fr_home_dist);
      Debug.print(" fr_home_alt=");  Debug.print(fr_home_alt);
      Debug.print(" az=");  Debug.print(az);
-     Debug.print(" ap_hdg=");  Debug.print(ap_hdg/100);
      Debug.print(" fr_home_angle="); Debug.print(fr_home_angle);  
      Debug.print(" fr_home_arrow="); Debug.println(fr_home_arrow);         // units of 3 deg   
    #endif
@@ -612,10 +611,11 @@ void Send_Home_5004() {
 // *****************************************************************
 void Send_VelYaw_5005() {
   
-  fr_vy = ap_climb_rate * 10;   // from #74   m/s to dm/s;
-  fr_vx = ap_groundspeed * 10;  // from #74  m/s to dm/s
+  fr_vy = ap_hud_climb * 10;   // from #74   m/s to dm/s;
+  fr_vx = ap_hud_grd_spd * 10;  // from #74  m/s to dm/s
 
-  fr_yaw = (float)ap_hdg / 10;  // (degrees*100) -> (degrees*10)
+  //fr_yaw = (float)ap_gps_hdg / 10;  // (degrees*100) -> (degrees*10)
+  fr_yaw = ap_hud_hdg * 10;              // degrees -> (degrees*10)
   
   #if defined Frs_Debug_All || defined Frs_Debug_YelYaw
     Debug.print("Frsky out VelYaw 0x5005:");  
@@ -628,11 +628,10 @@ void Send_VelYaw_5005() {
   else
     bit32Pack(0, 8, 1);
   fr_vy = prep_number(roundf(fr_vy), 2, 1);  // Vertical velocity
-//  bit32Pack(fr_vy, 0, 7);   
   bit32Pack(fr_vy, 0, 8);   
+
   fr_vx = prep_number(roundf(fr_vx), 2, 1);  // Horizontal velocity
-//  bit32Pack(fr_vx, 9, 7);  
-  bit32Pack(fr_vx, 9, 8);     
+  bit32Pack(fr_vx, 9, 8);    
   fr_yaw = fr_yaw * 0.5f;                   // Unit = 0.2 deg
   bit32Pack(fr_yaw ,17, 11);  
 
@@ -751,7 +750,7 @@ void Send_Bat2_5008() {
 
   FrSkySPort_SendDataFrame(0x1B, 0x5008,fr_payload);          
 }
-// *****************************************************************  
+
 // *****************************************************************  
 void SendRssiF101() {          // data id 0xF101 RSSI tell LUA script in Taranis we are connected
 
