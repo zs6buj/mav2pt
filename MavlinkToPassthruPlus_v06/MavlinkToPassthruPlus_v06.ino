@@ -1,7 +1,7 @@
  
 /*  *****************************************************************************
 
-    RELEASED 
+    MavToPassthruPlus  July 2018
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
     Thank you athertop for advice and extensive testing
 
     *****************************************************************************
+    PLUS version adds additional sensor IDs to Mavlink Passthrough protocol DIY range
 
     Whereas the Orange (and some other) UHF Long Range RC and telemetry radio systems deliver 
     19.2kb/s two-way Mavlink link, the FrSky Taranis and Horus hand-held RC controllers expect
@@ -128,10 +129,8 @@
     
 Change log:
 
-v1.0.0  2018-07-05  RELEASED for general use  2018-07-17 board LED solid when mavGood   
-v1.0.1  2018-08-01  Missing comma in #define Data_Streams_Enabled code, to include MAV_DATA_STREAM_EXTRA3 for VFR HUD      
-v1.0.2  2018-07-31  Add support for Maple Mini
-        2018-08-01  Implement circular buffer for mavlink incoming telemetry to avoid buffer tainting on aux port stream
+v0.03 2018-07-11  Add sensor types 0x5009 RX Channels, 0x5010 VFR Hud 2018-07-17 board LED solid when mavGood
+v0.04 2018-07-31  Add support for Maple Mini. Change rc channel 0x5009 as per yaapu's proposal  
                                   
 */
 
@@ -140,16 +139,16 @@ v1.0.2  2018-07-31  Add support for Maple Mini
 
 //************************************* Please select your options here before compiling **************************
 // Choose one (only) of these target boards
-#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
+//#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
 //#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
-//#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
+#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
 
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
 //#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
-#define Use_Local_Battery_mAh     //  Un-comment this if you want to define battery mAhs here, no FC tx line needed. Alternatively
+//#define Use_Local_Battery_mAh     //  Un-comment this if you want to define battery mAhs here, no FC tx line needed. Alternatively
                                   //    enter battery capacities into yaapu's LUA script menu
 
 const uint16_t bat1_capacity = 5200;       //  These are ignored if the above #define is commented out
