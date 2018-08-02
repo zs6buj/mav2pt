@@ -131,6 +131,7 @@ Change log:
 
 v0.03 2018-07-11  Add sensor types 0x5009 RX Channels, 0x5010 VFR Hud 2018-07-17 board LED solid when mavGood
 v0.04 2018-07-31  Add support for Maple Mini. Change rc channel 0x5009 as per yaapu's proposal  
+v0.05 2018-08-02  Add circular buffers for mavlink incoming from FC
                                   
 */
 
@@ -139,9 +140,9 @@ v0.04 2018-07-31  Add support for Maple Mini. Change rc channel 0x5009 as per ya
 
 //************************************* Please select your options here before compiling **************************
 // Choose one (only) of these target boards
-//#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
+#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
 //#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
-#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
+//#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
 
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
@@ -197,7 +198,7 @@ uint8_t BufLedState = LOW;
   #else 
     #define auxSerial             Serial3        // Mavlink telemetry to and from auxilliary adapter     
     #define auxBaud               57600          // Use 57600
-    #define auxDuplex                          // Pass aux <-> FC traffic up and down, else only down from FC
+    #define auxDuplex                            // Pass aux <-> FC traffic up and down, else only down from FC
   #endif
 #endif
 
