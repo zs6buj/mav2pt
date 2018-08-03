@@ -84,7 +84,7 @@ void ReadSPort(void) {
 
 #if defined Ground_Mode
 void Emulate_ReadSPort() {
-  #if defined Target_Teensy3x
+  #if (Target_Board == 0)      // Teensy3x
   setSPortMode(TX);
   #endif
  
@@ -251,7 +251,7 @@ void FrSkySPort_Process() {
  }     
 // ***********************************************************************
 void FrSkySPort_SendByte(uint8_t byte, bool addCrc) {
-  #if defined Target_Teensy3x
+  #if (Target_Board == 0)      // Teensy3x
    setSPortMode(TX); 
  #endif  
  if (!addCrc) { 
@@ -294,7 +294,7 @@ void FrSkySPort_SendCrc() {
 //***************************************************
 void FrSkySPort_SendDataFrame(uint8_t Instance, uint16_t Id, uint32_t value) {
 
-  #if defined Target_Teensy3x
+  #if (Target_Board == 0)      // Teensy3x
   setSPortMode(TX); 
   #endif
   
@@ -768,21 +768,19 @@ void Send_Bat2_5008() {
 }
 // ***************************************************************** 
 void Send_RC_5009() {
-  
-  if (((rc_count+1) *4) > ap_chcnt) { // 4 channels at a time
+  ap_chcnt = ap_chcnt > 16 ? 16 : ap_chcnt;  // cap number of channels at 16 for now
+  if (rc_count+4 > ap_chcnt) { // 4 channels at a time
     rc_count = 0;
     ap_rc_flag = false;  // done with the ap_rc record received
+    return;
   } 
-   
-  if (rc_count == 1) 
-    fr_chcnt = ap_chcnt - 1;  // translate (1 to 16)  ->  (0 to 15), but likely to be 8(7) or 16(15)  
-  else 
-    fr_chcnt = 0;
-  
-  fr_rc[1] = (ap_chan_raw[rc_count] - 1500) / 5;     // PWM 1000 to 2000   ->    +- percent
-  fr_rc[2] = (ap_chan_raw[rc_count+1] - 1500) / 5; 
-  fr_rc[3] = (ap_chan_raw[rc_count+2] - 1500) / 5; 
-  fr_rc[4] = (ap_chan_raw[rc_count+3] - 1500) / 5; 
+
+  fr_chcnt = rc_count / 4; 
+
+  fr_rc[1] = PWM_To_63(ap_chan_raw[rc_count]);     // PWM 1000 to 2000 -> nominal 0 to 63
+  fr_rc[2] = PWM_To_63(ap_chan_raw[rc_count+1]);    
+  fr_rc[3] = PWM_To_63(ap_chan_raw[rc_count+2]); 
+  fr_rc[4] = PWM_To_63(ap_chan_raw[rc_count+3]); 
 
   bit32Pack(fr_chcnt, 0, 4);        //  channel count, 0 = chans 1-4, 1=chans 5-8, 2 = chans 9-12, 3 = chans 13 -16 .....
   bit32Pack(fr_rc[1] ,4, 6);        // fragment 1 
@@ -809,8 +807,9 @@ void Send_RC_5009() {
   FrSkySPort_SendDataFrame(0x1B, 0x5009,fr_payload); 
 
   #if defined Frs_Debug_All || defined Frs_Debug_RC
-    Debug.print("Frsky out RC 0x5009: ");   
-    Debug.print(" rc_count="); Debug.print(rc_count);
+    Debug.print("Frsky out RC 0x5009: ");  
+    Debug.print(" ap_chcnt="); Debug.print(ap_chcnt); 
+    Debug.print(" rc_count="); Debug.print(rc_count); 
     Debug.print(" fr_chcnt="); Debug.print(fr_chcnt);
     Debug.print(" fr_rc1="); Debug.print(fr_rc[1]);
     Debug.print(" fr_rc2="); Debug.print(fr_rc[2]);
@@ -818,7 +817,7 @@ void Send_RC_5009() {
     Debug.print(" fr_rc4="); Debug.println(fr_rc[4]);       
   #endif
 
-  rc_count ++;   
+  rc_count += 4;   
         
 }// ***************************************************************** 
 void Send_Hud_5010() {
@@ -876,6 +875,15 @@ void SendRssiF101() {          // data id 0xF101 RSSI tell LUA script in Taranis
     Debug.print(" rssi="); Debug.println(fr_rssi);                
   #endif
 }
+//*************************************************** 
+uint8_t PWM_To_63(uint16_t PWM) {       // PWM 1000 to 2000   ->    nominal 0 to 63
+int8_t myint;
+  myint = round((PWM - 1000) * 0.063); 
+  myint = myint < 0 ? 0 : myint;            
+  myint = myint > 100 ? 100 : myint;  
+  return myint; 
+}
+
 //***************************************************  
 uint32_t Abs(int32_t num) {
   if (num<0) 

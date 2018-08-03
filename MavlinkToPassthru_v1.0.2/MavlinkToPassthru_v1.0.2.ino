@@ -1,7 +1,7 @@
  
 /*  *****************************************************************************
 
-    MavToPassthruPlus  July 2018
+    RELEASED 
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@
     Thank you athertop for advice and extensive testing
 
     *****************************************************************************
-    PLUS version adds additional sensor IDs to Mavlink Passthrough protocol DIY range
 
     Whereas the Orange (and some other) UHF Long Range RC and telemetry radio systems deliver 
     19.2kb/s two-way Mavlink link, the FrSky Taranis and Horus hand-held RC controllers expect
@@ -129,9 +128,11 @@
     
 Change log:
 
-v0.03 2018-07-11  Add sensor types 0x5009 RX Channels, 0x5010 VFR Hud 2018-07-17 board LED solid when mavGood
-v0.04 2018-07-31  Add support for Maple Mini. Change rc channel 0x5009 as per yaapu's proposal  
-v1.04 2018-08-01  Missing comma in #define Data_Streams_Enabled code, to include MAV_DATA_STREAM_EXTRA3 for VFR HUD                                    
+v1.0.0  2018-07-05  RELEASED for general use  2018-07-17 board LED solid when mavGood   
+v1.0.1  2018-08-01  Missing comma in #define Data_Streams_Enabled code, to include MAV_DATA_STREAM_EXTRA3 for VFR HUD      
+v1.0.2  2018-07-31  Add support for Maple Mini
+        2018-08-01  Implement circular buffer for mavlink incoming telemetry to avoid buffer tainting on aux port stream
+                                  
 */
 
 #include <CircularBuffer.h>
@@ -148,7 +149,7 @@ v1.04 2018-08-01  Missing comma in #define Data_Streams_Enabled code, to include
 //#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
-//#define Use_Local_Battery_mAh     //  Un-comment this if you want to define battery mAhs here, no FC tx line needed. Alternatively
+#define Use_Local_Battery_mAh     //  Un-comment this if you want to define battery mAhs here, no FC tx line needed. Alternatively
                                   //    enter battery capacities into yaapu's LUA script menu
 
 const uint16_t bat1_capacity = 5200;       //  These are ignored if the above #define is commented out
@@ -158,8 +159,20 @@ const uint16_t bat2_capacity = 0;
 
 //#define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough
 
-//*****************************************************************************************************************
+//*** LEDS ********************************************************************************************************
+//uint16_t MavStatusLed = 13; 
+uint8_t MavLedState = LOW; 
+uint16_t BufStatusLed = 12; 
+uint8_t BufLedState = LOW; 
 
+#if (Target_Board == 0) // Teensy3x
+  #define MavStatusLed  13
+#elif (Target_Board == 1) // Blue Pill
+  #define MavStatusLed  PC13
+#elif (Target_Board == 2) //  Maple Mini
+  #define MavStatusLed  33  // PB1
+#endif
+//********************************************************* 
 #if (Target_Board == 1) // Blue Pill
   #if defined Aux_Port_Enabled       
     #error Blue Pill board does not have enough UARTS for Auxilliary port. Un-comment #define Aux_Port_Enabled.
@@ -185,19 +198,19 @@ const uint16_t bat2_capacity = 0;
   #else 
     #define auxSerial             Serial3        // Mavlink telemetry to and from auxilliary adapter     
     #define auxBaud               57600          // Use 57600
-    //#define auxDuplex                          // Pass aux <-> FC traffic up and down, else only up to FC
+    #define auxDuplex                          // Pass aux <-> FC traffic up and down, else only down from FC
   #endif
 #endif
 
-#define Frs_Dummy_rssi       // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
-#define Data_Streams_Enabled // Rather set SRn in Mission Planner
+//#define Frs_Dummy_rssi       // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
+//#define Data_Streams_Enabled // Rather set SRn in Mission Planner
 
-// Debugging options below
+// Debugging options below ***************************************************************************************
 //#define Mav_Debug_All
 //#define Frs_Debug_All
+//#define Mav_Debug_RingBuff
 //#define Debug_Air_Mode
 //#define Mav_List_Params
-//#define Aux_Debug_All
 //#define Aux_Debug_Params
 //#define Aux_Port_Debug
 //#define Mav_Debug_Params
@@ -224,11 +237,7 @@ const uint16_t bat2_capacity = 0;
 //#define Frs_Debug_Attitude
 //#define Mav_Debug_Text
 //#define Frs_Debug_Text          
-
-uint8_t MavStatusLed = 13; 
-uint8_t MavLedState = LOW; 
-uint8_t BufStatusLed = 12; 
-uint8_t BufLedState = LOW; 
+//*****************************************************************************************************************
 
 uint8_t   buf[MAVLINK_MAX_PACKET_LEN];
 uint16_t  hb_count=0;
@@ -300,17 +309,6 @@ struct Battery bat1     = {
 
 struct Battery bat2     = {
   0, 0, 0, 0, 0, 0, 0, true};   
-
-typedef struct  {
-  uint8_t   severity;
-  char      text[50];
-  uint8_t   txtlth;
-  bool      simple;
-  } ST_type;
-
-ST_type ST_record;
-
- CircularBuffer<ST_type, 10> CircBuff; 
 
 
 // ******************************************
@@ -550,6 +548,21 @@ float    fr_bar_alt;       // metres
 //0xF103
 uint32_t fr_rssi;
 
+
+//****************** Ring Buffers *************************
+typedef struct  {
+  uint8_t   severity;
+  char      text[50];
+  uint8_t   txtlth;
+  bool      simple;
+  } ST_type;
+
+ST_type ST_record;
+
+CircularBuffer<ST_type, 10> MsgRingBuff; 
+
+CircularBuffer<mavlink_message_t, 10> MavRingBuff; 
+
 // ******************************************
 void setup()  {
   
@@ -570,9 +583,18 @@ void setup()  {
   rds_millis=millis();
   em_millis=millis();
   
-  delay(2000);
+  delay(2500);
+  
+  Debug.print("Target Board is ");
+  #if (Target_Board == 0) // Teensy3x
+  Debug.println("Teensy 3.x");
+  #elif (Target_Board == 1) // Blue Pill
+  Debug.println("Blue Pill STM32F103C");
+  #elif (Target_Board == 2) //  Maple Mini
+  Debug.println("Maple Mini STM32F103C");
+  #endif
+  
   Debug.print("Starting ");
-
   #ifdef Ground_Mode
   Debug.println("Ground Mode....");
   #endif
@@ -584,11 +606,11 @@ void setup()  {
   #endif
 
   #if defined Aux_Port_Enabled
-  Debug.print("Teensy auxilliary Mavlink port enabled");
+  Debug.print("Auxilliary Mavlink port enabled");
     #ifdef auxDuplex
-      Debug.println(" for two-way telemetry"); 
+      Debug.println(" for two-way telemetry to/from Flight Control computer"); 
     #else 
-      Debug.println(" for one-way telemetry, Tx in and Rx out"); 
+      Debug.println(" for one-way telemetry down from Flight Control computer"); 
     #endif 
   #endif  
   #ifdef Use_Local_Battery_mAh
@@ -651,12 +673,14 @@ void loop()  {
     }
   #endif 
 
-  MavLink_Receive();                       // Get Mavlink Data
+  if(mavSerial.available()) QueueOneMavFrame(); // Add one Mavlink frame to the ring buffer
+
+  DecodeOneMavFrame();                        // Decode a Mavlink frame from the ring buffer if there is one
 
   Aux_ReceiveAndForward();                 // Service aux incoming if enabled
 
   #ifdef Ground_Mode
-  if(mavGood && ((millis() - em_millis) > 0)) {   
+  if(mavGood && ((millis() - em_millis) > 10)) {   
      Emulate_ReadSPort();                // Emulate the sensor IDs received from XRS receiver on SPort
      em_millis=millis();
     }
@@ -674,29 +698,50 @@ void loop()  {
 // ******************************************
 //*******************************************
 
-void MavLink_Receive() { 
-  mavlink_message_t msg;
+void QueueOneMavFrame() {
+  mavlink_message_t ring_msg;
   mavlink_status_t status;
-
-  while(mavSerial.available()) 
-                { 
+  while(mavSerial.available())             { 
     uint8_t c = mavSerial.read();
-    if(mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status)) {
-       
-      //   PrintMavBuffer(&msg);
+    if(mavlink_parse_char(MAVLINK_COMM_0, c, &ring_msg, &status)) {
+      if (MavRingBuff.isFull()) 
+        Debug.println("MavRingBuff is full. Dropping records!");
+       else {
+        MavRingBuff.push(ring_msg);
+        #if defined Mav_Debug_RingBuff
+          Debug.print(" Mav queue length after push= "); 
+          Debug.println(MavRingBuff.size());
+        #endif
+       }
+    }
+  }
+}
+//*******************************************
+void DecodeOneMavFrame() { 
+
+  if (!MavRingBuff.isEmpty()) {
+    
+    msg = (MavRingBuff.shift());  // Get a mavlink message from front of queue
+    
+    #if defined Mav_Debug_RingBuff
+      Debug.print("Mavlink ring buffer msg: ");  
+      PrintMavBuffer(&msg);
+      Debug.print(" Mav queue length after shift= "); Debug.println(MavRingBuff.size());
+    #endif
+
       
-      #if defined  Aux_Port_Enabled && defined auxDuplex
-      len = mavlink_msg_to_send_buffer(buf, &msg);
-      #ifdef  Aux_Port_Debug
-        Debug.println("auxSerial passed down from FC:");
-        PrintMavBuffer(&msg);
-      #endif
-      auxSerial.write(buf,len);
-      #endif
+    #if defined  Aux_Port_Enabled 
+    len = mavlink_msg_to_send_buffer(buf, &msg);
+    #ifdef  Aux_Port_Debug
+      Debug.println("auxSerial passed down from FC:");
+      PrintMavBuffer(&msg);
+    #endif
+    auxSerial.write(buf,len);
+    #endif
      
     // Debug.print(" msgid="); Debug.println(msg.msgid); 
 
-      switch(msg.msgid) {
+    switch(msg.msgid) {
     
         case MAVLINK_MSG_ID_HEARTBEAT:    // #0   http://mavlink.org/messages/common
           ap_type_tmp = mavlink_msg_heartbeat_get_type(&msg);   // Alex - don't contaminate the ap-type variable
@@ -724,7 +769,7 @@ void MavLink_Receive() {
 
           if(!mavGood) {
             hb_count++; 
-            Debug.print(" hb_count=");
+            Debug.print("hb_count=");
             Debug.print(hb_count);
             Debug.println("");
 
@@ -1098,20 +1143,20 @@ void MavLink_Receive() {
               (strcmp (ap_text,"SIMPLE mode off") == 0)
                 ap_simple = false;
 
-          if (CircBuff.isFull()) {
-            Debug.println("CircBuff is full!");
+          if (MsgRingBuff.isFull()) {
+            Debug.println("MsgRingBuff is full!");
           } else {
             ST_record.severity = ap_severity;
             memcpy(ST_record.text, ap_text, ap_txtlth+ 4);   // length + rest of last chunk at least
        //     memcpy(&ST_record.text[0], &ap_text[0], ap_txtlth);
             ST_record.txtlth = ap_txtlth;
             ST_record.simple = ap_simple;
-            CircBuff.push(ST_record);
+            MsgRingBuff.push(ST_record);
           }
           
           #if defined Mav_Debug_All || defined Mav_Debug_Text
-            Debug.print("Mavlink in #253 Statustext pushed onto CircBuff: ");
-            Debug.print("Queue length= "); Debug.print(CircBuff.size());
+            Debug.print("Mavlink in #253 Statustext pushed onto MsgRingBuff: ");
+            Debug.print("Queue length= "); Debug.print(MsgRingBuff.size());
             Debug.print(" Msg lth="); Debug.print(len);
             Debug.print(" Severity="); Debug.print(ap_severity);
             Debug.print(" "); Debug.print(MavSeverity(ap_severity));
@@ -1131,7 +1176,6 @@ void MavLink_Receive() {
           break;
       }
     }
-  }
 }
 
 //***************************************************
@@ -1193,7 +1237,7 @@ MAV_DATA_STREAM_EXTRA2,
 MAV_DATA_STREAM_EXTRA3
 };
 //const uint16_t mavRates[] = { 0x02, 0x05, 0x02, 0x05, 0x02, 0x02};
-const uint16_t mavRates[] = { 0x04, 0x0a, 0x04, 0x0a, 0x04, 0x04, 0x04};
+const uint16_t mavRates[] = { 0x04, 0x0a, 0x04, 0x0a, 0x04, 0x04 0x04};
  // req_message_rate The requested interval between two messages of this type
 
   for (int i=0; i < maxStreams; i++) {
@@ -1210,8 +1254,8 @@ const uint16_t mavRates[] = { 0x04, 0x0a, 0x04, 0x0a, 0x04, 0x04, 0x04};
 
 //***************************************************
 
-void Aux_ReceiveAndForward() { 
-  #if defined Aux_Port_Enabled 
+void Aux_ReceiveAndForward() {   // up to FC, optional
+  #if defined Aux_Port_Enabled && defined auxDuplex
   mavlink_message_t msg; 
   mavlink_status_t status;
 
@@ -1248,7 +1292,7 @@ void ServiceMavStatusLed() {
 }
 
 void ServiceBufStatusLed() {
-  if (CircBuff.isFull()) {
+  if (MsgRingBuff.isFull()) {
       BufLedState = HIGH;
   }
     else 

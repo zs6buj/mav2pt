@@ -1,7 +1,7 @@
      
 // Frsky variables     
 short    crc;                         // of frsky-packet
-uint8_t  time_slot_max = 14;              
+uint8_t  time_slot_max = 12;              
 uint32_t time_slot = 1;
 float a, az, c, dis, dLat, dLon;
 uint8_t rc_count = 0;
@@ -147,7 +147,7 @@ void FrSkySPort_Process() {
             time_slot++;   // Donate the slot to next 
                          
         case 4:                 // data id 0x5000 Status Text
-          if (((!CircBuff.isEmpty()) || (fr_chunk_pntr > 0)) && (millis() - ST5000_millis > 200)) { // 5 Hz
+          if (((!MsgRingBuff.isEmpty()) || (fr_chunk_pntr > 0)) && (millis() - ST5000_millis > 200)) { // 5 Hz
             SendStatusTextChunk5000();
             ST5000_millis = millis();
             break;
@@ -224,23 +224,7 @@ void FrSkySPort_Process() {
             break; 
             }
           else
-            time_slot++;   // Donate the slot to next 
-        case 13:          // data id 0x5009 RC
-          if (ap_rc_flag)   {                       // Use the slot or lose the slot
-            Send_RC_5009();
-            RC_5009_millis = millis();
-            break; 
-            }
-          else
-            time_slot++;   // Donate the slot to next        
-        case 14:          // data id 0x5010 HUD
-          if (millis() - Hud_5010_millis > 500)   {        // 2 Hz, same as 0x5005 velyaw
-            Send_Hud_5010();
-            Hud_5010_millis = millis();
-            break; 
-            }
-          else
-            time_slot++;   // Donate the slot to next                              
+            time_slot++;   // Donate the slot to next                             
         default:
          // ERROR
          break;
@@ -401,7 +385,7 @@ void SendLon800() {
 void SendStatusTextChunk5000() {
 
   if (fr_chunk_pntr == 0) { 
-    ST_record = (CircBuff.shift());  // Get a status text message from front of queue
+    ST_record = (MsgRingBuff.shift());  // Get a status text message from front of queue
     fr_severity = ST_record.severity;
     fr_txtlth = ST_record.txtlth;
     memcpy(fr_text, ST_record.text, fr_txtlth+4);   // plus rest of last chunk at least
@@ -412,7 +396,7 @@ void SendStatusTextChunk5000() {
       Debug.print(" fr_severity="); Debug.print(fr_severity);
       Debug.print(" "); Debug.print(MavSeverity(fr_severity)); 
       Debug.print(" Text= ");  Debug.print(" |"); Debug.print(fr_text); Debug.print("| ");
-      Debug.print(" Queue length after shift= "); Debug.println(CircBuff.size());
+      Debug.print(" Msg queue length after shift= "); Debug.println(MsgRingBuff.size());
     #endif
   }
 
@@ -766,89 +750,7 @@ void Send_Bat2_5008() {
 
   FrSkySPort_SendDataFrame(0x1B, 0x5008,fr_payload);          
 }
-// ***************************************************************** 
-void Send_RC_5009() {
-  
-  if (((rc_count+1) *4) > ap_chcnt) { // 4 channels at a time
-    rc_count = 0;
-    ap_rc_flag = false;  // done with the ap_rc record received
-  } 
-   
-  if (rc_count == 1) 
-    fr_chcnt = ap_chcnt - 1;  // translate (1 to 16)  ->  (0 to 15), but likely to be 8(7) or 16(15)  
-  else 
-    fr_chcnt = 0;
-  
-  fr_rc[1] = (ap_chan_raw[rc_count] - 1500) / 5;     // PWM 1000 to 2000   ->    +- percent
-  fr_rc[2] = (ap_chan_raw[rc_count+1] - 1500) / 5; 
-  fr_rc[3] = (ap_chan_raw[rc_count+2] - 1500) / 5; 
-  fr_rc[4] = (ap_chan_raw[rc_count+3] - 1500) / 5; 
 
-  bit32Pack(fr_chcnt, 0, 4);        //  channel count, 0 = chans 1-4, 1=chans 5-8, 2 = chans 9-12, 3 = chans 13 -16 .....
-  bit32Pack(fr_rc[1] ,4, 6);        // fragment 1 
-  if (fr_rc[1] < 0)
-    bit32Pack(1, 10, 1);            // neg
-  else 
-    bit32Pack(0, 10, 1);            // pos          
-  bit32Pack(fr_rc[2] ,11, 6);       // fragment 2 
-  if (fr_rc[2] < 0)
-    bit32Pack(1, 17, 1);            // neg
-  else 
-    bit32Pack(0, 17, 1);            // pos   
-  bit32Pack(fr_rc[3] ,18, 6);       // fragment 3
-  if (fr_rc[3] < 0)
-    bit32Pack(1, 24, 1);            // neg
-  else 
-    bit32Pack(0, 24, 1);            // pos      
-  bit32Pack(fr_rc[4] ,25, 6);       // fragment 4 
-  if (fr_rc[4] < 0)
-    bit32Pack(1, 31, 1);            // neg
-  else 
-    bit32Pack(0, 31, 1);            // pos  
-        
-  FrSkySPort_SendDataFrame(0x1B, 0x5009,fr_payload); 
-
-  #if defined Frs_Debug_All || defined Frs_Debug_RC
-    Debug.print("Frsky out RC 0x5009: ");   
-    Debug.print(" rc_count="); Debug.print(rc_count);
-    Debug.print(" fr_chcnt="); Debug.print(fr_chcnt);
-    Debug.print(" fr_rc1="); Debug.print(fr_rc[1]);
-    Debug.print(" fr_rc2="); Debug.print(fr_rc[2]);
-    Debug.print(" fr_rc3="); Debug.print(fr_rc[3]);   
-    Debug.print(" fr_rc4="); Debug.println(fr_rc[4]);       
-  #endif
-
-  rc_count ++;   
-        
-}// ***************************************************************** 
-void Send_Hud_5010() {
- 
-  fr_air_spd = ap_hud_air_spd * 10;      // from #74  m/s to dm/s
-  fr_throt = ap_hud_throt;               // 0 - 100%
-  fr_bar_alt = ap_hud_bar_alt * 10;      // m to dm
-
-  #if defined Frs_Debug_All || defined Frs_Debug_Hud
-    Debug.print("Frsky out RC 0x5010: ");   
-    Debug.print(" fr_air_spd="); Debug.print(fr_air_spd);
-    Debug.print(" fr_throt="); Debug.print(fr_throt);
-    Debug.print(" fr_bar_alt="); Debug.println(fr_bar_alt);       
-  #endif
-  
-  fr_air_spd = prep_number(roundf(fr_air_spd), 2, 1);  
-  bit32Pack(fr_air_spd, 0, 8);    
-
-  bit32Pack(fr_throt, 8, 7);
-
-  fr_bar_alt =  prep_number(roundf(fr_bar_alt), 3, 2);
-  bit32Pack(fr_bar_alt, 15, 12);
-  if (fr_bar_alt < 0)
-    bit32Pack(1, 27, 1);  
-  else
-   bit32Pack(0, 27, 1);  
-    
-  FrSkySPort_SendDataFrame(0x1B, 0x5010,fr_payload); 
-        
-}
 // *****************************************************************  
 void SendRssiF101() {          // data id 0xF101 RSSI tell LUA script in Taranis we are connected
 

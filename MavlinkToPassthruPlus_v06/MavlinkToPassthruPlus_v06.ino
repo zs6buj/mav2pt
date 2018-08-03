@@ -132,6 +132,8 @@ Change log:
 v0.03 2018-07-11  Add sensor types 0x5009 RX Channels, 0x5010 VFR Hud 2018-07-17 board LED solid when mavGood
 v0.04 2018-07-31  Add support for Maple Mini. Change rc channel 0x5009 as per yaapu's proposal  
 v0.05 2018-08-02  Add circular buffers for mavlink incoming from FC
+v0.06 2018-08-03  Fixed "#if defined Target_Teensy3x" not changed everywhere - Thanks Alex
+                  Translate RC values like this: PWM 1000 to 2000 -> nominal 0 to 63, boundaries 0 and 100
                                   
 */
 
@@ -140,9 +142,9 @@ v0.05 2018-08-02  Add circular buffers for mavlink incoming from FC
 
 //************************************* Please select your options here before compiling **************************
 // Choose one (only) of these target boards
-//#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
+#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
 //#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
-#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
+//#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
 
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
@@ -157,7 +159,7 @@ const uint16_t bat2_capacity = 0;
 
 #define SPort_Serial   1    // The default is Serial 1, but 3 is possible if we don't want aux port
 
-#define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough
+//#define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough
 
 //*** LEDS ********************************************************************************************************
 //uint16_t MavStatusLed = 13; 
@@ -208,6 +210,7 @@ uint8_t BufLedState = LOW;
 // Debugging options below ***************************************************************************************
 //#define Mav_Debug_All
 //#define Frs_Debug_All
+//#define Frs_Debug_Payload
 //#define Mav_Debug_RingBuff
 //#define Debug_Air_Mode
 //#define Mav_List_Params
@@ -215,7 +218,7 @@ uint8_t BufLedState = LOW;
 //#define Aux_Port_Debug
 //#define Mav_Debug_Params
 //#define Frs_Debug_Params
-//#define Frs_Debug_Payload
+
 //#define Mav_Debug_Rssi
 //#define Mav_Debug_RC
 //#define Frs_Debug_RC
@@ -403,7 +406,7 @@ uint16_t ap_gps_hdg;           // Vehicle heading (yaw angle) in degrees * 100, 
 // Message #65 RC_Channels
 bool      ap_rc_flag = false;    // true when rc record received
 uint8_t   ap_chcnt; 
-uint16_t  ap_chan_raw[17];       // 16 channels, [0] ignored use [1] thru [16] for simplicity
+uint16_t  ap_chan_raw[18];       // 16 + 2 channels, [0] thru [17] 
 
 //uint16_t ap_chan16_raw;        // Used for RSSI uS 1000=0%  2000=100%
 uint8_t  rssi;                   // Receive signal strength indicator, 0: 0%, 100: 100%, 255: invalid/unknown
@@ -980,30 +983,32 @@ void DecodeOneMavFrame() {
           if (!mavGood) break; 
           rssiGood=true;               //  We have received at least one rssi packet from air mavlink   
           ap_chcnt = mavlink_msg_rc_channels_get_chancount(&msg);
-          ap_chan_raw[1] = mavlink_msg_rc_channels_get_chan1_raw(&msg);   
-          ap_chan_raw[2] = mavlink_msg_rc_channels_get_chan2_raw(&msg);
-          ap_chan_raw[3]= mavlink_msg_rc_channels_get_chan3_raw(&msg);   
-          ap_chan_raw[4] = mavlink_msg_rc_channels_get_chan4_raw(&msg);  
-          ap_chan_raw[5] = mavlink_msg_rc_channels_get_chan5_raw(&msg);   
-          ap_chan_raw[6] = mavlink_msg_rc_channels_get_chan6_raw(&msg);
-          ap_chan_raw[7]= mavlink_msg_rc_channels_get_chan7_raw(&msg);   
-          ap_chan_raw[8] = mavlink_msg_rc_channels_get_chan8_raw(&msg);  
-          ap_chan_raw[9] = mavlink_msg_rc_channels_get_chan9_raw(&msg);   
-          ap_chan_raw[10] = mavlink_msg_rc_channels_get_chan10_raw(&msg);
-          ap_chan_raw[11] = mavlink_msg_rc_channels_get_chan11_raw(&msg);   
-          ap_chan_raw[12] = mavlink_msg_rc_channels_get_chan12_raw(&msg); 
-          ap_chan_raw[13] = mavlink_msg_rc_channels_get_chan13_raw(&msg);   
-          ap_chan_raw[14] = mavlink_msg_rc_channels_get_chan14_raw(&msg);
-          ap_chan_raw[15] = mavlink_msg_rc_channels_get_chan15_raw(&msg);   
-          ap_chan_raw[16] = mavlink_msg_rc_channels_get_chan16_raw(&msg);
+          ap_chan_raw[0] = mavlink_msg_rc_channels_get_chan1_raw(&msg);   
+          ap_chan_raw[1] = mavlink_msg_rc_channels_get_chan2_raw(&msg);
+          ap_chan_raw[2]= mavlink_msg_rc_channels_get_chan3_raw(&msg);   
+          ap_chan_raw[3] = mavlink_msg_rc_channels_get_chan4_raw(&msg);  
+          ap_chan_raw[4] = mavlink_msg_rc_channels_get_chan5_raw(&msg);   
+          ap_chan_raw[5] = mavlink_msg_rc_channels_get_chan6_raw(&msg);
+          ap_chan_raw[6]= mavlink_msg_rc_channels_get_chan7_raw(&msg);   
+          ap_chan_raw[7] = mavlink_msg_rc_channels_get_chan8_raw(&msg);  
+          ap_chan_raw[8] = mavlink_msg_rc_channels_get_chan9_raw(&msg);   
+          ap_chan_raw[9] = mavlink_msg_rc_channels_get_chan10_raw(&msg);
+          ap_chan_raw[10] = mavlink_msg_rc_channels_get_chan11_raw(&msg);   
+          ap_chan_raw[11] = mavlink_msg_rc_channels_get_chan12_raw(&msg); 
+          ap_chan_raw[12] = mavlink_msg_rc_channels_get_chan13_raw(&msg);   
+          ap_chan_raw[13] = mavlink_msg_rc_channels_get_chan14_raw(&msg);
+          ap_chan_raw[14] = mavlink_msg_rc_channels_get_chan15_raw(&msg);   
+          ap_chan_raw[15] = mavlink_msg_rc_channels_get_chan16_raw(&msg);
+          ap_chan_raw[16] = mavlink_msg_rc_channels_get_chan17_raw(&msg);   
+          ap_chan_raw[17] = mavlink_msg_rc_channels_get_chan18_raw(&msg);
           
           ap_rssi = mavlink_msg_rc_channels_get_rssi(&msg);   // Receive RSSI 0: 0%, 254: 100%, 255: invalid/unknown
           ap_rc_flag = true;                                  // tell fr routine we have an rc records
           #if defined Mav_Debug_All || defined Mav_Debug_Rssi || defined Mav_Debug_RC
             Debug.print("Mavlink in #65 RC_Channels: ");
-            Debug.print("Channel count= "); Debug.print(ap_chcnt); 
-            Debug.print(" values: ");
-            for (int i=1 ; i <= ap_chcnt ; i++) {
+            Debug.print("ap_chcnt="); Debug.print(ap_chcnt); 
+            Debug.print(" Values: ");
+            for (int i=0 ; i <= ap_chcnt ; i++) {
               Debug.print(" "); 
               Debug.print(i);
               Debug.print("=");  
