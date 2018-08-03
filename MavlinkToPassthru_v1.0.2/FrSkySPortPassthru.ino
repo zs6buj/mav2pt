@@ -84,7 +84,7 @@ void ReadSPort(void) {
 
 #if defined Ground_Mode
 void Emulate_ReadSPort() {
-  #if defined Target_Teensy3x
+#if (Target_Board == 0)   // Teensy3x
   setSPortMode(TX);
   #endif
  
@@ -235,7 +235,7 @@ void FrSkySPort_Process() {
  }     
 // ***********************************************************************
 void FrSkySPort_SendByte(uint8_t byte, bool addCrc) {
-  #if defined Target_Teensy3x
+#if (Target_Board == 0)   // Teensy3x
    setSPortMode(TX); 
  #endif  
  if (!addCrc) { 
@@ -278,7 +278,7 @@ void FrSkySPort_SendCrc() {
 //***************************************************
 void FrSkySPort_SendDataFrame(uint8_t Instance, uint16_t Id, uint32_t value) {
 
-  #if defined Target_Teensy3x
+#if (Target_Board == 0)   // Teensy3x
   setSPortMode(TX); 
   #endif
   
