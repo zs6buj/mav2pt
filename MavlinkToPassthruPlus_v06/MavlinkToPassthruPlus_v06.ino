@@ -133,7 +133,7 @@ v0.03 2018-07-11  Add sensor types 0x5009 RX Channels, 0x5010 VFR Hud 2018-07-17
 v0.04 2018-07-31  Add support for Maple Mini. Change rc channel 0x5009 as per yaapu's proposal  
 v0.05 2018-08-02  Add circular buffers for mavlink incoming from FC
 v0.06 2018-08-03  Fixed "#if defined Target_Teensy3x" not changed everywhere - Thanks Alex
-                  Translate RC values like this: PWM 1000 to 2000 -> nominal 0 to 63, boundaries 0 and 100
+                  Translate RC values like this: PWM 1000 to 2000 -> nominal -63 to 63, boundaries -100 and 100
                                   
 */
 
@@ -218,7 +218,6 @@ uint8_t BufLedState = LOW;
 //#define Aux_Port_Debug
 //#define Mav_Debug_Params
 //#define Frs_Debug_Params
-
 //#define Mav_Debug_Rssi
 //#define Mav_Debug_RC
 //#define Frs_Debug_RC
@@ -1007,10 +1006,10 @@ void DecodeOneMavFrame() {
           #if defined Mav_Debug_All || defined Mav_Debug_Rssi || defined Mav_Debug_RC
             Debug.print("Mavlink in #65 RC_Channels: ");
             Debug.print("ap_chcnt="); Debug.print(ap_chcnt); 
-            Debug.print(" Values: ");
-            for (int i=0 ; i <= ap_chcnt ; i++) {
+            Debug.print(" PWM: ");
+            for (int i=0 ; i < ap_chcnt ; i++) {
               Debug.print(" "); 
-              Debug.print(i);
+              Debug.print(i+1);
               Debug.print("=");  
               Debug.print(ap_chan_raw[i]);   
             }                         

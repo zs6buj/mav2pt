@@ -876,10 +876,10 @@ void SendRssiF101() {          // data id 0xF101 RSSI tell LUA script in Taranis
   #endif
 }
 //*************************************************** 
-uint8_t PWM_To_63(uint16_t PWM) {       // PWM 1000 to 2000   ->    nominal 0 to 63
+int8_t PWM_To_63(uint16_t PWM) {       // PWM 1000 to 2000   ->    nominal -63 to 63
 int8_t myint;
-  myint = round((PWM - 1000) * 0.063); 
-  myint = myint < 0 ? 0 : myint;            
+  myint = round((PWM - 1500) * 0.126); 
+  myint = myint < -100 ? -100 : myint;            
   myint = myint > 100 ? 100 : myint;  
   return myint; 
 }
