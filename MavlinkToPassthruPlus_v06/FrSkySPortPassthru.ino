@@ -782,27 +782,27 @@ void Send_RC_5009() {
   fr_rc[3] = PWM_To_63(ap_chan_raw[rc_count+2]); 
   fr_rc[4] = PWM_To_63(ap_chan_raw[rc_count+3]); 
 
-  bit32Pack(fr_chcnt, 0, 4);        //  channel count, 0 = chans 1-4, 1=chans 5-8, 2 = chans 9-12, 3 = chans 13 -16 .....
-  bit32Pack(fr_rc[1] ,4, 6);        // fragment 1 
+  bit32Pack(fr_chcnt, 0, 4);             //  channel count, 0 = chans 1-4, 1=chans 5-8, 2 = chans 9-12, 3 = chans 13 -16 .....
+  bit32Pack(Abs(fr_rc[1]) ,4, 6);        // fragment 1 
   if (fr_rc[1] < 0)
-    bit32Pack(1, 10, 1);            // neg
+    bit32Pack(1, 10, 1);                 // neg
   else 
-    bit32Pack(0, 10, 1);            // pos          
-  bit32Pack(fr_rc[2] ,11, 6);       // fragment 2 
+    bit32Pack(0, 10, 1);                 // pos          
+  bit32Pack(Abs(fr_rc[2]), 11, 6);       // fragment 2 
   if (fr_rc[2] < 0)
-    bit32Pack(1, 17, 1);            // neg
+    bit32Pack(1, 17, 1);                 // neg
   else 
-    bit32Pack(0, 17, 1);            // pos   
-  bit32Pack(fr_rc[3] ,18, 6);       // fragment 3
+    bit32Pack(0, 17, 1);                 // pos   
+  bit32Pack(Abs(fr_rc[3]), 18, 6);       // fragment 3
   if (fr_rc[3] < 0)
-    bit32Pack(1, 24, 1);            // neg
+    bit32Pack(1, 24, 1);                 // neg
   else 
-    bit32Pack(0, 24, 1);            // pos      
-  bit32Pack(fr_rc[4] ,25, 6);       // fragment 4 
+    bit32Pack(0, 24, 1);                 // pos      
+  bit32Pack(Abs(fr_rc[4]), 25, 6);       // fragment 4 
   if (fr_rc[4] < 0)
-    bit32Pack(1, 31, 1);            // neg
+    bit32Pack(1, 31, 1);                 // neg
   else 
-    bit32Pack(0, 31, 1);            // pos  
+    bit32Pack(0, 31, 1);                 // pos  
         
   FrSkySPort_SendDataFrame(0x1B, 0x5009,fr_payload); 
 
@@ -879,8 +879,8 @@ void SendRssiF101() {          // data id 0xF101 RSSI tell LUA script in Taranis
 int8_t PWM_To_63(uint16_t PWM) {       // PWM 1000 to 2000   ->    nominal -63 to 63
 int8_t myint;
   myint = round((PWM - 1500) * 0.126); 
-  myint = myint < -100 ? -100 : myint;            
-  myint = myint > 100 ? 100 : myint;  
+  myint = myint < -63 ? -63 : myint;            
+  myint = myint > 63 ? 63 : myint;  
   return myint; 
 }
 
