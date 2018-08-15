@@ -778,14 +778,14 @@ uint8_t sv_chcnt = 8;
     return;
   } 
 
-  fr_chcnt = sv_count / 4; 
+  uint8_t  chunk = sv_count / 4; 
 
   fr_sv[1] = PWM_To_63(ap_chan_raw[sv_count]);     // PWM 1000 to 2000 -> 6bit 0 to 63
   fr_sv[2] = PWM_To_63(ap_chan_raw[sv_count+1]);    
   fr_sv[3] = PWM_To_63(ap_chan_raw[sv_count+2]); 
   fr_sv[4] = PWM_To_63(ap_chan_raw[sv_count+3]); 
 
-  bit32Pack(fr_chcnt, 0, 4);             //  channel count, 0 = chans 1-4, 1=chans 5-8, 2 = chans 9-12, 3 = chans 13 -16 .....
+  bit32Pack(chunk, 0, 4);                // chunk number, 0 = chans 1-4, 1=chans 5-8, 2 = chans 9-12, 3 = chans 13 -16 .....
   bit32Pack(Abs(fr_sv[1]) ,4, 6);        // fragment 1 
   if (fr_rc[1] < 0)
     bit32Pack(1, 10, 1);                 // neg
@@ -813,7 +813,7 @@ uint8_t sv_chcnt = 8;
     Debug.print("Frsky out Servo_Raw 0x5009: ");  
     Debug.print(" sv_chcnt="); Debug.print(sv_chcnt); 
     Debug.print(" sv_count="); Debug.print(sv_count); 
-    Debug.print(" fr_chcnt="); Debug.print(fr_chcnt);
+    Debug.print(" chunk="); Debug.print(chunk);
     Debug.print(" fr_sv1="); Debug.print(fr_sv[1]);
     Debug.print(" fr_sv2="); Debug.print(fr_sv[2]);
     Debug.print(" fr_sv3="); Debug.print(fr_sv[3]);   

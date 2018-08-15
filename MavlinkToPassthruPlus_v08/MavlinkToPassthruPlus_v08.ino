@@ -548,7 +548,7 @@ float fr_bat2_amps;
 uint16_t fr_bat2_mAh;
 
 //0x5009 Servo_raw         // 4 ch per frame
-uint8_t  fr_chcnt; 
+uint8_t  fr_port; 
 int8_t   fr_sv[5];       
 
 //0x5010 HUD
