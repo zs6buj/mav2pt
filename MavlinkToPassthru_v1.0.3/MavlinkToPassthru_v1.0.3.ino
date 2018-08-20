@@ -132,6 +132,7 @@ v1.0.0  2018-07-05  RELEASED for general use  2018-07-17 board LED solid when ma
 v1.0.1  2018-08-01  Missing comma in #define Data_Streams_Enabled code, to include MAV_DATA_STREAM_EXTRA3 for VFR HUD      
 v1.0.2  2018-07-31  Add support for Maple Mini
         2018-08-01  Implement circular buffer for mavlink incoming telemetry to avoid buffer tainting on aux port stream
+v1.0.3  2018-09-20  Add support for PX4 flight stack. Specifically flight mode.        
                                   
 */
 
@@ -139,9 +140,10 @@ v1.0.2  2018-07-31  Add support for Maple Mini
 #include <GCS_MAVLink.h>
 
 //************************************* Please select your options here before compiling **************************
+#define PX4_Flight_stack   //  If your flight stack is PX4 and not APM, un-comment this line
 // Choose one (only) of these target boards
-//#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
-#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
+#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
+//#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
 //#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
 
 // Choose one (only) of these three modes
@@ -219,10 +221,10 @@ uint8_t BufLedState = LOW;
 //#define Mav_Debug_Rssi
 //#define Mav_Debug_RC
 //#define Frs_Debug_RC
-#define Mav_Debug_Heartbeat
+//#define Mav_Debug_Heartbeat
+//#define Frs_Debug_APStatus
 //#define Mav_Debug_SysStatus
 //#define Frs_Debug_LatLon
-//#define Frs_Debug_APStatus
 //#define Debug_Batteries
 //#define Frs_Debug_Home
 //#define Mav_Debug_GPS_Raw     // #24
@@ -310,7 +312,20 @@ struct Battery bat1     = {
 struct Battery bat2     = {
   0, 0, 0, 0, 0, 0, 0, true};   
 
-
+//  For PX4 flight modes
+union px4_custom_mode {
+  struct {
+    uint16_t reserved;
+    uint8_t main_mode;
+    uint8_t sub_mode;
+  };
+  uint32_t data;
+  float data_float;
+  struct {
+    uint16_t reserved_hl;
+    uint16_t custom_mode_hl;
+  };
+};
 // ******************************************
 
 mavlink_message_t msg;
@@ -331,6 +346,8 @@ uint8_t    ap_base_mode = 0;
 uint32_t   ap_custom_mode = 0;
 uint8_t    ap_system_status = 0;
 uint8_t    ap_mavlink_version = 0;
+uint8_t    px4_main_mode = 0;
+uint8_t    px4_sub_mode = 0;
 
 // Message # 1  SYS_STATUS 
 uint16_t   ap_voltage_battery1= 0;    // 1000 = 1V
@@ -750,6 +767,9 @@ void DecodeOneMavFrame() {
           ap_autopilot = mavlink_msg_heartbeat_get_autopilot(&msg);
           ap_base_mode = mavlink_msg_heartbeat_get_base_mode(&msg);
           ap_custom_mode = mavlink_msg_heartbeat_get_custom_mode(&msg);
+          px4_main_mode = bit32Extract(ap_custom_mode,16, 8);
+          px4_sub_mode = bit32Extract(ap_custom_mode,24, 8);
+          
           ap_system_status = mavlink_msg_heartbeat_get_system_status(&msg);
           ap_mavlink_version = mavlink_msg_heartbeat_get_mavlink_version(&msg);
           hb_millis=millis(); 
@@ -762,9 +782,18 @@ void DecodeOneMavFrame() {
             Debug.print("ap_type="); Debug.print(ap_type);   
             Debug.print("  ap_autopilot="); Debug.print(ap_autopilot); 
             Debug.print("  ap_base_mode="); Debug.print(ap_base_mode); 
-            Debug.print(" ap_custom_mode="); Debug.print(ap_custom_mode);   
+            Debug.print(" ap_custom_mode="); Debug.print(ap_custom_mode);
             Debug.print("  ap_system_status="); Debug.print(ap_system_status); 
-            Debug.print("  ap_mavlink_version="); Debug.println(ap_mavlink_version);
+            Debug.print("  ap_mavlink_version="); Debug.print(ap_mavlink_version);   
+                  
+           if (ap_autopilot == MAV_AUTOPILOT_PX4) {
+             Debug.print("  px4_main_mode="); Debug.print(px4_main_mode); 
+             Debug.print(" px4_sub_mode="); Debug.print(px4_sub_mode);  
+             Debug.print(" ");Debug.print(PX4FlightModeName(px4_main_mode, px4_sub_mode));  
+           }
+            
+            Debug.println();
+  
           #endif
 
           if(!mavGood) {
@@ -1417,6 +1446,72 @@ String MavSeverity(uint8_t sev) {
       break; 
     default:
       return "UNKNOWN";                                          
+   }
+}
+//***************************************************
+String PX4FlightModeName(uint8_t main, uint8_t sub) {
+ switch(main) {
+    
+    case 1:
+      return "MANUAL"; 
+      break;
+    case 2:
+      return "ALTITUDE";        
+      break;
+    case 3:
+      return "POSCTL";      
+      break; 
+    case 4:
+ 
+      switch(sub) {
+        case 1:
+          return "AUTO READY"; 
+          break;    
+        case 2:
+          return "AUTO TAKEOFF"; 
+          break; 
+        case 3:
+          return "AUTO LOITER"; 
+          break;    
+        case 4:
+          return "AUTO MISSION"; 
+          break; 
+        case 5:
+          return "AUTO RTL"; 
+          break;    
+        case 6:
+          return "AUTO LAND"; 
+          break; 
+        case 7:
+          return "AUTO RTGS"; 
+          break;    
+        case 8:
+          return "AUTO FOLLOW ME"; 
+          break; 
+        case 9:
+          return "AUTO PRECLAND"; 
+          break; 
+        default:
+          return "AUTO UNKNOWN";   
+          break;
+      } 
+      
+    case 5:
+      return "ACRO";
+    case 6:
+      return "OFFBOARD";        
+      break;
+    case 7:
+      return "STABILIZED";
+      break;        
+    case 8:
+      return "RATTITUDE";        
+      break; 
+    case 9:
+      return "SIMPLE";  
+    default:
+      return "UNKNOWN";
+      break;                                          
    }
 }
 //***************************************************
