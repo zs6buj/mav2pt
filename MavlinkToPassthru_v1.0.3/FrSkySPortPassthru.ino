@@ -469,13 +469,15 @@ void SendAP_Status5001() {
 
   if (ap_type == 6) return;      // If GCS heartbeat ignore it  -  yaapu  - ejs also handled at #0 read
   
-  fr_flight_mode = ap_custom_mode + 1; // AP_CONTROL_MODE_LIMIT - ls 5 bits
+  fr_armed = ap_base_mode >> 7;  
   fr_land_complete = fr_armed;
   
   #if defined PX4_Flight_Stack
-
+    fr_flight_mode = 0;
+    bit32Pack(px4_main_mode,12,5);       // Expect from px4 flight stack only, otherwise zero
+    bit32Pack(px4_sub_mode,17,8);
   #else   //  APM Flight Stack
-    fr_armed = ap_base_mode >> 7;  
+    fr_flight_mode = ap_custom_mode + 1; // AP_CONTROL_MODE_LIMIT - ls 5 bits
   #endif
   
   bit32Pack(fr_flight_mode, 0, 5);     // Flight mode
@@ -484,9 +486,6 @@ void SendAP_Status5001() {
   bit32Pack(fr_armed ,8, 1);           // Armed
   bit32Pack(fr_bat_fs ,9, 1);          // Battery failsafe flag
   bit32Pack(fr_ekf_fs ,10, 2);         // EKF failsafe flag
-
-  bit32Pack(px4_main_mode,12,8);       // Expect from px4 flight stack only, otherwise zero
-  bit32Pack(px4_sub_mode,20,8);
 
   #if defined Frs_Debug_All || defined Frs_Debug_APStatus
     Debug.print("Frsky out AP_Status 0x5001: ");   
