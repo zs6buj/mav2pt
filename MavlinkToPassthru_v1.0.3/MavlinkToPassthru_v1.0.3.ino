@@ -332,6 +332,7 @@ uint8_t    ap_base_mode = 0;
 uint32_t   ap_custom_mode = 0;
 uint8_t    ap_system_status = 0;
 uint8_t    ap_mavlink_version = 0;
+bool       px4_flight_stack = false;
 uint8_t    px4_main_mode = 0;
 uint8_t    px4_sub_mode = 0;
 
@@ -771,12 +772,12 @@ void DecodeOneMavFrame() {
             Debug.print(" ap_custom_mode="); Debug.print(ap_custom_mode);
             Debug.print("  ap_system_status="); Debug.print(ap_system_status); 
             Debug.print("  ap_mavlink_version="); Debug.print(ap_mavlink_version);   
-                  
-           if (ap_autopilot == MAV_AUTOPILOT_PX4) {
-             #define PX4_Flight_Stack         //  Remember that we are interacting with the px4 flight stack
-             Debug.print("  px4_main_mode="); Debug.print(px4_main_mode); 
-             Debug.print(" px4_sub_mode="); Debug.print(px4_sub_mode);  
-             Debug.print(" ");Debug.print(PX4FlightModeName(px4_main_mode, px4_sub_mode));  
+
+            px4_flight_stack = (ap_autopilot == MAV_AUTOPILOT_PX4);     
+            if (px4_flight_stack) {         
+              Debug.print(" px4_main_mode="); Debug.print(px4_main_mode); 
+              Debug.print(" px4_sub_mode="); Debug.print(px4_sub_mode);  
+              Debug.print(" ");Debug.print(PX4FlightModeName(px4_main_mode, px4_sub_mode));  
            }
             
             Debug.println();
@@ -1499,6 +1500,55 @@ String PX4FlightModeName(uint8_t main, uint8_t sub) {
     default:
       return "UNKNOWN";
       break;                                          
+   }
+}
+//***************************************************
+uint8_t PX4FlightModeNum(uint8_t main, uint8_t sub) {
+ switch(main) {
+    
+    case 1:
+      return 1;  // MANUAL 
+    case 2:
+      return 2;  // ALTITUDE       
+    case 3:
+      return 3;  // POSCTL      
+    case 4:
+ 
+      switch(sub) {
+        case 1:
+          return 4;  // AUTO READY
+        case 2:
+          return 5;  // AUTO TAKEOFF 
+        case 3:
+          return 6;  // AUTO LOITER  
+        case 4:
+          return 7;  // AUTO MISSION 
+        case 5:
+          return 8;  // AUTO RTL 
+        case 6:
+          return 9;  // AUTO LAND 
+        case 7:
+          return 10;  //  AUTO RTGS 
+        case 8:
+          return 11;  // AUTO FOLLOW ME 
+        case 9:
+          return 12;  //  AUTO PRECLAND 
+        default:
+          return 13;  //  AUTO UNKNOWN   
+      } 
+      
+    case 5:
+      return 14;  //  ACRO
+    case 6:
+      return 15;  //  OFFBOARD        
+    case 7:
+      return 16;  //  STABILIZED
+    case 8:
+      return 17;  //  RATTITUDE        
+    case 9:
+      return 18;  //  SIMPLE 
+    default:
+      return 19;  //  UNKNOWN                                        
    }
 }
 //***************************************************

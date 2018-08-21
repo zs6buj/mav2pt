@@ -464,28 +464,24 @@ void SendStatusTextChunk5000() {
 
 // *****************************************************************
 void SendAP_Status5001() {
-
-  fr_simple = ap_simple;   // Derived from "ALR SIMPLE mode on/off" text messages
-
   if (ap_type == 6) return;      // If GCS heartbeat ignore it  -  yaapu  - ejs also handled at #0 read
   
+  fr_simple = ap_simple;         // Derived from "ALR SIMPLE mode on/off" text messages
   fr_armed = ap_base_mode >> 7;  
   fr_land_complete = fr_armed;
   
-  #if defined PX4_Flight_Stack
-    fr_flight_mode = 0;
-    bit32Pack(px4_main_mode,12,5);       // Expect from px4 flight stack only, otherwise zero
-    bit32Pack(px4_sub_mode,17,8);
-  #else   //  APM Flight Stack
+  if (px4_flight_stack) 
+    fr_flight_mode = PX4FlightModeNum(px4_main_mode, px4_sub_mode);
+  else   //  APM Flight Stack
     fr_flight_mode = ap_custom_mode + 1; // AP_CONTROL_MODE_LIMIT - ls 5 bits
-  #endif
   
-  bit32Pack(fr_flight_mode, 0, 5);     // Flight mode
-  bit32Pack(fr_simple ,5, 2);          // Simple/super simple mode flags
-  bit32Pack(fr_land_complete ,7, 1);   // Landed flag
-  bit32Pack(fr_armed ,8, 1);           // Armed
-  bit32Pack(fr_bat_fs ,9, 1);          // Battery failsafe flag
-  bit32Pack(fr_ekf_fs ,10, 2);         // EKF failsafe flag
+  bit32Pack(fr_flight_mode, 0, 5);      // Flight mode   0-32 - 5 bits
+  bit32Pack(fr_simple ,5, 2);           // Simple/super simple mode flags
+  bit32Pack(fr_land_complete ,7, 1);    // Landed flag
+  bit32Pack(fr_armed ,8, 1);            // Armed
+  bit32Pack(fr_bat_fs ,9, 1);           // Battery failsafe flag
+  bit32Pack(fr_ekf_fs ,10, 2);          // EKF failsafe flag
+  bit32Pack(px4_flight_stack ,12, 1);   // px4_flight_stack flag
 
   #if defined Frs_Debug_All || defined Frs_Debug_APStatus
     Debug.print("Frsky out AP_Status 0x5001: ");   
@@ -495,11 +491,7 @@ void SendAP_Status5001() {
     Debug.print(" fr_armed="); Debug.print(fr_armed);
     Debug.print(" fr_bat_fs="); Debug.print(fr_bat_fs);
     Debug.print(" fr_ekf_fs="); Debug.print(fr_ekf_fs);
-    #if defined PX4_Flight_Stack
-      Debug.print(" px4_main_mode="); Debug.print(px4_main_mode);
-      Debug.print(" px4_sub_mode="); Debug.print(px4_sub_mode);
-     #endif
-   Debug.println();
+    Debug.print(" px4_flight_stack="); Debug.println(px4_flight_stack);
   #endif
            
   FrSkySPort_SendDataFrame(0x1B, 0x5001, fr_payload);  
