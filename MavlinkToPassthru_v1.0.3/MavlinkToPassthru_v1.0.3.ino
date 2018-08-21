@@ -754,16 +754,18 @@ void DecodeOneMavFrame() {
           ap_autopilot = mavlink_msg_heartbeat_get_autopilot(&msg);
           ap_base_mode = mavlink_msg_heartbeat_get_base_mode(&msg);
           ap_custom_mode = mavlink_msg_heartbeat_get_custom_mode(&msg);
+          
           px4_main_mode = bit32Extract(ap_custom_mode,16, 8);
           px4_sub_mode = bit32Extract(ap_custom_mode,24, 8);
-          
+          px4_flight_stack = (ap_autopilot == MAV_AUTOPILOT_PX4);
+            
           ap_system_status = mavlink_msg_heartbeat_get_system_status(&msg);
           ap_mavlink_version = mavlink_msg_heartbeat_get_mavlink_version(&msg);
           hb_millis=millis(); 
 
           if ((ap_base_mode >> 7) && (!homGood)) 
             MarkHome();  // If motors armed for the first time, then mark this spot as home
-
+                
           #if defined Mav_Debug_All || defined Mav_Debug_Heartbeat
             Debug.print("Mavlink in #0 Heartbeat: ");           
             Debug.print("ap_type="); Debug.print(ap_type);   
@@ -773,7 +775,7 @@ void DecodeOneMavFrame() {
             Debug.print("  ap_system_status="); Debug.print(ap_system_status); 
             Debug.print("  ap_mavlink_version="); Debug.print(ap_mavlink_version);   
 
-            px4_flight_stack = (ap_autopilot == MAV_AUTOPILOT_PX4);     
+
             if (px4_flight_stack) {         
               Debug.print(" px4_main_mode="); Debug.print(px4_main_mode); 
               Debug.print(" px4_sub_mode="); Debug.print(px4_sub_mode);  
