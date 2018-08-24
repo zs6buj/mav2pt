@@ -561,8 +561,8 @@ void Send_GPS_Status5002() {
 void Send_Bat1_5003() {
   fr_bat1_volts = ap_voltage_battery1 / 100;         // Were mV, now dV  - V * 10
   fr_bat1_amps = ap_current_battery1 ;               // Remain       dA  - A * 10   
-//  fr_bat1_mAh = Total_mAh1();      // My accumulated mAh;   di/dt
-  fr_bat1_mAh = ap_current_consumed;  // Rather use mAh from flight computer
+  fr_bat1_mAh = Total_mAh1();      // My accumulated mAh;   di/dt
+ // fr_bat1_mAh = ap_current_consumed;  // Records type #142 is never sent
   #if defined Frs_Debug_All || defined Debug_Batteries
     Debug.print("Frsky out Bat1 0x5003: ");   
     Debug.print(" fr_bat1_volts="); Debug.print(fr_bat1_volts);
@@ -777,7 +777,7 @@ void Send_Bat2_5008() {
 // ***************************************************************** 
 void Send_Servo_Raw_5009() {
 uint8_t sv_chcnt = 8;
-  if (sv_count+4 > 8) { // 4 channels at a time
+  if (sv_count+4 > sv_chcnt) { // 4 channels at a time
     sv_count = 0;
     ap_servo_flag = false;  // done with the ap_servo record received
     return;

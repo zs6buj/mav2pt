@@ -136,7 +136,7 @@ v0.06 2018-08-03  Fixed "#if defined Target_Teensy3x" not changed everywhere - T
                   Translate RC values : PWM 1000 to 2000 -> 6bit 0-63 plus sign bit
 v0.07             Do some tests                  
 v0.08 2018-08-14  Servo outputs, not RC inputs 
-v0.09 2018-09-20  Add support for PX4 flight stack. Specifically flight mode.                 
+v0.09 2018-09-20  Add support for PX4 flight stack. Specifically flight mode. 2018-09-24 Use di/dt for mAh.                
 
 */
 
