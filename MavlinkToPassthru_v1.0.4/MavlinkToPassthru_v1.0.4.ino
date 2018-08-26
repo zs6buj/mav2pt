@@ -22,9 +22,10 @@
 
     Thank you to yaapu for advice and testing, and his excellent LUA scrip
 
+    Thank you athertop for advice and extensive testing
+    
     Thank you florent for advice on working with my FlightDeck
 
-    Thank you athertop for advice and extensive testing
 
     *****************************************************************************
 
@@ -133,7 +134,7 @@ v1.0.1  2018-08-01  Missing comma in #define Data_Streams_Enabled code, to inclu
 v1.0.2  2018-07-31  Add support for Maple Mini
         2018-08-01  Implement circular buffer for mavlink incoming telemetry to avoid buffer tainting on aux port stream
 v1.0.3  2018-09-20  Add support for PX4 flight stack. Specifically flight mode.        
-                                  
+v1.0.4  2018-09-26  Fix bug in current consumption. Two options, from FC or accumulated di/dt. They now track each other.                                    
 */
 
 #include <CircularBuffer.h>
@@ -436,6 +437,7 @@ Power supply status flags (bitmask)
  */
 
 // Message  #147 BATTERY_STATUS 
+uint8_t      ap_battery_id;     
 uint8_t      ap_battery_function;
 uint8_t      ap_bat_type;  
 int16_t      ap_bat_temperature;    // centi-degrees celsius
@@ -1069,16 +1071,34 @@ void DecodeOneMavFrame() {
           #endif  
           break; 
         case MAVLINK_MSG_ID_BATTERY_STATUS:      // #147   http://mavlink.org/messages/common
-          if (!mavGood) break;         
+          if (!mavGood) break;       
+          ap_battery_id = mavlink_msg_battery_status_get_id(&msg);  
           ap_current_battery = mavlink_msg_battery_status_get_current_battery(&msg);      // in 10*milliamperes (1 = 10 milliampere)
           ap_current_consumed = mavlink_msg_battery_status_get_current_consumed(&msg);    // mAh
-          ap_battery_remaining = mavlink_msg_battery_status_get_battery_remaining(&msg);  // (0%: 0, 100%: 100)              
+          ap_battery_remaining = mavlink_msg_battery_status_get_battery_remaining(&msg);  // (0%: 0, 100%: 100)  
+
+          if (ap_battery_id == 0) {  // Battery 1
+            fr_bat1_mAh = ap_current_consumed;                       
+          } else if (ap_battery_id == 1) {  // Battery 2
+              fr_bat2_mAh = ap_current_consumed;                              
+          } 
+             
           #if defined Mav_Debug_All || defined Debug_Batteries
             Debug.print("Mavlink in #147 Battery Status: ");
-            Debug.print(" bat current= "); Debug.print(ap_current_battery); 
-            Debug.print(" bat mAh= ");  Debug.print(ap_current_consumed);       
-            Debug.print(" bat % remaining= ");  Debug.println(ap_time_remaining);       
-          #endif  
+            Debug.print(" bat id= "); Debug.print(ap_battery_id); 
+            Debug.print(" bat current mA= "); Debug.print(ap_current_battery*10); 
+            Debug.print(" ap_current_consumed mAh= ");  Debug.print(ap_current_consumed);   
+            if (ap_battery_id == 0) {
+              Debug.print(" my di/dt mAh= ");  
+              Debug.println(Total_mAh1(), 0);  
+            }
+            else {
+              Debug.print(" my di/dt mAh= ");  
+              Debug.println(Total_mAh2(), 0);   
+            }    
+        //  Debug.print(" bat % remaining= ");  Debug.println(ap_time_remaining);       
+          #endif                        
+          
           break;    
         case MAVLINK_MSG_ID_SENSOR_OFFSETS:    // #150   http://mavlink.org/messages/ardupilotmega
           if (!mavGood) break;        

@@ -22,9 +22,9 @@
 
     Thank you to yaapu for advice and testing, and his excellent LUA scrip
 
-    Thank you florent for advice on working with my FlightDeck
-
     Thank you athertop for advice and extensive testing
+    
+    Thank you florent for advice on working with my FlightDeck
 
     *****************************************************************************
     PLUS version adds additional sensor IDs to Mavlink Passthrough protocol DIY range
@@ -135,7 +135,9 @@ v0.05 2018-08-02  Add circular buffers for mavlink incoming from FC
 v0.06 2018-08-03  Fixed "#if defined Target_Teensy3x" not changed everywhere - Thanks Alex
                   Translate RC values : PWM 1000 to 2000 -> 6bit 0-63 plus sign bit
 v0.07             Do some tests                  
-v0.08 2018-08-14  Servo outputs, not RC inputs                 
+v0.08 2018-08-14  Servo outputs, not RC inputs 
+v0.09 2018-09-20  Add support for PX4 flight stack. Specifically flight mode. 2018-09-24 Use di/dt for mAh. 
+v0.10 2018-09-26  Fix bug in current consumption. Two options, from FC or accumulated di/dt. They now track each other.             
 
 */
 
@@ -220,8 +222,8 @@ uint8_t BufLedState = LOW;
 //#define Aux_Port_Debug
 //#define Mav_Debug_Params
 //#define Frs_Debug_Params
-#define Mav_Debug_Servo
-#define Frs_Debug_Servo
+//#define Mav_Debug_Servo
+//#define Frs_Debug_Servo
 //#define Mav_Debug_Rssi
 //#define Mav_Debug_RC
 //#define Frs_Debug_RC
@@ -337,11 +339,15 @@ uint8_t    ap_base_mode = 0;
 uint32_t   ap_custom_mode = 0;
 uint8_t    ap_system_status = 0;
 uint8_t    ap_mavlink_version = 0;
+bool       px4_flight_stack = false;
+uint8_t    px4_main_mode = 0;
+uint8_t    px4_sub_mode = 0;
 
 // Message # 1  SYS_STATUS 
 uint16_t   ap_voltage_battery1= 0;    // 1000 = 1V
 int16_t    ap_current_battery1= 0;    //  10 = 1A
-uint8_t   ap_ccell_count1= 0;
+uint8_t    ap_ccell_count1= 0;
+
 
 // Message #20 PARAM_REQUEST_READ
 // target_system  System ID
@@ -443,6 +449,7 @@ Power supply status flags (bitmask)
  */
 
 // Message  #147 BATTERY_STATUS 
+uint8_t      ap_battery_id;       
 uint8_t      ap_battery_function;
 uint8_t      ap_bat_type;  
 int16_t      ap_bat_temperature;    // centi-degrees celsius
@@ -766,21 +773,35 @@ void DecodeOneMavFrame() {
           ap_autopilot = mavlink_msg_heartbeat_get_autopilot(&msg);
           ap_base_mode = mavlink_msg_heartbeat_get_base_mode(&msg);
           ap_custom_mode = mavlink_msg_heartbeat_get_custom_mode(&msg);
+          
+          px4_main_mode = bit32Extract(ap_custom_mode,16, 8);
+          px4_sub_mode = bit32Extract(ap_custom_mode,24, 8);
+          px4_flight_stack = (ap_autopilot == MAV_AUTOPILOT_PX4);
+            
           ap_system_status = mavlink_msg_heartbeat_get_system_status(&msg);
           ap_mavlink_version = mavlink_msg_heartbeat_get_mavlink_version(&msg);
           hb_millis=millis(); 
 
           if ((ap_base_mode >> 7) && (!homGood)) 
             MarkHome();  // If motors armed for the first time, then mark this spot as home
-
+                
           #if defined Mav_Debug_All || defined Mav_Debug_Heartbeat
             Debug.print("Mavlink in #0 Heartbeat: ");           
             Debug.print("ap_type="); Debug.print(ap_type);   
             Debug.print("  ap_autopilot="); Debug.print(ap_autopilot); 
             Debug.print("  ap_base_mode="); Debug.print(ap_base_mode); 
-            Debug.print(" ap_custom_mode="); Debug.print(ap_custom_mode);   
+            Debug.print(" ap_custom_mode="); Debug.print(ap_custom_mode);
             Debug.print("  ap_system_status="); Debug.print(ap_system_status); 
-            Debug.print("  ap_mavlink_version="); Debug.println(ap_mavlink_version);
+            Debug.print("  ap_mavlink_version="); Debug.print(ap_mavlink_version);   
+
+
+            if (px4_flight_stack) {         
+              Debug.print(" px4_main_mode="); Debug.print(px4_main_mode); 
+              Debug.print(" px4_sub_mode="); Debug.print(px4_sub_mode);  
+              Debug.print(" ");Debug.print(PX4FlightModeName(px4_main_mode, px4_sub_mode));  
+           }
+            
+            Debug.println();
           #endif
 
           if(!mavGood) {
@@ -1102,16 +1123,34 @@ void DecodeOneMavFrame() {
           #endif  
           break; 
         case MAVLINK_MSG_ID_BATTERY_STATUS:      // #147   http://mavlink.org/messages/common
-          if (!mavGood) break;         
+          if (!mavGood) break;       
+          ap_battery_id = mavlink_msg_battery_status_get_id(&msg);  
           ap_current_battery = mavlink_msg_battery_status_get_current_battery(&msg);      // in 10*milliamperes (1 = 10 milliampere)
           ap_current_consumed = mavlink_msg_battery_status_get_current_consumed(&msg);    // mAh
-          ap_battery_remaining = mavlink_msg_battery_status_get_battery_remaining(&msg);  // (0%: 0, 100%: 100)              
+          ap_battery_remaining = mavlink_msg_battery_status_get_battery_remaining(&msg);  // (0%: 0, 100%: 100)  
+
+          if (ap_battery_id == 0) {  // Battery 1
+            fr_bat1_mAh = ap_current_consumed;                       
+          } else if (ap_battery_id == 1) {  // Battery 2
+              fr_bat2_mAh = ap_current_consumed;                              
+          } 
+             
           #if defined Mav_Debug_All || defined Debug_Batteries
             Debug.print("Mavlink in #147 Battery Status: ");
-            Debug.print(" bat current= "); Debug.print(ap_current_battery); 
-            Debug.print(" bat mAh= ");  Debug.print(ap_current_consumed);       
-            Debug.print(" bat % remaining= ");  Debug.println(ap_time_remaining);       
-          #endif  
+            Debug.print(" bat id= "); Debug.print(ap_battery_id); 
+            Debug.print(" bat current mA= "); Debug.print(ap_current_battery*10); 
+            Debug.print(" ap_current_consumed mAh= ");  Debug.print(ap_current_consumed);   
+            if (ap_battery_id == 0) {
+              Debug.print(" my di/dt mAh= ");  
+              Debug.println(Total_mAh1(), 0);  
+            }
+            else {
+              Debug.print(" my di/dt mAh= ");  
+              Debug.println(Total_mAh2(), 0);   
+            }    
+        //  Debug.print(" bat % remaining= ");  Debug.println(ap_time_remaining);       
+          #endif                        
+          
           break;    
         case MAVLINK_MSG_ID_SENSOR_OFFSETS:    // #150   http://mavlink.org/messages/ardupilotmega
           if (!mavGood) break;        
@@ -1469,6 +1508,121 @@ String MavSeverity(uint8_t sev) {
       break; 
     default:
       return "UNKNOWN";                                          
+   }
+}
+//***************************************************
+String PX4FlightModeName(uint8_t main, uint8_t sub) {
+ switch(main) {
+    
+    case 1:
+      return "MANUAL"; 
+      break;
+    case 2:
+      return "ALTITUDE";        
+      break;
+    case 3:
+      return "POSCTL";      
+      break; 
+    case 4:
+ 
+      switch(sub) {
+        case 1:
+          return "AUTO READY"; 
+          break;    
+        case 2:
+          return "AUTO TAKEOFF"; 
+          break; 
+        case 3:
+          return "AUTO LOITER"; 
+          break;    
+        case 4:
+          return "AUTO MISSION"; 
+          break; 
+        case 5:
+          return "AUTO RTL"; 
+          break;    
+        case 6:
+          return "AUTO LAND"; 
+          break; 
+        case 7:
+          return "AUTO RTGS"; 
+          break;    
+        case 8:
+          return "AUTO FOLLOW ME"; 
+          break; 
+        case 9:
+          return "AUTO PRECLAND"; 
+          break; 
+        default:
+          return "AUTO UNKNOWN";   
+          break;
+      } 
+      
+    case 5:
+      return "ACRO";
+    case 6:
+      return "OFFBOARD";        
+      break;
+    case 7:
+      return "STABILIZED";
+      break;        
+    case 8:
+      return "RATTITUDE";        
+      break; 
+    case 9:
+      return "SIMPLE";  
+    default:
+      return "UNKNOWN";
+      break;                                          
+   }
+}
+//***************************************************
+uint8_t PX4FlightModeNum(uint8_t main, uint8_t sub) {
+ switch(main) {
+    
+    case 1:
+      return 1;  // MANUAL 
+    case 2:
+      return 2;  // ALTITUDE       
+    case 3:
+      return 3;  // POSCTL      
+    case 4:
+ 
+      switch(sub) {
+        case 1:
+          return 4;  // AUTO READY
+        case 2:
+          return 5;  // AUTO TAKEOFF 
+        case 3:
+          return 6;  // AUTO LOITER  
+        case 4:
+          return 7;  // AUTO MISSION 
+        case 5:
+          return 8;  // AUTO RTL 
+        case 6:
+          return 9;  // AUTO LAND 
+        case 7:
+          return 10;  //  AUTO RTGS 
+        case 8:
+          return 11;  // AUTO FOLLOW ME 
+        case 9:
+          return 12;  //  AUTO PRECLAND 
+        default:
+          return 13;  //  AUTO UNKNOWN   
+      } 
+      
+    case 5:
+      return 14;  //  ACRO
+    case 6:
+      return 15;  //  OFFBOARD        
+    case 7:
+      return 16;  //  STABILIZED
+    case 8:
+      return 17;  //  RATTITUDE        
+    case 9:
+      return 18;  //  SIMPLE 
+    default:
+      return 19;  //  UNKNOWN                                        
    }
 }
 //***************************************************
