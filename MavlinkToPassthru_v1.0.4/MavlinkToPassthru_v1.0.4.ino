@@ -225,7 +225,7 @@ uint8_t BufLedState = LOW;
 //#define Frs_Debug_APStatus
 //#define Mav_Debug_SysStatus
 //#define Frs_Debug_LatLon
-#define Debug_Batteries
+//#define Debug_Batteries
 //#define Frs_Debug_Home
 //#define Mav_Debug_GPS_Raw     // #24
 //#define Mav_Debug_GPS_Int     // #33
