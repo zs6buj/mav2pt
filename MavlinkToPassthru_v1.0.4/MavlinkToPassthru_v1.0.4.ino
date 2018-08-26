@@ -1,7 +1,7 @@
  
 /*  *****************************************************************************
 
-    MavToPassthruPlus  July 2018
+    RELEASED 
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@
     Thank you athertop for advice and extensive testing
 
     *****************************************************************************
-    PLUS version adds additional sensor IDs to Mavlink Passthrough protocol DIY range
 
     Whereas the Orange (and some other) UHF Long Range RC and telemetry radio systems deliver 
     19.2kb/s two-way Mavlink link, the FrSky Taranis and Horus hand-held RC controllers expect
@@ -129,24 +128,23 @@
     
 Change log:
 
-v0.03 2018-07-11  Add sensor types 0x5009 RX Channels, 0x5010 VFR Hud 2018-07-17 board LED solid when mavGood
-v0.04 2018-07-31  Add support for Maple Mini. Change rc channel 0x5009 as per yaapu's proposal  
-v0.05 2018-08-02  Add circular buffers for mavlink incoming from FC
-v0.06 2018-08-03  Fixed "#if defined Target_Teensy3x" not changed everywhere - Thanks Alex
-                  Translate RC values : PWM 1000 to 2000 -> 6bit 0-63 plus sign bit
-v0.07             Do some tests                  
-v0.08 2018-08-14  Servo outputs, not RC inputs                 
-
+v1.0.0  2018-07-05  RELEASED for general use  2018-07-17 board LED solid when mavGood   
+v1.0.1  2018-08-01  Missing comma in #define Data_Streams_Enabled code, to include MAV_DATA_STREAM_EXTRA3 for VFR HUD      
+v1.0.2  2018-07-31  Add support for Maple Mini
+        2018-08-01  Implement circular buffer for mavlink incoming telemetry to avoid buffer tainting on aux port stream
+v1.0.3  2018-09-20  Add support for PX4 flight stack. Specifically flight mode.        
+v1.0.4  2018-09-26  Fix bug in current consumption. Two options, from FC or accumulated di/dt. They now track each other.                                   
 */
 
 #include <CircularBuffer.h>
 #include <GCS_MAVLink.h>
 
 //************************************* Please select your options here before compiling **************************
+#define PX4_Flight_stack   //  If your flight stack is PX4 and not APM, un-comment this line
 // Choose one (only) of these target boards
-#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
+//#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
 //#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
-//#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
+#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
 
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
@@ -202,7 +200,7 @@ uint8_t BufLedState = LOW;
   #else 
     #define auxSerial             Serial3        // Mavlink telemetry to and from auxilliary adapter     
     #define auxBaud               57600          // Use 57600
-    #define auxDuplex                            // Pass aux <-> FC traffic up and down, else only down from FC
+    #define auxDuplex                          // Pass aux <-> FC traffic up and down, else only down from FC
   #endif
 #endif
 
@@ -212,7 +210,6 @@ uint8_t BufLedState = LOW;
 // Debugging options below ***************************************************************************************
 //#define Mav_Debug_All
 //#define Frs_Debug_All
-//#define Frs_Debug_Payload
 //#define Mav_Debug_RingBuff
 //#define Debug_Air_Mode
 //#define Mav_List_Params
@@ -220,16 +217,15 @@ uint8_t BufLedState = LOW;
 //#define Aux_Port_Debug
 //#define Mav_Debug_Params
 //#define Frs_Debug_Params
-#define Mav_Debug_Servo
-#define Frs_Debug_Servo
+//#define Frs_Debug_Payload
 //#define Mav_Debug_Rssi
 //#define Mav_Debug_RC
 //#define Frs_Debug_RC
 //#define Mav_Debug_Heartbeat
+//#define Frs_Debug_APStatus
 //#define Mav_Debug_SysStatus
 //#define Frs_Debug_LatLon
-//#define Frs_Debug_APStatus
-//#define Debug_Batteries
+#define Debug_Batteries
 //#define Frs_Debug_Home
 //#define Mav_Debug_GPS_Raw     // #24
 //#define Mav_Debug_GPS_Int     // #33
@@ -279,7 +275,7 @@ uint32_t  VelYaw5005_millis = 0;
 uint32_t  Atti5006_millis = 0;
 uint32_t  Param5007_millis = 0;
 uint32_t  Bat2_5008_millis = 0;
-uint32_t  Servo_5009_millis = 0; 
+uint32_t  RC_5009_millis = 0; 
 uint32_t  Hud_5010_millis = 0; 
 uint32_t  rssi_F101_millis=0;
 
@@ -316,7 +312,6 @@ struct Battery bat1     = {
 struct Battery bat2     = {
   0, 0, 0, 0, 0, 0, 0, true};   
 
-
 // ******************************************
 
 mavlink_message_t msg;
@@ -337,6 +332,9 @@ uint8_t    ap_base_mode = 0;
 uint32_t   ap_custom_mode = 0;
 uint8_t    ap_system_status = 0;
 uint8_t    ap_mavlink_version = 0;
+bool       px4_flight_stack = false;
+uint8_t    px4_main_mode = 0;
+uint8_t    px4_sub_mode = 0;
 
 // Message # 1  SYS_STATUS 
 uint16_t   ap_voltage_battery1= 0;    // 1000 = 1V
@@ -406,15 +404,10 @@ int16_t ap_vy;             // Ground Y Speed (Longitude, positive east), express
 int16_t ap_vz;             // Ground Z Speed (Altitude, positive down), expressed as m/s * 100
 uint16_t ap_gps_hdg;           // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees
 
-// Message #36 Servo_Output
-bool      ap_servo_flag = false;    // true when servo_output record received
-uint8_t   ap_port; 
-uint16_t  ap_servo_raw[16];       // 16 channels, [0] thru [15] 
-
 // Message #65 RC_Channels
 bool      ap_rc_flag = false;    // true when rc record received
 uint8_t   ap_chcnt; 
-uint16_t  ap_chan_raw[18];       // 16 + 2 channels, [0] thru [17] 
+uint16_t  ap_chan_raw[17];       // 16 channels, [0] ignored use [1] thru [16] for simplicity
 
 //uint16_t ap_chan16_raw;        // Used for RSSI uS 1000=0%  2000=100%
 uint8_t  rssi;                   // Receive signal strength indicator, 0: 0%, 100: 100%, 255: invalid/unknown
@@ -443,6 +436,7 @@ Power supply status flags (bitmask)
  */
 
 // Message  #147 BATTERY_STATUS 
+uint8_t      ap_battery_id;      
 uint8_t      ap_battery_function;
 uint8_t      ap_bat_type;  
 int16_t      ap_bat_temperature;    // centi-degrees celsius
@@ -547,19 +541,14 @@ float fr_bat2_volts;
 float fr_bat2_amps;
 uint16_t fr_bat2_mAh;
 
-//0x5009 Servo_raw         // 4 ch per frame
-uint8_t  fr_port; 
-int8_t   fr_sv[5];       
+//0x5009 RC channels       // 4 ch per frame
+uint8_t  fr_chcnt; 
+int8_t   fr_rc[5];         // [0] ignored use [1] thu [4] for simplicity
 
 //0x5010 HUD
 float    fr_air_spd;       // dm/s
 uint16_t fr_throt;         // 0 to 100%
 float    fr_bar_alt;       // metres
-
-// for future?
-//0x5011 RC channels       // 4 ch per frame
-//uint8_t  fr_chcnt; 
-int8_t   fr_rc[5];   
 
 //0xF103
 uint32_t fr_rssi;
@@ -689,7 +678,7 @@ void loop()  {
     }
   #endif 
 
-  if(mavSerial.available()) QueueAvailableMavFrames(); // to the ring buffer
+  if(mavSerial.available()) QueueOneMavFrame(); // Add one Mavlink frame to the ring buffer
 
   DecodeOneMavFrame();                        // Decode a Mavlink frame from the ring buffer if there is one
 
@@ -714,7 +703,7 @@ void loop()  {
 // ******************************************
 //*******************************************
 
-void QueueAvailableMavFrames() {
+void QueueOneMavFrame() {
   mavlink_message_t ring_msg;
   mavlink_status_t status;
   while(mavSerial.available())             { 
@@ -766,21 +755,36 @@ void DecodeOneMavFrame() {
           ap_autopilot = mavlink_msg_heartbeat_get_autopilot(&msg);
           ap_base_mode = mavlink_msg_heartbeat_get_base_mode(&msg);
           ap_custom_mode = mavlink_msg_heartbeat_get_custom_mode(&msg);
+          
+          px4_main_mode = bit32Extract(ap_custom_mode,16, 8);
+          px4_sub_mode = bit32Extract(ap_custom_mode,24, 8);
+          px4_flight_stack = (ap_autopilot == MAV_AUTOPILOT_PX4);
+            
           ap_system_status = mavlink_msg_heartbeat_get_system_status(&msg);
           ap_mavlink_version = mavlink_msg_heartbeat_get_mavlink_version(&msg);
           hb_millis=millis(); 
 
           if ((ap_base_mode >> 7) && (!homGood)) 
             MarkHome();  // If motors armed for the first time, then mark this spot as home
-
+                
           #if defined Mav_Debug_All || defined Mav_Debug_Heartbeat
             Debug.print("Mavlink in #0 Heartbeat: ");           
             Debug.print("ap_type="); Debug.print(ap_type);   
             Debug.print("  ap_autopilot="); Debug.print(ap_autopilot); 
             Debug.print("  ap_base_mode="); Debug.print(ap_base_mode); 
-            Debug.print(" ap_custom_mode="); Debug.print(ap_custom_mode);   
+            Debug.print(" ap_custom_mode="); Debug.print(ap_custom_mode);
             Debug.print("  ap_system_status="); Debug.print(ap_system_status); 
-            Debug.print("  ap_mavlink_version="); Debug.println(ap_mavlink_version);
+            Debug.print("  ap_mavlink_version="); Debug.print(ap_mavlink_version);   
+
+
+            if (px4_flight_stack) {         
+              Debug.print(" px4_main_mode="); Debug.print(px4_main_mode); 
+              Debug.print(" px4_sub_mode="); Debug.print(px4_sub_mode);  
+              Debug.print(" ");Debug.print(PX4FlightModeName(px4_main_mode, px4_sub_mode));  
+           }
+            
+            Debug.println();
+  
           #endif
 
           if(!mavGood) {
@@ -983,43 +987,9 @@ void DecodeOneMavFrame() {
         case MAVLINK_MSG_ID_RC_CHANNELS_RAW:         // #35
           if (!mavGood) break;        
           break; 
-     case MAVLINK_MSG_ID_SERVO_OUTPUT_RAW :          // #36
-          if (!mavGood) break; 
-      
-          ap_port = mavlink_msg_servo_output_raw_get_port(&msg);
-          ap_servo_raw[0] = mavlink_msg_servo_output_raw_get_servo1_raw(&msg);   
-          ap_servo_raw[1] = mavlink_msg_servo_output_raw_get_servo2_raw(&msg);
-          ap_servo_raw[2]= mavlink_msg_servo_output_raw_get_servo3_raw(&msg);   
-          ap_servo_raw[3] = mavlink_msg_servo_output_raw_get_servo4_raw(&msg);  
-          ap_servo_raw[4] = mavlink_msg_servo_output_raw_get_servo5_raw(&msg);   
-          ap_servo_raw[5] = mavlink_msg_servo_output_raw_get_servo6_raw(&msg);
-          ap_servo_raw[6] = mavlink_msg_servo_output_raw_get_servo7_raw(&msg);   
-          ap_servo_raw[7] = mavlink_msg_servo_output_raw_get_servo8_raw(&msg); 
-          /* 
-           *  not supported right now
-          ap_servo_raw[8] = mavlink_msg_servo_output_raw_get_servo9_raw(&msg);   
-          ap_servo_raw[9] = mavlink_msg_servo_output_raw_get_servo10_raw(&msg);
-          ap_servo_raw[10] = mavlink_msg_servo_output_raw_get_servo11_raw(&msg);   
-          ap_servo_raw[11] = mavlink_msg_servo_output_raw_get_servo12_raw(&msg); 
-          ap_servo_raw[12] = mavlink_msg_servo_output_raw_get_servo13_raw(&msg);   
-          ap_servo_raw[13] = mavlink_msg_servo_output_raw_get_servo14_raw(&msg);
-          ap_servo_raw[14] = mavlink_msg_servo_output_raw_get_servo15_raw(&msg);   
-          ap_servo_raw[15] = mavlink_msg_servo_output_raw_get_servo16_raw(&msg);
-          */       
-          ap_servo_flag = true;                                  // tell fr routine we have a servo record
-          #if defined Mav_Debug_All || defined Mav_Debug_Rssi || defined Mav_Debug_Servo
-            Debug.print("Mavlink in #36 servo_output: ");
-            Debug.print("ap_port="); Debug.print(ap_port); 
-            Debug.print(" PWM: ");
-            for (int i=0 ; i < 8; i++) {
-              Debug.print(" "); 
-              Debug.print(i+1);
-              Debug.print("=");  
-              Debug.print(ap_servo_raw[i]);   
-            }                         
-            Debug.println();     
-          #endif             
-          break;       
+        case MAVLINK_MSG_ID_SERVO_OUTPUT_RAW:        // #36
+          if (!mavGood) break;        
+          break;   
         case MAVLINK_MSG_ID_MISSION_CURRENT:         // #42
           if (!mavGood) break;       
           break; 
@@ -1030,34 +1000,32 @@ void DecodeOneMavFrame() {
           if (!mavGood) break; 
           rssiGood=true;               //  We have received at least one rssi packet from air mavlink   
           ap_chcnt = mavlink_msg_rc_channels_get_chancount(&msg);
-          ap_chan_raw[0] = mavlink_msg_rc_channels_get_chan1_raw(&msg);   
-          ap_chan_raw[1] = mavlink_msg_rc_channels_get_chan2_raw(&msg);
-          ap_chan_raw[2]= mavlink_msg_rc_channels_get_chan3_raw(&msg);   
-          ap_chan_raw[3] = mavlink_msg_rc_channels_get_chan4_raw(&msg);  
-          ap_chan_raw[4] = mavlink_msg_rc_channels_get_chan5_raw(&msg);   
-          ap_chan_raw[5] = mavlink_msg_rc_channels_get_chan6_raw(&msg);
-          ap_chan_raw[6] = mavlink_msg_rc_channels_get_chan7_raw(&msg);   
-          ap_chan_raw[7] = mavlink_msg_rc_channels_get_chan8_raw(&msg);  
-          ap_chan_raw[8] = mavlink_msg_rc_channels_get_chan9_raw(&msg);   
-          ap_chan_raw[9] = mavlink_msg_rc_channels_get_chan10_raw(&msg);
-          ap_chan_raw[10] = mavlink_msg_rc_channels_get_chan11_raw(&msg);   
-          ap_chan_raw[11] = mavlink_msg_rc_channels_get_chan12_raw(&msg); 
-          ap_chan_raw[12] = mavlink_msg_rc_channels_get_chan13_raw(&msg);   
-          ap_chan_raw[13] = mavlink_msg_rc_channels_get_chan14_raw(&msg);
-          ap_chan_raw[14] = mavlink_msg_rc_channels_get_chan15_raw(&msg);   
-          ap_chan_raw[15] = mavlink_msg_rc_channels_get_chan16_raw(&msg);
-          ap_chan_raw[16] = mavlink_msg_rc_channels_get_chan17_raw(&msg);   
-          ap_chan_raw[17] = mavlink_msg_rc_channels_get_chan18_raw(&msg);
+          ap_chan_raw[1] = mavlink_msg_rc_channels_get_chan1_raw(&msg);   
+          ap_chan_raw[2] = mavlink_msg_rc_channels_get_chan2_raw(&msg);
+          ap_chan_raw[3]= mavlink_msg_rc_channels_get_chan3_raw(&msg);   
+          ap_chan_raw[4] = mavlink_msg_rc_channels_get_chan4_raw(&msg);  
+          ap_chan_raw[5] = mavlink_msg_rc_channels_get_chan5_raw(&msg);   
+          ap_chan_raw[6] = mavlink_msg_rc_channels_get_chan6_raw(&msg);
+          ap_chan_raw[7]= mavlink_msg_rc_channels_get_chan7_raw(&msg);   
+          ap_chan_raw[8] = mavlink_msg_rc_channels_get_chan8_raw(&msg);  
+          ap_chan_raw[9] = mavlink_msg_rc_channels_get_chan9_raw(&msg);   
+          ap_chan_raw[10] = mavlink_msg_rc_channels_get_chan10_raw(&msg);
+          ap_chan_raw[11] = mavlink_msg_rc_channels_get_chan11_raw(&msg);   
+          ap_chan_raw[12] = mavlink_msg_rc_channels_get_chan12_raw(&msg); 
+          ap_chan_raw[13] = mavlink_msg_rc_channels_get_chan13_raw(&msg);   
+          ap_chan_raw[14] = mavlink_msg_rc_channels_get_chan14_raw(&msg);
+          ap_chan_raw[15] = mavlink_msg_rc_channels_get_chan15_raw(&msg);   
+          ap_chan_raw[16] = mavlink_msg_rc_channels_get_chan16_raw(&msg);
           
           ap_rssi = mavlink_msg_rc_channels_get_rssi(&msg);   // Receive RSSI 0: 0%, 254: 100%, 255: invalid/unknown
           ap_rc_flag = true;                                  // tell fr routine we have an rc records
           #if defined Mav_Debug_All || defined Mav_Debug_Rssi || defined Mav_Debug_RC
             Debug.print("Mavlink in #65 RC_Channels: ");
-            Debug.print("ap_chcnt="); Debug.print(ap_chcnt); 
-            Debug.print(" PWM: ");
-            for (int i=0 ; i < ap_chcnt ; i++) {
+            Debug.print("Channel count= "); Debug.print(ap_chcnt); 
+            Debug.print(" values: ");
+            for (int i=1 ; i <= ap_chcnt ; i++) {
               Debug.print(" "); 
-              Debug.print(i+1);
+              Debug.print(i);
               Debug.print("=");  
               Debug.print(ap_chan_raw[i]);   
             }                         
@@ -1102,16 +1070,34 @@ void DecodeOneMavFrame() {
           #endif  
           break; 
         case MAVLINK_MSG_ID_BATTERY_STATUS:      // #147   http://mavlink.org/messages/common
-          if (!mavGood) break;         
+          if (!mavGood) break;       
+          ap_battery_id = mavlink_msg_battery_status_get_id(&msg);  
           ap_current_battery = mavlink_msg_battery_status_get_current_battery(&msg);      // in 10*milliamperes (1 = 10 milliampere)
           ap_current_consumed = mavlink_msg_battery_status_get_current_consumed(&msg);    // mAh
-          ap_battery_remaining = mavlink_msg_battery_status_get_battery_remaining(&msg);  // (0%: 0, 100%: 100)              
+          ap_battery_remaining = mavlink_msg_battery_status_get_battery_remaining(&msg);  // (0%: 0, 100%: 100)  
+
+          if (ap_battery_id == 0) {  // Battery 1
+            fr_bat1_mAh = ap_current_consumed;                       
+          } else if (ap_battery_id == 1) {  // Battery 2
+              fr_bat2_mAh = ap_current_consumed;                              
+          } 
+             
           #if defined Mav_Debug_All || defined Debug_Batteries
             Debug.print("Mavlink in #147 Battery Status: ");
-            Debug.print(" bat current= "); Debug.print(ap_current_battery); 
-            Debug.print(" bat mAh= ");  Debug.print(ap_current_consumed);       
-            Debug.print(" bat % remaining= ");  Debug.println(ap_time_remaining);       
-          #endif  
+            Debug.print(" bat id= "); Debug.print(ap_battery_id); 
+            Debug.print(" bat current mA= "); Debug.print(ap_current_battery*10); 
+            Debug.print(" ap_current_consumed mAh= ");  Debug.print(ap_current_consumed);   
+            if (ap_battery_id == 0) {
+              Debug.print(" my di/dt mAh= ");  
+              Debug.println(Total_mAh1(), 0);  
+            }
+            else {
+              Debug.print(" my di/dt mAh= ");  
+              Debug.println(Total_mAh2(), 0);   
+            }    
+        //  Debug.print(" bat % remaining= ");  Debug.println(ap_time_remaining);       
+          #endif                        
+          
           break;    
         case MAVLINK_MSG_ID_SENSOR_OFFSETS:    // #150   http://mavlink.org/messages/ardupilotmega
           if (!mavGood) break;        
@@ -1469,6 +1455,121 @@ String MavSeverity(uint8_t sev) {
       break; 
     default:
       return "UNKNOWN";                                          
+   }
+}
+//***************************************************
+String PX4FlightModeName(uint8_t main, uint8_t sub) {
+ switch(main) {
+    
+    case 1:
+      return "MANUAL"; 
+      break;
+    case 2:
+      return "ALTITUDE";        
+      break;
+    case 3:
+      return "POSCTL";      
+      break; 
+    case 4:
+ 
+      switch(sub) {
+        case 1:
+          return "AUTO READY"; 
+          break;    
+        case 2:
+          return "AUTO TAKEOFF"; 
+          break; 
+        case 3:
+          return "AUTO LOITER"; 
+          break;    
+        case 4:
+          return "AUTO MISSION"; 
+          break; 
+        case 5:
+          return "AUTO RTL"; 
+          break;    
+        case 6:
+          return "AUTO LAND"; 
+          break; 
+        case 7:
+          return "AUTO RTGS"; 
+          break;    
+        case 8:
+          return "AUTO FOLLOW ME"; 
+          break; 
+        case 9:
+          return "AUTO PRECLAND"; 
+          break; 
+        default:
+          return "AUTO UNKNOWN";   
+          break;
+      } 
+      
+    case 5:
+      return "ACRO";
+    case 6:
+      return "OFFBOARD";        
+      break;
+    case 7:
+      return "STABILIZED";
+      break;        
+    case 8:
+      return "RATTITUDE";        
+      break; 
+    case 9:
+      return "SIMPLE";  
+    default:
+      return "UNKNOWN";
+      break;                                          
+   }
+}
+//***************************************************
+uint8_t PX4FlightModeNum(uint8_t main, uint8_t sub) {
+ switch(main) {
+    
+    case 1:
+      return 1;  // MANUAL 
+    case 2:
+      return 2;  // ALTITUDE       
+    case 3:
+      return 3;  // POSCTL      
+    case 4:
+ 
+      switch(sub) {
+        case 1:
+          return 4;  // AUTO READY
+        case 2:
+          return 5;  // AUTO TAKEOFF 
+        case 3:
+          return 6;  // AUTO LOITER  
+        case 4:
+          return 7;  // AUTO MISSION 
+        case 5:
+          return 8;  // AUTO RTL 
+        case 6:
+          return 9;  // AUTO LAND 
+        case 7:
+          return 10;  //  AUTO RTGS 
+        case 8:
+          return 11;  // AUTO FOLLOW ME 
+        case 9:
+          return 12;  //  AUTO PRECLAND 
+        default:
+          return 13;  //  AUTO UNKNOWN   
+      } 
+      
+    case 5:
+      return 14;  //  ACRO
+    case 6:
+      return 15;  //  OFFBOARD        
+    case 7:
+      return 16;  //  STABILIZED
+    case 8:
+      return 17;  //  RATTITUDE        
+    case 9:
+      return 18;  //  SIMPLE 
+    default:
+      return 19;  //  UNKNOWN                                        
    }
 }
 //***************************************************

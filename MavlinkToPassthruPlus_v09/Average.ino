@@ -4,18 +4,21 @@ uint32_t Get_Volt_Average1(uint16_t mV)  {
 
   if (bat1.avg_mV < 1) bat1.avg_mV = mV;  // Initialise first time
 
-  bat1.avg_mV = (bat1.avg_mV * 0.8) + (mV * 0.2);  // moving average
+  bat1.avg_mV = (bat1.avg_mV * 0.9) + (mV * 0.1);  // moving average
   Accum_Volts1(mV);  
   return bat1.avg_mV;
 }
+
+uint32_t Get_Current_Average1(uint16_t dA)  {   // in 10*milliamperes (1 = 10 milliampere)
   
-uint32_t Get_Current_Average1(uint16_t dA)  {
-
-  if (bat1.avg_dA < 1) bat1.avg_dA = dA;  // Initialise first time
-
-  bat1.avg_dA = (bat1.avg_dA * 0.9) + (dA * 0.1);  // moving average
-
   Accum_mAh1(dA);  
+  
+  if (bat1.avg_dA < 1){
+    bat1.avg_dA = dA;  // Initialise first time
+  }
+
+  bat1.avg_dA = (bat1.avg_dA * 0.8) + (dA * 0.2);  // moving average
+
   return bat1.avg_dA;
   }
 
@@ -32,9 +35,12 @@ void Accum_mAh1(uint32_t dAs) {        //  dA    10 = 1A
   uint32_t period = millis() - bat1.prv_millis;
   bat1.prv_millis = millis();
     
-  float hrs = (float)(period / 3600000.0f);
+  double hrs = (float)(period / 3600000.0f);  // ms to hours
 
-  bat1.mAh = dAs * 100 * hrs;  //  dA to mA    Tiny mAh consumed this tiny period di/dt
+  bat1.mAh = dAs * hrs;   //  Tiny dAh consumed this tiny period di/dt
+ // bat1.mAh *= 100;        //  dA to mA  
+  bat1.mAh *= 10;        //  dA to mA ?
+  
   bat1.tot_mAh += bat1.mAh;   //   Add them all in
 }
 
@@ -78,10 +84,11 @@ void Accum_mAh2(uint32_t dAs) {        //  dA    10 = 1A
   uint32_t period = millis() - bat2.prv_millis;
   bat2.prv_millis = millis();
     
-  float hrs = (float)(period / 3600000.0f);
+ double hrs = (float)(period / 3600000.0f);  // ms to hours
 
-  bat2.mAh = dAs * 100 * hrs;  //  dA to mA    Tiny mAh consumed this tiny period di/dt
-  bat2.tot_mAh += bat2.mAh;   //   Add them all in
+  bat2.mAh = dAs * hrs;   //  Tiny dAh consumed this tiny period di/dt
+ // bat2.mAh *= 100;        //  dA to mA  
+  bat2.mAh *= 10;        //  dA to mA ?
 }
 
 float Total_mAh2() {

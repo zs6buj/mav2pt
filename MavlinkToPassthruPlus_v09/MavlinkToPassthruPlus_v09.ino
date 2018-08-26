@@ -145,9 +145,9 @@ v0.09 2018-09-20  Add support for PX4 flight stack. Specifically flight mode. 20
 
 //************************************* Please select your options here before compiling **************************
 // Choose one (only) of these target boards
-#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
+//#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
 //#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
-//#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
+#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
 
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
@@ -230,7 +230,7 @@ uint8_t BufLedState = LOW;
 //#define Mav_Debug_SysStatus
 //#define Frs_Debug_LatLon
 //#define Frs_Debug_APStatus
-//#define Debug_Batteries
+#define Debug_Batteries
 //#define Frs_Debug_Home
 //#define Mav_Debug_GPS_Raw     // #24
 //#define Mav_Debug_GPS_Int     // #33
@@ -345,7 +345,8 @@ uint8_t    px4_sub_mode = 0;
 // Message # 1  SYS_STATUS 
 uint16_t   ap_voltage_battery1= 0;    // 1000 = 1V
 int16_t    ap_current_battery1= 0;    //  10 = 1A
-uint8_t   ap_ccell_count1= 0;
+uint8_t    ap_ccell_count1= 0;
+
 
 // Message #20 PARAM_REQUEST_READ
 // target_system  System ID
@@ -447,6 +448,7 @@ Power supply status flags (bitmask)
  */
 
 // Message  #147 BATTERY_STATUS 
+uint8_t      ap_battery_id;       
 uint8_t      ap_battery_function;
 uint8_t      ap_bat_type;  
 int16_t      ap_bat_temperature;    // centi-degrees celsius
@@ -1120,16 +1122,34 @@ void DecodeOneMavFrame() {
           #endif  
           break; 
         case MAVLINK_MSG_ID_BATTERY_STATUS:      // #147   http://mavlink.org/messages/common
-          if (!mavGood) break;         
+          if (!mavGood) break;       
+          ap_battery_id = mavlink_msg_battery_status_get_id(&msg);  
           ap_current_battery = mavlink_msg_battery_status_get_current_battery(&msg);      // in 10*milliamperes (1 = 10 milliampere)
           ap_current_consumed = mavlink_msg_battery_status_get_current_consumed(&msg);    // mAh
-          ap_battery_remaining = mavlink_msg_battery_status_get_battery_remaining(&msg);  // (0%: 0, 100%: 100)              
+          ap_battery_remaining = mavlink_msg_battery_status_get_battery_remaining(&msg);  // (0%: 0, 100%: 100)  
+
+          if (ap_battery_id == 0) {  // Battery 1
+            fr_bat1_mAh = ap_current_consumed;                       
+          } else if (ap_battery_id == 1) {  // Battery 2
+              fr_bat2_mAh = ap_current_consumed;                              
+          } 
+             
           #if defined Mav_Debug_All || defined Debug_Batteries
             Debug.print("Mavlink in #147 Battery Status: ");
-            Debug.print(" bat current= "); Debug.print(ap_current_battery); 
-            Debug.print(" bat mAh= ");  Debug.print(ap_current_consumed);       
-            Debug.print(" bat % remaining= ");  Debug.println(ap_time_remaining);       
-          #endif  
+            Debug.print(" bat id= "); Debug.print(ap_battery_id); 
+            Debug.print(" bat current mA= "); Debug.print(ap_current_battery*10); 
+            Debug.print(" ap_current_consumed mAh= ");  Debug.print(ap_current_consumed);   
+            if (ap_battery_id == 0) {
+              Debug.print(" my di/dt mAh= ");  
+              Debug.println(Total_mAh1(), 0);  
+            }
+            else {
+              Debug.print(" my di/dt mAh= ");  
+              Debug.println(Total_mAh2(), 0);   
+            }    
+        //  Debug.print(" bat % remaining= ");  Debug.println(ap_time_remaining);       
+          #endif                        
+          
           break;    
         case MAVLINK_MSG_ID_SENSOR_OFFSETS:    // #150   http://mavlink.org/messages/ardupilotmega
           if (!mavGood) break;        

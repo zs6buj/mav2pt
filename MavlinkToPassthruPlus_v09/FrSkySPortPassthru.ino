@@ -559,10 +559,13 @@ void Send_GPS_Status5002() {
 }
 // *****************************************************************  
 void Send_Bat1_5003() {
+  
   fr_bat1_volts = ap_voltage_battery1 / 100;         // Were mV, now dV  - V * 10
   fr_bat1_amps = ap_current_battery1 ;               // Remain       dA  - A * 10   
-  fr_bat1_mAh = Total_mAh1();      // My accumulated mAh;   di/dt
- // fr_bat1_mAh = ap_current_consumed;  // Records type #142 is never sent
+  
+  // fr_bat1_mAh is populated at #147 depending on battery id
+  //fr_bat1_mAh = Total_mAh1();  // If record type #147 is not sent and good
+  
   #if defined Frs_Debug_All || defined Debug_Batteries
     Debug.print("Frsky out Bat1 0x5003: ");   
     Debug.print(" fr_bat1_volts="); Debug.print(fr_bat1_volts);
@@ -755,16 +758,20 @@ void SendParameters5007() {
 }
 // ***************************************************************** 
 void Send_Bat2_5008() {
-  fr_bat2_volts = ap_voltage_battery2 / 100;         //  now dV
-  fr_bat2_amps = ap_current_battery2 ;               // now A * 10   
-  fr_bat2_mAh = Total_mAh2();
-
+   if (fr_bat2_mAh == 0) return;
+   
+   fr_bat2_volts = ap_voltage_battery1 / 100;         // Were mV, now dV  - V * 10
+   fr_bat2_amps = ap_current_battery1 ;               // Remain       dA  - A * 10   
+   
+  // fr_bat2_mAh is populated at #147 depending on battery id
+  //fr_bat2_mAh = Total_mAh2();  // If record type #147 is not sent and good
+  
   #if defined Frs_Debug_All || defined Debug_Batteries
-    Debug.print("Frsky out Bat2 0x5008: ");   
+    Debug.print("Frsky out Bat1 0x5003: ");   
     Debug.print(" fr_bat2_volts="); Debug.print(fr_bat2_volts);
     Debug.print(" fr_bat2_amps="); Debug.print(fr_bat2_amps);
     Debug.print(" fr_bat2_mAh="); Debug.println(fr_bat2_mAh);            
-  #endif
+  #endif        
           
   bit32Pack(fr_bat2_volts ,0, 9);
   fr_bat2_amps = prep_number(roundf(fr_bat2_amps * 0.1F),2,1);          
