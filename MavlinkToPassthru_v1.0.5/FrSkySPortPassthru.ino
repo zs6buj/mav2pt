@@ -1,10 +1,10 @@
      
 // Frsky variables     
 short    crc;                         // of frsky-packet
-uint8_t  time_slot_max = 14;              
+uint8_t  time_slot_max = 12;              
 uint32_t time_slot = 1;
 float a, az, c, dis, dLat, dLon;
-uint8_t sv_count = 0;
+uint8_t rc_count = 0;
 
 #if (Target_Board == 0) // Teensy3x
 volatile uint8_t *uartC3;
@@ -84,7 +84,7 @@ void ReadSPort(void) {
 
 #if defined Ground_Mode
 void Emulate_ReadSPort() {
-  #if (Target_Board == 0)      // Teensy3x
+#if (Target_Board == 0)   // Teensy3x
   setSPortMode(TX);
   #endif
  
@@ -224,25 +224,7 @@ void FrSkySPort_Process() {
             break; 
             }
           else
-            time_slot++;   // Donate the slot to next 
-            
-        case 13:          // data id 0x5009 Servo_Raw
-          if (ap_servo_flag)   {                       // Use the slot or lose the slot
-            Send_Servo_Raw_5009();
-            Servo_5009_millis = millis();
-            break; 
-            }
-          else
-            time_slot++;   // Donate the slot to next  
-                  
-        case 14:          // data id 0x5010 HUD
-          if (millis() - Hud_5010_millis > 500)   {        // 2 Hz, same as 0x5005 velyaw
-            Send_Hud_5010();
-            Hud_5010_millis = millis();
-            break; 
-            }
-          else
-            time_slot++;   // Donate the slot to next                              
+            time_slot++;   // Donate the slot to next                             
         default:
          // ERROR
          break;
@@ -253,7 +235,7 @@ void FrSkySPort_Process() {
  }     
 // ***********************************************************************
 void FrSkySPort_SendByte(uint8_t byte, bool addCrc) {
-  #if (Target_Board == 0)      // Teensy3x
+#if (Target_Board == 0)   // Teensy3x
    setSPortMode(TX); 
  #endif  
  if (!addCrc) { 
@@ -296,7 +278,7 @@ void FrSkySPort_SendCrc() {
 //***************************************************
 void FrSkySPort_SendDataFrame(uint8_t Instance, uint16_t Id, uint32_t value) {
 
-  #if (Target_Board == 0)      // Teensy3x
+#if (Target_Board == 0)   // Teensy3x
   setSPortMode(TX); 
   #endif
   
@@ -564,7 +546,7 @@ void Send_Bat1_5003() {
   fr_bat1_amps = ap_current_battery1 ;               // Remain       dA  - A * 10   
   
   // fr_bat1_mAh is populated at #147 depending on battery id
-  //fr_bat1_mAh = Total_mAh1();  // If record type #147 is not sent and good
+  //fr_bat1_mAh = Total_mAh1();  // If record type #147 is not sent by FC
   
   #if defined Frs_Debug_All || defined Debug_Batteries
     Debug.print("Frsky out Bat1 0x5003: ");   
@@ -578,7 +560,7 @@ void Send_Bat1_5003() {
   bit32Pack(fr_bat1_amps,9, 8);
   bit32Pack(fr_bat1_mAh,17, 15);
             
-  FrSkySPort_SendDataFrame(0x1B, 0x5003, fr_payload);           
+  FrSkySPort_SendDataFrame(0x1B, 0x5003, fr_payload);             
 }
 // ***************************************************************** 
 void Send_Home_5004() {
@@ -725,7 +707,7 @@ void SendParameters5007() {
         fr_bat1_capacity = bat1_capacity;
       #elif  (Battery_mAh_Source == 1) //  FC
         fr_bat1_capacity = ap_bat1_capacity;
-      #endif  
+      #endif   
       bit32Pack(fr_bat1_capacity, 0, 24);
       bit32Pack(fr_param_id, 24, 4);
       FrSkySPort_SendDataFrame(0x1B, 0x5007,fr_payload); 
@@ -742,7 +724,7 @@ void SendParameters5007() {
         fr_bat2_capacity = bat2_capacity;
       #elif  (Battery_mAh_Source == 1) //  FC
         fr_bat2_capacity = ap_bat2_capacity;
-      #endif  
+      #endif   
       bit32Pack(fr_bat2_capacity, 0, 24);
       bit32Pack(fr_param_id, 24, 4);
       FrSkySPort_SendDataFrame(0x1B, 0x5007,fr_payload); 
@@ -780,88 +762,6 @@ void Send_Bat2_5008() {
   FrSkySPort_SendDataFrame(0x1B, 0x5008,fr_payload);          
 }
 
-// ***************************************************************** 
-void Send_Servo_Raw_5009() {
-uint8_t sv_chcnt = 8;
-  if (sv_count+4 > sv_chcnt) { // 4 channels at a time
-    sv_count = 0;
-    ap_servo_flag = false;  // done with the ap_servo record received
-    return;
-  } 
-
-  uint8_t  chunk = sv_count / 4; 
-
-  fr_sv[1] = PWM_To_63(ap_chan_raw[sv_count]);     // PWM 1000 to 2000 -> 6bit 0 to 63
-  fr_sv[2] = PWM_To_63(ap_chan_raw[sv_count+1]);    
-  fr_sv[3] = PWM_To_63(ap_chan_raw[sv_count+2]); 
-  fr_sv[4] = PWM_To_63(ap_chan_raw[sv_count+3]); 
-
-  bit32Pack(chunk, 0, 4);                // chunk number, 0 = chans 1-4, 1=chans 5-8, 2 = chans 9-12, 3 = chans 13 -16 .....
-  bit32Pack(Abs(fr_sv[1]) ,4, 6);        // fragment 1 
-  if (fr_rc[1] < 0)
-    bit32Pack(1, 10, 1);                 // neg
-  else 
-    bit32Pack(0, 10, 1);                 // pos          
-  bit32Pack(Abs(fr_sv[2]), 11, 6);      // fragment 2 
-  if (fr_rc[2] < 0) 
-    bit32Pack(1, 17, 1);                 // neg
-  else 
-    bit32Pack(0, 17, 1);                 // pos   
-  bit32Pack(Abs(fr_sv[3]), 18, 6);       // fragment 3
-  if (fr_rc[3] < 0)
-    bit32Pack(1, 24, 1);                 // neg
-  else 
-    bit32Pack(0, 24, 1);                 // pos      
-  bit32Pack(Abs(fr_sv[4]), 25, 6);       // fragment 4 
-  if (fr_rc[4] < 0)
-    bit32Pack(1, 31, 1);                 // neg
-  else 
-    bit32Pack(0, 31, 1);                 // pos  
-        
-  FrSkySPort_SendDataFrame(0x1B, 0x5009,fr_payload); 
-
-  #if defined Frs_Debug_All || defined Frs_Debug_Servo
-    Debug.print("Frsky out Servo_Raw 0x5009: ");  
-    Debug.print(" sv_chcnt="); Debug.print(sv_chcnt); 
-    Debug.print(" sv_count="); Debug.print(sv_count); 
-    Debug.print(" chunk="); Debug.print(chunk);
-    Debug.print(" fr_sv1="); Debug.print(fr_sv[1]);
-    Debug.print(" fr_sv2="); Debug.print(fr_sv[2]);
-    Debug.print(" fr_sv3="); Debug.print(fr_sv[3]);   
-    Debug.print(" fr_sv4="); Debug.println(fr_sv[4]);       
-  #endif
-
-  sv_count += 4; 
-}          
-// ***************************************************************** 
-void Send_Hud_5010() {
- 
-  fr_air_spd = ap_hud_air_spd * 10;      // from #74  m/s to dm/s
-  fr_throt = ap_hud_throt;               // 0 - 100%
-  fr_bar_alt = ap_hud_bar_alt * 10;      // m to dm
-
-  #if defined Frs_Debug_All || defined Frs_Debug_Hud
-    Debug.print("Frsky out RC 0x5010: ");   
-    Debug.print(" fr_air_spd="); Debug.print(fr_air_spd);
-    Debug.print(" fr_throt="); Debug.print(fr_throt);
-    Debug.print(" fr_bar_alt="); Debug.println(fr_bar_alt);       
-  #endif
-  
-  fr_air_spd = prep_number(roundf(fr_air_spd), 2, 1);  
-  bit32Pack(fr_air_spd, 0, 8);    
-
-  bit32Pack(fr_throt, 8, 7);
-
-  fr_bar_alt =  prep_number(roundf(fr_bar_alt), 3, 2);
-  bit32Pack(fr_bar_alt, 15, 12);
-  if (fr_bar_alt < 0)
-    bit32Pack(1, 27, 1);  
-  else
-   bit32Pack(0, 27, 1);  
-    
-  FrSkySPort_SendDataFrame(0x1B, 0x5010,fr_payload); 
-        
-}
 // *****************************************************************  
 void SendRssiF101() {          // data id 0xF101 RSSI tell LUA script in Taranis we are connected
 
@@ -889,15 +789,6 @@ void SendRssiF101() {          // data id 0xF101 RSSI tell LUA script in Taranis
     Debug.print(" rssi="); Debug.println(fr_rssi);                
   #endif
 }
-//*************************************************** 
-int8_t PWM_To_63(uint16_t PWM) {       // PWM 1000 to 2000   ->    nominal -63 to 63
-int8_t myint;
-  myint = round((PWM - 1500) * 0.126); 
-  myint = myint < -63 ? -63 : myint;            
-  myint = myint > 63 ? 63 : myint;  
-  return myint; 
-}
-
 //***************************************************  
 uint32_t Abs(int32_t num) {
   if (num<0) 
@@ -976,61 +867,4 @@ uint16_t prep_number(int32_t number, uint8_t digits, uint8_t power)
         }
     }
     return res;
-}  
-/*
- * // ***************************************************************** 
-void Send_RC_5009() {
-  ap_chcnt = ap_chcnt > 16 ? 16 : ap_chcnt;  // cap number of channels at 16 for now
-  if (rc_count+4 > ap_chcnt) { // 4 channels at a time
-    rc_count = 0;
-    ap_rc_flag = false;  // done with the ap_rc record received
-    return;
-  } 
-
-  fr_chcnt = rc_count / 4; 
-
-  fr_rc[1] = PWM_To_63(ap_chan_raw[sv_count]);     // PWM 1000 to 2000 -> nominal 0 to 63
-  fr_rc[2] = PWM_To_63(ap_chan_raw[sv_count+1]);    
-  fr_rc[3] = PWM_To_63(ap_chan_raw[sv_count+2]); 
-  fr_rc[4] = PWM_To_63(ap_chan_raw[sv_count+3]); 
-
-  bit32Pack(fr_chcnt, 0, 4);             //  channel count, 0 = chans 1-4, 1=chans 5-8, 2 = chans 9-12, 3 = chans 13 -16 .....
-  bit32Pack(Abs(fr_rc[1]) ,4, 6);        // fragment 1 
-  if (fr_rc[1] < 0)
-    bit32Pack(1, 10, 1);                 // neg
-  else 
-    bit32Pack(0, 10, 1);                 // pos          
-  bit32Pack(Abs(fr_rc[2]), 11, 6);       // fragment 2 
-  if (fr_rc[2] < 0)
-    bit32Pack(1, 17, 1);                 // neg
-  else 
-    bit32Pack(0, 17, 1);                 // pos   
-  bit32Pack(Abs(fr_rc[3]), 18, 6);       // fragment 3
-  if (fr_rc[3] < 0)
-    bit32Pack(1, 24, 1);                 // neg
-  else 
-    bit32Pack(0, 24, 1);                 // pos      
-  bit32Pack(Abs(fr_rc[4]), 25, 6);       // fragment 4 
-  if (fr_rc[4] < 0)
-    bit32Pack(1, 31, 1);                 // neg
-  else 
-    bit32Pack(0, 31, 1);                 // pos  
-        
-  FrSkySPort_SendDataFrame(0x1B, 0x5009,fr_payload); 
-
-  #if defined Frs_Debug_All || defined Frs_Debug_RC
-    Debug.print("Frsky out RC 0x5009: ");  
-    Debug.print(" ap_chcnt="); Debug.print(ap_chcnt); 
-    Debug.print(" sv_count="); Debug.print(sv_count); 
-    Debug.print(" fr_chcnt="); Debug.print(fr_chcnt);
-    Debug.print(" fr_rc1="); Debug.print(fr_rc[1]);
-    Debug.print(" fr_rc2="); Debug.print(fr_rc[2]);
-    Debug.print(" fr_rc3="); Debug.print(fr_rc[3]);   
-    Debug.print(" fr_rc4="); Debug.println(fr_rc[4]);       
-  #endif
-
-  rc_count += 4;   
-} 
-*/
-
-    
+}      
