@@ -141,7 +141,7 @@ v0.08 2018-08-14  Servo outputs, not RC inputs
 v0.09 2018-09-20  Add support for PX4 flight stack. Specifically flight mode. 2018-09-24 Use di/dt for mAh. 
 v0.10 2018-09-26  Fix bug in current consumption. Two options, from FC or accumulated di/dt. They now track each other.
 v0.11 2018-08-30  PX4 new flight mode scheme as per yaapu. Clean up battery capacity source logic.
-v0.12 2018-09-07  Add support for mission and wind estimate - NB WIP            
+v0.12 2018-09-11  Add support for missions - Beta           
 
 */
 

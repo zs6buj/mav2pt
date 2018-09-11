@@ -905,7 +905,7 @@ void Send_WayPoint_5011() {
   fr_ms_dist = prep_number(roundf(fr_ms_dist), 3, 2);       //  number, digits, power
   bit32Pack(fr_ms_dist, 10, 12);    
 
-  fr_ms_xtrack = prep_number(roundf(fr_ms_xtrack), 2, 1);  
+  fr_ms_xtrack = prep_number(roundf(fr_ms_xtrack), 1, 1);  
   bit32Pack(fr_ms_dist, 22, 6); 
 
   bit32Pack(fr_ms_offset, 23, 3);  
