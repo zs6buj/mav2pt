@@ -1,7 +1,7 @@
      
 // Frsky variables     
 short    crc;                         // of frsky-packet
-uint8_t  time_slot_max = 14;              
+uint8_t  time_slot_max = 15;              
 uint32_t time_slot = 1;
 float a, az, c, dis, dLat, dLon;
 uint8_t sv_count = 0;
@@ -242,7 +242,17 @@ void FrSkySPort_Process() {
             break; 
             }
           else
-            time_slot++;   // Donate the slot to next                              
+            time_slot++;   // Donate the slot to next   
+             
+         case 15:          // data id 0x5011 Missions
+           if ((ap_ms_current_flag) && (millis() - Miss_5011_millis > 2000))  {  // 0.5 Hz        
+            Send_WayPoint_5011();
+            Miss_5011_millis = millis();
+            break; 
+            }
+          else
+            time_slot++;   // Donate the slot to next   
+                                                    
         default:
          // ERROR
          break;
@@ -594,10 +604,9 @@ void Send_Home_5004() {
     az=a*180/PI;  // radians to degrees
     if (az<0) az=360+az;
 
-    fr_home_angle = Add360(az, -180);                            // now is the angle from the craft to home in degrees
- // fr_home_arrow = Add360(fr_home_angle, -ap_gps_hdg/100);        //  NO, this is done in OSD in Taranis
+    fr_home_angle = Add360(az, -180);                           // Is now the angle from the craft to home in degrees
   
-    fr_home_arrow = fr_home_angle * 0.3333;                     // units of 3 degrees
+    fr_home_arrow = fr_home_angle * 0.3333;                     // Units of 3 degrees
 
     // Calculate the distance from home to craft
     dLat = (lat2-lat1);
@@ -798,22 +807,22 @@ uint8_t sv_chcnt = 8;
 
   bit32Pack(chunk, 0, 4);                // chunk number, 0 = chans 1-4, 1=chans 5-8, 2 = chans 9-12, 3 = chans 13 -16 .....
   bit32Pack(Abs(fr_sv[1]) ,4, 6);        // fragment 1 
-  if (fr_rc[1] < 0)
+  if (fr_sv[1] < 0)
     bit32Pack(1, 10, 1);                 // neg
   else 
     bit32Pack(0, 10, 1);                 // pos          
   bit32Pack(Abs(fr_sv[2]), 11, 6);      // fragment 2 
-  if (fr_rc[2] < 0) 
+  if (fr_sv[2] < 0) 
     bit32Pack(1, 17, 1);                 // neg
   else 
     bit32Pack(0, 17, 1);                 // pos   
   bit32Pack(Abs(fr_sv[3]), 18, 6);       // fragment 3
-  if (fr_rc[3] < 0)
+  if (fr_sv[3] < 0)
     bit32Pack(1, 24, 1);                 // neg
   else 
     bit32Pack(0, 24, 1);                 // pos      
   bit32Pack(Abs(fr_sv[4]), 25, 6);       // fragment 4 
-  if (fr_rc[4] < 0)
+  if (fr_sv[4] < 0)
     bit32Pack(1, 31, 1);                 // neg
   else 
     bit32Pack(0, 31, 1);                 // pos  
@@ -862,6 +871,48 @@ void Send_Hud_5010() {
   FrSkySPort_SendDataFrame(0x1B, 0x5010,fr_payload); 
         
 }
+
+// ***************************************************************** 
+void Send_WayPoint_5011() {
+
+  fr_ms_seq = ap_ms_seq + 1;                              // Current WP seq number, wp[0] = wp1
+
+  Loc2D here;                                            // We are here
+  here.lat = cur.lat;
+  here.lon = cur.lon;
+  
+  fr_ms_dist = Distance(here, WP[fr_ms_seq + 1]);         // Distance from here to next WP  
+
+  fr_ms_xtrack = ap_xtrack_error;                         // Cross track error in metres from #62
+  fr_ms_azimuth = Azimuth(here, WP[fr_ms_seq + 1]);       // Direction of next WP
+  fr_ms_cog = ap_cog / 100;                               // Course over ground in degrees from #24 GPS Raw Int
+  fr_ms_offset = ((fr_ms_azimuth - fr_ms_cog) / 45) + 4;  // Next WP bearing offset from COG
+  
+  #if defined Frs_Debug_All || defined Frs_Debug_Hud
+    Debug.print("Frsky out RC 0x5011: ");   
+    Debug.print(" fr_ms_seq="); Debug.print(fr_ms_seq);
+    Debug.print(" fr_ms_dist="); Debug.print(fr_ms_dist, 1);
+    Debug.print(" fr_ms_xtrack="); Debug.print(fr_ms_xtrack, 3);
+    Debug.print(" fr_ms_azimuth"); Debug.print(fr_ms_azimuth, 0);
+    Debug.print(" fr_ms_cog"); Debug.print(fr_ms_cog, 0);  
+    Debug.print(" fr_ms_offset"); Debug.print(fr_ms_offset);        
+    Debug.println();      
+  #endif
+
+  bit32Pack(fr_ms_seq, 0, 10);    //  WP number
+
+  
+  fr_ms_dist = prep_number(roundf(fr_ms_dist), 3, 2);       //  number, digits, power
+  bit32Pack(fr_ms_dist, 10, 12);    
+
+  fr_ms_xtrack = prep_number(roundf(fr_ms_xtrack), 2, 1);  
+  bit32Pack(fr_ms_dist, 22, 6); 
+
+  bit32Pack(fr_ms_offset, 23, 3);  
+  FrSkySPort_SendDataFrame(0x1B, 0x5011,fr_payload); 
+        
+}
+
 // *****************************************************************  
 void SendRssiF101() {          // data id 0xF101 RSSI tell LUA script in Taranis we are connected
 
@@ -904,6 +955,38 @@ uint32_t Abs(int32_t num) {
     return (num ^ 0xffffffff) + 1;
   else
     return num;  
+}
+//***************************************************  
+float Distance(Loc2D loc1, Loc2D loc2) {
+float a, c, d, dLat, dLon;  
+
+  loc1.lat=loc1.lat/180*PI;  // degrees to radians
+  loc1.lon=loc1.lon/180*PI;
+  loc2.lat=loc2.lat/180*PI;
+  loc2.lon=loc2.lon/180*PI;
+    
+  dLat = (loc2.lat-loc1.lat);
+  dLon = (loc2.lon-loc1.lon);
+  a = sin(dLat/2) * sin(dLat/2) + sin(dLon/2) * sin(dLon/2) * cos(loc1.lat) * cos(loc2.lat); 
+  c = 2* asin(sqrt(a));  
+  d = 6371000 * c;    
+  return d;
+}
+//*************************************************** 
+float Azimuth(Loc2D loc1, Loc2D loc2) {
+// Calculate azimuth bearing from loc1 to loc2
+float a, az; 
+
+  loc1.lat=loc1.lat/180*PI;  // degrees to radians
+  loc1.lon=loc1.lon/180*PI;
+  loc2.lat=loc2.lat/180*PI;
+  loc2.lon=loc2.lon/180*PI;
+
+  a=atan2(sin(lon2-lon1)*cos(lat2), cos(lat1)*sin(lat2)-sin(lat1)*cos(lat2)*cos(lon2-lon1));
+  
+  az=a*180/PI;  // radians to degrees
+  if (az<0) az=360+az;
+  return az;
 }
 //***************************************************
 int16_t Add360(int16_t arg1, int16_t arg2) {

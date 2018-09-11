@@ -217,6 +217,8 @@ uint8_t BufLedState = LOW;
 //#define Frs_Dummy_rssi       // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
 //#define Data_Streams_Enabled // Rather set SRn in Mission Planner
 
+#define Max_Waypoints  256     // Note. This is a RAM trade-off. If exceeded then Debug message and shut down
+
 // Debugging options below ***************************************************************************************
 //#define Mav_Debug_All
 //#define Frs_Debug_All
@@ -290,12 +292,13 @@ uint32_t  Atti5006_millis = 0;
 uint32_t  Param5007_millis = 0;
 uint32_t  Bat2_5008_millis = 0;
 uint32_t  Servo_5009_millis = 0; 
-uint32_t  Hud_5010_millis = 0; 
+uint32_t  Hud_5010_millis = 0;
+uint32_t  Miss_5011_millis = 0; 
 uint32_t  rssi_F101_millis=0;
 
 float   lon1,lat1,lon2,lat2,alt1,alt2;  
-
-// 3D Location vectors
+//************************************
+// 4D Location vectors
  struct Location {
   float lat; 
   float lon;
@@ -307,7 +310,15 @@ volatile struct Location hom     = {
 
 volatile struct Location cur      = {
   0,0,0,0};   // current location  
+   
+struct Loc2D {
+  float     lat; 
+  float     lon;
+  };
+  
+ Loc2D WP[Max_Waypoints]; 
 
+//************************************
 struct Battery {
   float    mAh;
   float    tot_mAh;
@@ -456,6 +467,17 @@ bool ap_ms_list_req = false;
 // Message #44 Mission_Count
 //  Generic Mavlink Header defined above
 uint8_t   ap_mission_count = 0;
+bool      ap_ms_count_ft = true;
+
+// Message #62 Nav_Controller_Output
+float     ap_nav_roll;           // Current desired roll
+float     ap_nav_pitch;          // Current desired pitch
+int16_t   ap_nav_bearing;        // Current desired heading
+int16_t   ap_target_bearing;     // Bearing to current waypoint/target
+uint16_t  ap_wp_dist;            // Distance to active waypoint
+float     ap_alt_error;          // Current altitude error
+float     ap_aspd_error;         // Current airspeed error
+float     ap_xtrack_error;       // Current crosstrack error on x-y plane
 
 // Message #65 RC_Channels
 bool      ap_rc_flag = false;    // true when rc record received
@@ -603,10 +625,13 @@ float    fr_air_spd;       // dm/s
 uint16_t fr_throt;         // 0 to 100%
 float    fr_bar_alt;       // metres
 
-// for future?
-//0x5011 RC channels       // 4 ch per frame
-//uint8_t  fr_chcnt; 
-int8_t   fr_rc[5];   
+//0x5011 Missions       
+uint16_t  fr_ms_seq;         // WP number
+float     fr_ms_dist;        // To next WP  
+float     fr_ms_xtrack;      // Cross track error in metres
+float     fr_ms_azimuth;     // Direction of next WP
+float     fr_ms_cog;         // Course-over-ground in degrees
+uint8_t   fr_ms_offset;      // Next WP bearing offset from COG
 
 //0xF103
 uint32_t fr_rssi;
@@ -715,7 +740,7 @@ void loop()  {
   #ifdef Missions_Enabled
   if (mavGood) {
     if (!ap_ms_list_req) {
-      RequestMissionList();
+      RequestMissionList();  //  #43
       ap_ms_list_req = true;
     }
   }
@@ -1038,9 +1063,9 @@ void DecodeOneMavFrame() {
           ap_vx = mavlink_msg_global_position_int_get_vx(&msg);               //  Ground X Speed (Latitude, positive north), expressed as m/s * 100
           ap_vy = mavlink_msg_global_position_int_get_vy(&msg);               //  Ground Y Speed (Longitude, positive east), expressed as m/s * 100
           ap_vz = mavlink_msg_global_position_int_get_vz(&msg);               // Ground Z Speed (Altitude, positive down), expressed as m/s * 100
-          ap_gps_hdg = mavlink_msg_global_position_int_get_hdg(&msg);             // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees        
+          ap_gps_hdg = mavlink_msg_global_position_int_get_hdg(&msg);         // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees        
  
-          cur.lat =  (float)ap_lat / 1E7;
+          cur.lat = (float)ap_lat / 1E7;
           cur.lon = (float)ap_lon / 1E7;
           cur.alt = ap_amsl33 / 1E3;
           cur.hdg = ap_gps_hdg / 100;
@@ -1061,7 +1086,7 @@ void DecodeOneMavFrame() {
         case MAVLINK_MSG_ID_RC_CHANNELS_RAW:         // #35
           if (!mavGood) break;        
           break; 
-     case MAVLINK_MSG_ID_SERVO_OUTPUT_RAW :          // #36
+        case MAVLINK_MSG_ID_SERVO_OUTPUT_RAW :          // #36
           if (!mavGood) break; 
       
           ap_port = mavlink_msg_servo_output_raw_get_port(&msg);
@@ -1111,52 +1136,82 @@ void DecodeOneMavFrame() {
             ap_ms_param3 = mavlink_msg_mission_item_get_param4(&msg);              // PARAM4, see MAV_CMD enum
             ap_ms_x = mavlink_msg_mission_item_get_x(&msg);                        // PARAM5 / local: X coordinate, global: latitude
             ap_ms_y = mavlink_msg_mission_item_get_y(&msg);                        // PARAM6 / local: Y coordinate, global: longitude
-            ap_ms_z = mavlink_msg_mission_item_get_seq(&msg);                      // PARAM7 / local: Z coordinate, global: altitude (relative or absolute, depending on frame).
+            ap_ms_z = mavlink_msg_mission_item_get_z(&msg);                        // PARAM7 / local: Z coordinate, global: altitude (relative or absolute, depending on frame).
                      
             #if defined Mav_Debug_All || defined Mav_Debug_Mission
               Debug.print("Mavlink in #39 Mission Item: ");
-              Debug.print("ap_ms_seq="); Debug.print(ap_ms_seq);   
+              Debug.print("ap_ms_seq="); Debug.print(ap_ms_seq);  
               Debug.print(" ap_ms_frame="); Debug.print(ap_ms_frame);   
               Debug.print(" ap_ms_command="); Debug.print(ap_ms_command);   
               Debug.print(" ap_ms_current="); Debug.print(ap_ms_current);   
-              Debug.print(" ap_ms_autocontinue="); Debug.print(ap_ms_autocontinue);   
-              Debug.print(" ap_ms_param1="); Debug.print(ap_ms_param1, 2);   
-              Debug.print(" ap_ms_param2="); Debug.print(ap_ms_param2, 2);   
-              Debug.print(" ap_ms_param3="); Debug.print(ap_ms_param3, 2);  
-              Debug.print(" ap_ms_param4="); Debug.print(ap_ms_param4, 2);   
-              Debug.print(" ap_ms_x="); Debug.print(ap_ms_x, 2);   
-              Debug.print(" ap_ms_y="); Debug.print(ap_ms_y, 2);   
-              Debug.print(" ap_ms_z="); Debug.println(ap_ms_z, 2);     
+              Debug.print(" ap_ms_autocontinue="); Debug.print(ap_ms_autocontinue);  
+              Debug.print(" ap_ms_param1="); Debug.print(ap_ms_param1, 7);   
+              Debug.print(" ap_ms_param2="); Debug.print(ap_ms_param2, 7);   
+              Debug.print(" ap_ms_param3="); Debug.print(ap_ms_param3, 7);  
+              Debug.print(" ap_ms_param4="); Debug.print(ap_ms_param4, 7); 
+              Debug.print(" ap_ms_x="); Debug.print(ap_ms_x, 7);   
+              Debug.print(" ap_ms_y="); Debug.print(ap_ms_y, 7);   
+              Debug.print(" ap_ms_z="); Debug.print(ap_ms_z,0); 
+              Debug.println();    
             #endif
             
-            ap_ms_current_flag = true;  // send a passthru frame 
-     
+            if (ap_ms_seq > Max_Waypoints) {
+              Debug.println(" Max Waypoints exceeded! Waypoint ignored.");
+              break;
+            }
+
+             WP[ap_ms_seq-1].lat = ap_ms_x;     //  seq = 1 goes into slot [0]
+             WP[ap_ms_seq-1].lon = ap_ms_y;
+             
           break;                    
         case MAVLINK_MSG_ID_MISSION_CURRENT:         // #42 should come down regularly as part of EXTENDED_STATUS group
           if (!mavGood) break;   
             ap_ms_seq =  mavlink_msg_mission_current_get_seq(&msg);  
             
             #if defined Mav_Debug_All || defined Mav_Debug_Mission
-              Debug.print("Mavlink in #42 Mission Current: ");
-              Debug.print("ap_mission_current="); Debug.println(ap_ms_seq);   
+            //  Debug.print("Mavlink in #42 Mission Current: ");
+             // Debug.print("ap_mission_current="); Debug.println(ap_ms_seq);   
             #endif 
               
-            //  Request mission details if mission started
-            if (ap_ms_seq > 0) RequestMission();     //  #40 
-                  
+            if (ap_ms_seq > 0) ap_ms_current_flag = true;     //  Ok to send passthru frames 
+  
           break; 
-        case MAVLINK_MSG_ID_MISSION_COUNT :          // #44
+        case MAVLINK_MSG_ID_MISSION_COUNT :          // #44   received back after #43 Mission_Request_List sent
           if (!mavGood) break;  
-            ap_mission_count =  mavlink_msg_mission_count_get_count(&msg);
+            ap_mission_count =  mavlink_msg_mission_count_get_count(&msg);  // Reports 1 too many, i.e. the next empty WP
             #if defined Mav_Debug_All || defined Mav_Debug_Mission
               Debug.print("Mavlink in #44 Mission Count: ");
               Debug.print("ap_mission_count="); Debug.println(ap_mission_count);   
             #endif
-            ap_ms_current_flag = true;  // so send a passthru frame 
-    
+            if ((ap_mission_count > 0) && (ap_ms_count_ft)) {
+              ap_ms_count_ft = false;
+              RequestAllWaypoints(ap_mission_count);  // # multiple #40, then wait for them to arrive at #39
+            }
           break;          
         case MAVLINK_MSG_ID_NAV_CONTROLLER_OUTPUT:   // #62
-          if (!mavGood) break;       
+          if (!mavGood) break;    
+            ap_nav_roll =  mavlink_msg_nav_controller_output_get_nav_roll(&msg);             // Current desired roll
+            ap_nav_pitch = mavlink_msg_nav_controller_output_get_nav_pitch(&msg);            // Current desired pitch
+            ap_nav_bearing = mavlink_msg_nav_controller_output_get_nav_bearing(&msg);        // Current desired heading
+            ap_target_bearing = mavlink_msg_nav_controller_output_get_target_bearing(&msg);  // Bearing to current waypoint/target
+            ap_wp_dist = mavlink_msg_nav_controller_output_get_wp_dist(&msg);                // Distance to active waypoint
+            ap_alt_error = mavlink_msg_nav_controller_output_get_alt_error(&msg);            // Current altitude error
+            ap_aspd_error = mavlink_msg_nav_controller_output_get_aspd_error(&msg);          // Current airspeed error
+            ap_xtrack_error = mavlink_msg_nav_controller_output_get_xtrack_error(&msg);      // Current crosstrack error on x-y plane
+
+            #if defined Mav_Debug_All || defined Mav_Debug_Mission
+              Debug.print("Mavlink in #62 Mission Item: ");
+              Debug.print("ap_nav_roll="); Debug.print(ap_nav_roll, 3);  
+              Debug.print(" ap_nav_pitch="); Debug.print(ap_nav_pitch, 3);   
+              Debug.print(" ap_nav_bearing="); Debug.print(ap_nav_bearing);   
+              Debug.print(" ap_target_bearing="); Debug.print(ap_target_bearing);   
+              Debug.print(" ap_wp_dist="); Debug.print(ap_wp_dist);  
+              Debug.print(" ap_alt_error="); Debug.print(ap_alt_error, 2);   
+              Debug.print(" ap_aspd_error="); Debug.print(ap_aspd_error, 2);   
+              Debug.print(" ap_xtrack_error="); Debug.print(ap_xtrack_error, 2);  
+              Debug.println();    
+            #endif
+             
           break;     
         case MAVLINK_MSG_ID_RC_CHANNELS:             // #65
           if (!mavGood) break; 
@@ -1421,26 +1476,26 @@ void MarkHome()  {
  }
 //***************************************************
 #ifdef Missions_Enabled
-void RequestMission() {    //  #40
+void RequestMission(uint16_t ms_seq) {    //  #40
   ap_sysid = 0xFF;
   ap_compid = 0xBE;
   ap_targsys = 1;
   ap_targcomp = 1; 
-  //  ap_ms_seq was fortuitously initialised by Mission_Current #42
   
   mavlink_msg_mission_request_pack(ap_sysid, ap_compid, &msg,
-                               ap_targsys, ap_targcomp, ap_ms_seq);
+                               ap_targsys, ap_targcomp, ms_seq);
 
   len = mavlink_msg_to_send_buffer(buf, &msg);
   mavSerial.write(buf,len);
   #if defined Mav_Debug_All || defined Mav_Debug_Mission
-    Debug.print("Mavlink out #40 Request Mission:  ap_ms_seq="); Debug.println(ap_ms_seq);
+    Debug.print("Mavlink out #40 Request Mission:  ms_seq="); Debug.println(ms_seq);
   #endif  
 }
 #endif 
+ 
 //***************************************************
 #ifdef Missions_Enabled
-void RequestMissionList() {   // #43
+void RequestMissionList() {   // #43   get back #44 Mission_Count
   ap_sysid = 0xFF;
   ap_compid = 0xBE;
   ap_targsys = 1;
@@ -1457,7 +1512,12 @@ void RequestMissionList() {   // #43
   #endif  
 }
 #endif
-
+//***************************************************
+void RequestAllWaypoints(uint16_t ms_count) {
+  for (int i = 0; i < ms_count; i++) {  //  Mission count = next empty WP, i.e. one too high
+    RequestMission(i); 
+  }
+}
 //***************************************************
 #ifdef Data_Streams_Enabled    
 void RequestDataStreams() {    //  REQUEST_DATA_STREAM ( #66 ) DEPRECATED. USE SRx, SET_MESSAGE_INTERVAL INSTEAD
