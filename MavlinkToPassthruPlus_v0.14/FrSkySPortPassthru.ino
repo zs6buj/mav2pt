@@ -875,33 +875,41 @@ void Send_Hud_5010() {
 // ***************************************************************** 
 void Send_WayPoint_5011() {
 
-  fr_ms_seq = ap_ms_seq + 1;                              // Current WP seq number, wp[0] = wp1
-
-  Loc2D here;                                            // We are here
-  here.lat = cur.lat;
-  here.lon = cur.lon;
+  fr_ms_seq = ap_ms_seq;                                      // Current WP seq number, wp[0] = wp1, from regular #42
   
-  fr_ms_dist = Distance(here, WP[fr_ms_seq + 1]);         // Distance from here to next WP  
+  fr_ms_dist = ap_wp_dist;                                        // Distance to next WP  
 
-  fr_ms_xtrack = ap_xtrack_error;                         // Cross track error in metres from #62
-  fr_ms_azimuth = Azimuth(here, WP[fr_ms_seq + 1]);       // Direction of next WP
-  fr_ms_cog = ap_cog / 100;                               // Course over ground in degrees from #24 GPS Raw Int
-  fr_ms_offset = ((fr_ms_azimuth - fr_ms_cog) / 45) + 4;  // Next WP bearing offset from COG
-  
-  #if defined Frs_Debug_All || defined Frs_Debug_Hud
+  fr_ms_xtrack = ap_xtrack_error;                                 // Cross track error in metres from #62
+  fr_ms_target_bearing = ap_target_bearing;                       // Direction of next WP
+  fr_ms_cog = Add360(ap_nav_bearing, 0);                          // "Nav bearing" = should be COG in degrees from #62, correct AP bug
+  fr_ms_offset = ((fr_ms_cog - fr_ms_target_bearing) / 45);       // Next WP bearing offset from COG
+  fr_ms_offset = fr_ms_offset<0 ? 0-fr_ms_offset :fr_ms_offset;   // Must be positive
+
+  /*
+   
+0 - up
+1 - up-right
+2 - right
+3 - down-right
+4 - down
+5 - down - left
+6 - left
+7 - up - left
+ 
+   */
+  #if defined Frs_Debug_All || defined Frs_Debug_Mission
     Debug.print("Frsky out RC 0x5011: ");   
     Debug.print(" fr_ms_seq="); Debug.print(fr_ms_seq);
-    Debug.print(" fr_ms_dist="); Debug.print(fr_ms_dist, 1);
+    Debug.print(" fr_ms_dist="); Debug.print(fr_ms_dist);
     Debug.print(" fr_ms_xtrack="); Debug.print(fr_ms_xtrack, 3);
-    Debug.print(" fr_ms_azimuth"); Debug.print(fr_ms_azimuth, 0);
-    Debug.print(" fr_ms_cog"); Debug.print(fr_ms_cog, 0);  
-    Debug.print(" fr_ms_offset"); Debug.print(fr_ms_offset);        
+    Debug.print(" fr_ms_target_bearing="); Debug.print(fr_ms_target_bearing, 0);
+    Debug.print(" fr_ms_cog="); Debug.print(fr_ms_cog, 0);  
+    Debug.print(" fr_ms_offset="); Debug.print(fr_ms_offset);        
     Debug.println();      
   #endif
 
   bit32Pack(fr_ms_seq, 0, 10);    //  WP number
 
-  
   fr_ms_dist = prep_number(roundf(fr_ms_dist), 3, 2);       //  number, digits, power
   bit32Pack(fr_ms_dist, 10, 12);    
 
@@ -965,9 +973,9 @@ float a, c, d, dLat, dLon;
   loc2.lat=loc2.lat/180*PI;
   loc2.lon=loc2.lon/180*PI;
     
-  dLat = (loc2.lat-loc1.lat);
-  dLon = (loc2.lon-loc1.lon);
-  a = sin(dLat/2) * sin(dLat/2) + sin(dLon/2) * sin(dLon/2) * cos(loc1.lat) * cos(loc2.lat); 
+  dLat = (loc1.lat-loc2.lat);
+  dLon = (loc1.lon-loc2.lon);
+  a = sin(dLat/2) * sin(dLat/2) + sin(dLon/2) * sin(dLon/2) * cos(loc2.lat) * cos(loc1.lat); 
   c = 2* asin(sqrt(a));  
   d = 6371000 * c;    
   return d;
@@ -982,14 +990,15 @@ float a, az;
   loc2.lat=loc2.lat/180*PI;
   loc2.lon=loc2.lon/180*PI;
 
-  a=atan2(sin(lon2-lon1)*cos(lat2), cos(lat1)*sin(lat2)-sin(lat1)*cos(lat2)*cos(lon2-lon1));
+  a = sin(dLat/2) * sin(dLat/2) + sin(dLon/2) * sin(dLon/2) * cos(loc2.lat) * cos(loc1.lat); 
   
   az=a*180/PI;  // radians to degrees
   if (az<0) az=360+az;
   return az;
 }
 //***************************************************
-int16_t Add360(int16_t arg1, int16_t arg2) {
+//Add two bearing in degrees and correct for 360 boundary
+int16_t Add360(int16_t arg1, int16_t arg2) {  
   int16_t ret = arg1 + arg2;
   if (ret < 0) ret += 360;
   if (ret > 359) ret -= 360;

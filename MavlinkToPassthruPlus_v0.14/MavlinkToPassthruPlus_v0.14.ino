@@ -1,4 +1,4 @@
- 
+   
 /*  *****************************************************************************
 
     MavToPassthruPlus  July 2018
@@ -135,13 +135,15 @@ v0.03 2018-07-11  Add sensor types 0x5009 RX Channels, 0x5010 VFR Hud 2018-07-17
 v0.04 2018-07-31  Add support for Maple Mini. Change rc channel 0x5009 as per yaapu's proposal  
 v0.05 2018-08-02  Add circular buffers for mavlink incoming from FC
 v0.06 2018-08-03  Fixed "#if defined Target_Teensy3x" not changed everywhere - Thanks Alex
-                  Translate RC values : PWM 1000 to 2000 -> 6bit 0-63 plus sign bit
+                  Translate RC values : PWM 1000 to 2000 -> 6 bit 0-63 plus sign bit
 v0.07             Do some tests                  
 v0.08 2018-08-14  Servo outputs, not RC inputs 
 v0.09 2018-09-20  Add support for PX4 flight stack. Specifically flight mode. 2018-09-24 Use di/dt for mAh. 
 v0.10 2018-09-26  Fix bug in current consumption. Two options, from FC or accumulated di/dt. They now track each other.
-v0.11 2018-08-30  PX4 new flight mode scheme as per yaapu. Clean up battery capacity source logic.
-v0.12 2018-09-11  Add support for missions - Beta           
+v0.11 2018-08-30  PX4 new flight mode scheme. Clean up battery capacity source logic.
+v0.12 2018-09-11  Add support for missions 
+v0.13 2018-09-16  COG - Azimuth offset as per yaapu requirements 
+v0.14 2018-09-17  Missions 0x5011 after TLog testing.          
 
 */
 
@@ -159,17 +161,17 @@ v0.12 2018-09-11  Add support for missions - Beta
 //#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
-//#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both RX and TX lines must be connected      
+#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both RX and TX lines must be connected      
 //#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
-#define Battery_mAh_Source  3  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
+//#define Battery_mAh_Source  3  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
 
 const uint16_t bat1_capacity = 5200;       
 const uint16_t bat2_capacity = 0;
 
 #define SPort_Serial   1    // The default is Serial 1, but 3 is possible if we don't want aux port
 
-//#define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough
-#define Missions_Enabled    // Un-comment if you want mission waypoint reporting sent through to Taranis/Horus
+//#define Aux_Port_Enabled            // For BlueTooth or other auxilliary serial passthrough
+//#define Request_Missions_From_FC    // Un-comment if you need mission waypoint from FC - NOT NECESSARY NOW
 
 //*** LEDS ********************************************************************************************************
 //uint16_t MavStatusLed = 13; 
@@ -253,7 +255,7 @@ uint8_t BufLedState = LOW;
 //#define Frs_Debug_Attitude
 //#define Mav_Debug_Text
 //#define Frs_Debug_Text    
-#define Mav_Debug_Mission 
+//#define Mav_Debug_Mission 
 #define Frs_Debug_Mission              
 //*****************************************************************************************************************
 
@@ -626,12 +628,12 @@ uint16_t fr_throt;         // 0 to 100%
 float    fr_bar_alt;       // metres
 
 //0x5011 Missions       
-uint16_t  fr_ms_seq;         // WP number
-float     fr_ms_dist;        // To next WP  
-float     fr_ms_xtrack;      // Cross track error in metres
-float     fr_ms_azimuth;     // Direction of next WP
-float     fr_ms_cog;         // Course-over-ground in degrees
-uint8_t   fr_ms_offset;      // Next WP bearing offset from COG
+uint16_t  fr_ms_seq;                // WP number
+uint16_t  fr_ms_dist;               // To next WP  
+float     fr_ms_xtrack;             // Cross track error in metres
+float     fr_ms_target_bearing;     // Direction of next WP
+float     fr_ms_cog;                // Course-over-ground in degrees
+int8_t    fr_ms_offset;             // Next WP bearing offset from COG
 
 //0xF103
 uint32_t fr_rssi;
@@ -737,7 +739,7 @@ void loop()  {
   }
   #endif 
 
-  #ifdef Missions_Enabled
+  #ifdef Request_Missions_From_FC
   if (mavGood) {
     if (!ap_ms_list_req) {
       RequestMissionList();  //  #43
@@ -780,7 +782,7 @@ void loop()  {
 
   if(mavSerial.available()) QueueAvailableMavFrames(); // to the ring buffer
 
-  DecodeOneMavFrame();                        // Decode a Mavlink frame from the ring buffer if there is one
+  DecodeOneMavFrame();                     // Decode a Mavlink frame from the ring buffer if there is one
 
   Aux_ReceiveAndForward();                 // Service aux incoming if enabled
 
@@ -1169,14 +1171,15 @@ void DecodeOneMavFrame() {
             ap_ms_seq =  mavlink_msg_mission_current_get_seq(&msg);  
             
             #if defined Mav_Debug_All || defined Mav_Debug_Mission
-            //  Debug.print("Mavlink in #42 Mission Current: ");
-             // Debug.print("ap_mission_current="); Debug.println(ap_ms_seq);   
+              Debug.print("Mavlink in #42 Mission Current: ");
+              Debug.print("ap_mission_current="); Debug.println(ap_ms_seq);   
             #endif 
               
             if (ap_ms_seq > 0) ap_ms_current_flag = true;     //  Ok to send passthru frames 
   
           break; 
         case MAVLINK_MSG_ID_MISSION_COUNT :          // #44   received back after #43 Mission_Request_List sent
+        #ifdef Request_Missions_From_FC
           if (!mavGood) break;  
             ap_mission_count =  mavlink_msg_mission_count_get_count(&msg);  // Reports 1 too many, i.e. the next empty WP
             #if defined Mav_Debug_All || defined Mav_Debug_Mission
@@ -1187,7 +1190,8 @@ void DecodeOneMavFrame() {
               ap_ms_count_ft = false;
               RequestAllWaypoints(ap_mission_count);  // # multiple #40, then wait for them to arrive at #39
             }
-          break;          
+          break; 
+        #endif
         case MAVLINK_MSG_ID_NAV_CONTROLLER_OUTPUT:   // #62
           if (!mavGood) break;    
             ap_nav_roll =  mavlink_msg_nav_controller_output_get_nav_roll(&msg);             // Current desired roll
@@ -1475,7 +1479,7 @@ void MarkHome()  {
                     
  }
 //***************************************************
-#ifdef Missions_Enabled
+#ifdef Request_Missions_From_FC
 void RequestMission(uint16_t ms_seq) {    //  #40
   ap_sysid = 0xFF;
   ap_compid = 0xBE;
@@ -1494,7 +1498,7 @@ void RequestMission(uint16_t ms_seq) {    //  #40
 #endif 
  
 //***************************************************
-#ifdef Missions_Enabled
+#ifdef Request_Missions_From_FC
 void RequestMissionList() {   // #43   get back #44 Mission_Count
   ap_sysid = 0xFF;
   ap_compid = 0xBE;
@@ -1513,11 +1517,13 @@ void RequestMissionList() {   // #43   get back #44 Mission_Count
 }
 #endif
 //***************************************************
+#ifdef Request_Missions_From_FC
 void RequestAllWaypoints(uint16_t ms_count) {
   for (int i = 0; i < ms_count; i++) {  //  Mission count = next empty WP, i.e. one too high
     RequestMission(i); 
   }
 }
+#endif
 //***************************************************
 #ifdef Data_Streams_Enabled    
 void RequestDataStreams() {    //  REQUEST_DATA_STREAM ( #66 ) DEPRECATED. USE SRx, SET_MESSAGE_INTERVAL INSTEAD
