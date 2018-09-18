@@ -914,9 +914,9 @@ void Send_WayPoint_5011() {
   bit32Pack(fr_ms_dist, 10, 12);    
 
   fr_ms_xtrack = prep_number(roundf(fr_ms_xtrack), 1, 1);  
-  bit32Pack(fr_ms_dist, 22, 6); 
+  bit32Pack(fr_ms_xtrack, 22, 6); 
 
-  bit32Pack(fr_ms_offset, 23, 3);  
+  bit32Pack(fr_ms_offset, 29, 3);  
   FrSkySPort_SendDataFrame(0x1B, 0x5011,fr_payload); 
         
 }
@@ -1011,7 +1011,18 @@ uint16_t prep_number(int32_t number, uint8_t digits, uint8_t power)
     uint16_t res = 0;
     uint32_t abs_number = abs(number);
 
-    if ((digits == 2) && (power == 1)) { // number encoded on 8 bits: 7 bits for digits + 1 for 10^power
+    if ((digits == 1) && (power == 1)) { // number encoded on 7 bits: 6 bits for digits + 1 for 10^power
+        if (abs_number < 10) {
+            res = abs_number<<1;
+        } else if (abs_number < 310) {
+            res = ((uint8_t)roundf(abs_number * 0.1f)<<1)|0x1;
+        } else { // transmit max possible value (0x1F x 10^1 = 310)
+            res = 0x2F;
+        }
+        if (number < 0) { // if number is negative, add sign bit in front
+            res |= 0x1<<8;
+        }
+    } else if ((digits == 2) && (power == 1)) { // number encoded on 8 bits: 7 bits for digits + 1 for 10^power
         if (abs_number < 100) {
             res = abs_number<<1;
         } else if (abs_number < 1270) {

@@ -143,7 +143,9 @@ v0.10 2018-09-26  Fix bug in current consumption. Two options, from FC or accumu
 v0.11 2018-08-30  PX4 new flight mode scheme. Clean up battery capacity source logic.
 v0.12 2018-09-11  Add support for missions 
 v0.13 2018-09-16  COG - Azimuth offset as per yaapu requirements 
-v0.14 2018-09-17  Missions 0x5011 after TLog testing.          
+v0.14 2018-09-17  Missions 0x5011 after TLog testing. 
+v0.15 2018-09-18  prep_number function:   Included number encoded on 7 bits (6 bits + 1 for 10^power) 
+                  Fixed 2 errors in 0x5011 bit32Pack() 
 
 */
 
