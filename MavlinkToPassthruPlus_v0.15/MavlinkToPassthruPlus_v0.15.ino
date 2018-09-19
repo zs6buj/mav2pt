@@ -144,8 +144,7 @@ v0.11 2018-08-30  PX4 new flight mode scheme. Clean up battery capacity source l
 v0.12 2018-09-11  Add support for missions 
 v0.13 2018-09-16  COG - Azimuth offset as per yaapu requirements 
 v0.14 2018-09-17  Missions 0x5011 after TLog testing. 
-v0.15 2018-09-18  prep_number function:   Included number encoded on 7 bits (6 bits + 1 for 10^power) 
-                  Fixed 2 errors in 0x5011 bit32Pack() 
+v0.15 2018-09-19  Included Alex's code into 0x5011. Use #24 for COG, not #62.
 
 */
 
@@ -154,9 +153,9 @@ v0.15 2018-09-18  prep_number function:   Included number encoded on 7 bits (6 b
 
 //************************************* Please select your options here before compiling **************************
 // Choose one (only) of these target boards
-//#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
+#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
 //#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
-#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
+//#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
 
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
@@ -224,7 +223,7 @@ uint8_t BufLedState = LOW;
 #define Max_Waypoints  256     // Note. This is a RAM trade-off. If exceeded then Debug message and shut down
 
 // Debugging options below ***************************************************************************************
-//#define Mav_Debug_All
+#define Mav_Debug_All
 //#define Frs_Debug_All
 //#define Frs_Debug_Payload
 //#define Mav_Debug_RingBuff
@@ -1114,7 +1113,7 @@ void DecodeOneMavFrame() {
           ap_servo_raw[15] = mavlink_msg_servo_output_raw_get_servo16_raw(&msg);
           */       
           ap_servo_flag = true;                                  // tell fr routine we have a servo record
-          #if defined Mav_Debug_All || defined Mav_Debug_Rssi || defined Mav_Debug_Servo
+          #if defined Mav_Debug_All ||  defined Mav_Debug_Servo
             Debug.print("Mavlink in #36 servo_output: ");
             Debug.print("ap_port="); Debug.print(ap_port); 
             Debug.print(" PWM: ");

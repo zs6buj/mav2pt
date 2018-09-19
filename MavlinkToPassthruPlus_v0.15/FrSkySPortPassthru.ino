@@ -881,9 +881,10 @@ void Send_WayPoint_5011() {
 
   fr_ms_xtrack = ap_xtrack_error;                                 // Cross track error in metres from #62
   fr_ms_target_bearing = ap_target_bearing;                       // Direction of next WP
-  fr_ms_cog = Add360(ap_nav_bearing, 0);                          // "Nav bearing" = should be COG in degrees from #62, correct AP bug
-  fr_ms_offset = ((fr_ms_cog - fr_ms_target_bearing) / 45);       // Next WP bearing offset from COG
-  fr_ms_offset = fr_ms_offset<0 ? 0-fr_ms_offset :fr_ms_offset;   // Must be positive
+  fr_ms_cog = ap_cog * 0.01;                                      // COG in degrees from #24
+  int32_t angle = (int32_t)wrap_360(fr_ms_target_bearing - fr_ms_cog);
+  int32_t arrowStep = 360 / 8; 
+  fr_ms_offset = ((angle + (arrowStep/2)) / arrowStep) % 8;       // Next WP bearing offset from COG
 
   /*
    
@@ -1002,7 +1003,18 @@ int16_t Add360(int16_t arg1, int16_t arg2) {
   int16_t ret = arg1 + arg2;
   if (ret < 0) ret += 360;
   if (ret > 359) ret -= 360;
-  return ret;
+  return ret; 
+}
+//***************************************************
+// Correct for 360 boundary - yaapu
+float wrap_360(int16_t angle)
+{
+    const float ang_360 = 360.f;
+    float res = fmodf(static_cast<float>(angle), ang_360);
+    if (res < 0) {
+        res += ang_360;
+    }
+    return res;
 }
 //***************************************************
 // From Arducopter 3.5.5 code
@@ -1011,16 +1023,16 @@ uint16_t prep_number(int32_t number, uint8_t digits, uint8_t power)
     uint16_t res = 0;
     uint32_t abs_number = abs(number);
 
-    if ((digits == 1) && (power == 1)) { // number encoded on 7 bits: 6 bits for digits + 1 for 10^power
+   if ((digits == 1) && (power == 1)) { // number encoded on 5 bits: 4 bits for digits + 1 for 10^power
         if (abs_number < 10) {
             res = abs_number<<1;
-        } else if (abs_number < 310) {
+        } else if (abs_number < 150) {
             res = ((uint8_t)roundf(abs_number * 0.1f)<<1)|0x1;
-        } else { // transmit max possible value (0x1F x 10^1 = 310)
-            res = 0x2F;
+        } else { // transmit max possible value (0x0F x 10^1 = 150)
+            res = 0x1F;
         }
         if (number < 0) { // if number is negative, add sign bit in front
-            res |= 0x1<<8;
+            res |= 0x1<<5;
         }
     } else if ((digits == 2) && (power == 1)) { // number encoded on 8 bits: 7 bits for digits + 1 for 10^power
         if (abs_number < 100) {
