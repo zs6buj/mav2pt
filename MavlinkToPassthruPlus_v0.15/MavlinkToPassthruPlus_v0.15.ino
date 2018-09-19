@@ -143,8 +143,8 @@ v0.10 2018-09-26  Fix bug in current consumption. Two options, from FC or accumu
 v0.11 2018-08-30  PX4 new flight mode scheme. Clean up battery capacity source logic.
 v0.12 2018-09-11  Add support for missions 
 v0.13 2018-09-16  COG - Azimuth offset as per yaapu requirements 
-v0.14 2018-09-17  Missions 0x5011 after TLog testing. 
-v0.15 2018-09-19  Included Alex's code into 0x5011. Use #24 for COG, not #62.
+v0.14 2018-09-17  Missions 0x500B after TLog testing. 
+v0.15 2018-09-19  Included Alex's code into 0x500B. Use #24 for COG, not #62.
 
 */
 
@@ -223,7 +223,7 @@ uint8_t BufLedState = LOW;
 #define Max_Waypoints  256     // Note. This is a RAM trade-off. If exceeded then Debug message and shut down
 
 // Debugging options below ***************************************************************************************
-#define Mav_Debug_All
+//#define Mav_Debug_All
 //#define Frs_Debug_All
 //#define Frs_Debug_Payload
 //#define Mav_Debug_RingBuff
@@ -295,8 +295,8 @@ uint32_t  Atti5006_millis = 0;
 uint32_t  Param5007_millis = 0;
 uint32_t  Bat2_5008_millis = 0;
 uint32_t  Servo_5009_millis = 0; 
-uint32_t  Hud_5010_millis = 0;
-uint32_t  Miss_5011_millis = 0; 
+uint32_t  Hud_500A_millis = 0;
+uint32_t  Miss_500B_millis = 0; 
 uint32_t  rssi_F101_millis=0;
 
 float   lon1,lat1,lon2,lat2,alt1,alt2;  
@@ -628,7 +628,7 @@ float    fr_air_spd;       // dm/s
 uint16_t fr_throt;         // 0 to 100%
 float    fr_bar_alt;       // metres
 
-//0x5011 Missions       
+//0x500B Missions       
 uint16_t  fr_ms_seq;                // WP number
 uint16_t  fr_ms_dist;               // To next WP  
 float     fr_ms_xtrack;             // Cross track error in metres

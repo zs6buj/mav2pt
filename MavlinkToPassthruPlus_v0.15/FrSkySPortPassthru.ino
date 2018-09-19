@@ -235,19 +235,19 @@ void FrSkySPort_Process() {
           else
             time_slot++;   // Donate the slot to next  
                   
-        case 14:          // data id 0x5010 HUD
-          if (millis() - Hud_5010_millis > 500)   {        // 2 Hz, same as 0x5005 velyaw
-            Send_Hud_5010();
-            Hud_5010_millis = millis();
+        case 14:          // data id 0x500A HUD
+          if (millis() - Hud_500A_millis > 500)   {        // 2 Hz, same as 0x5005 velyaw
+            Send_Hud_500A();
+            Hud_500A_millis = millis();
             break; 
             }
           else
             time_slot++;   // Donate the slot to next   
              
-         case 15:          // data id 0x5011 Missions
-           if ((ap_ms_current_flag) && (millis() - Miss_5011_millis > 2000))  {  // 0.5 Hz        
-            Send_WayPoint_5011();
-            Miss_5011_millis = millis();
+         case 15:          // data id 0x500B Missions
+           if ((ap_ms_current_flag) && (millis() - Miss_500B_millis > 2000))  {  // 0.5 Hz        
+            Send_WayPoint_500B();
+            Miss_500B_millis = millis();
             break; 
             }
           else
@@ -843,14 +843,14 @@ uint8_t sv_chcnt = 8;
   sv_count += 4; 
 }          
 // ***************************************************************** 
-void Send_Hud_5010() {
+void Send_Hud_500A() {
  
   fr_air_spd = ap_hud_air_spd * 10;      // from #74  m/s to dm/s
   fr_throt = ap_hud_throt;               // 0 - 100%
   fr_bar_alt = ap_hud_bar_alt * 10;      // m to dm
 
   #if defined Frs_Debug_All || defined Frs_Debug_Hud
-    Debug.print("Frsky out RC 0x5010: ");   
+    Debug.print("Frsky out RC 0x500A: ");   
     Debug.print(" fr_air_spd="); Debug.print(fr_air_spd);
     Debug.print(" fr_throt="); Debug.print(fr_throt);
     Debug.print(" fr_bar_alt="); Debug.println(fr_bar_alt);       
@@ -868,12 +868,12 @@ void Send_Hud_5010() {
   else
    bit32Pack(0, 27, 1);  
     
-  FrSkySPort_SendDataFrame(0x1B, 0x5010,fr_payload); 
+  FrSkySPort_SendDataFrame(0x1B, 0x500A,fr_payload); 
         
 }
 
 // ***************************************************************** 
-void Send_WayPoint_5011() {
+void Send_WayPoint_500B() {
 
   fr_ms_seq = ap_ms_seq;                                      // Current WP seq number, wp[0] = wp1, from regular #42
   
@@ -899,7 +899,7 @@ void Send_WayPoint_5011() {
  
    */
   #if defined Frs_Debug_All || defined Frs_Debug_Mission
-    Debug.print("Frsky out RC 0x5011: ");   
+    Debug.print("Frsky out RC 0x500B: ");   
     Debug.print(" fr_ms_seq="); Debug.print(fr_ms_seq);
     Debug.print(" fr_ms_dist="); Debug.print(fr_ms_dist);
     Debug.print(" fr_ms_xtrack="); Debug.print(fr_ms_xtrack, 3);
@@ -918,7 +918,7 @@ void Send_WayPoint_5011() {
   bit32Pack(fr_ms_xtrack, 22, 6); 
 
   bit32Pack(fr_ms_offset, 29, 3);  
-  FrSkySPort_SendDataFrame(0x1B, 0x5011,fr_payload); 
+  FrSkySPort_SendDataFrame(0x1B, 0x500B,fr_payload); 
         
 }
 
