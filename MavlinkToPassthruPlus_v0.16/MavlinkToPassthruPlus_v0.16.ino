@@ -145,6 +145,7 @@ v0.12 2018-09-11  Add support for missions
 v0.13 2018-09-16  COG - Azimuth offset as per yaapu requirements 
 v0.14 2018-09-17  Missions 0x500B after TLog testing. 
 v0.15 2018-09-19  Included Alex's code into 0x500B. Use #24 for COG, not #62.
+v0.16 2018-09-28  Send mission (waypoint) count as parameter id = 6 in 0x5007 Parameter frame
 
 */
 
@@ -162,9 +163,9 @@ v0.15 2018-09-19  Included Alex's code into 0x500B. Use #24 for COG, not #62.
 //#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
-#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both RX and TX lines must be connected      
+//#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both RX and TX lines must be connected      
 //#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
-//#define Battery_mAh_Source  3  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
+#define Battery_mAh_Source  3  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
 
 const uint16_t bat1_capacity = 5200;       
 const uint16_t bat2_capacity = 0;
@@ -173,6 +174,7 @@ const uint16_t bat2_capacity = 0;
 
 //#define Aux_Port_Enabled            // For BlueTooth or other auxilliary serial passthrough
 //#define Request_Missions_From_FC    // Un-comment if you need mission waypoint from FC - NOT NECESSARY NOW
+#define Request_Mission_Count_From_FC // Needed for yaapu's mission/waypoint script
 
 //*** LEDS ********************************************************************************************************
 //uint16_t MavStatusLed = 13; 
@@ -612,6 +614,7 @@ uint32_t fr_param_val;
 uint32_t fr_frame_type;
 uint32_t fr_bat1_capacity;
 uint32_t fr_bat2_capacity;
+uint32_t fr_mission_count;
 bool     fr_paramsSent = false;
 
 //0x5008 Batt
@@ -740,7 +743,7 @@ void loop()  {
   }
   #endif 
 
-  #ifdef Request_Missions_From_FC
+  #if defined Request_Missions_From_FC || defined Request_Mission_Count_From_FC
   if (mavGood) {
     if (!ap_ms_list_req) {
       RequestMissionList();  //  #43
@@ -1180,17 +1183,19 @@ void DecodeOneMavFrame() {
   
           break; 
         case MAVLINK_MSG_ID_MISSION_COUNT :          // #44   received back after #43 Mission_Request_List sent
-        #ifdef Request_Missions_From_FC
+        #if defined Request_Missions_From_FC || defined Request_Mission_Count_From_FC
           if (!mavGood) break;  
-            ap_mission_count =  mavlink_msg_mission_count_get_count(&msg);  // Reports 1 too many, i.e. the next empty WP
+            ap_mission_count =  mavlink_msg_mission_count_get_count(&msg); 
             #if defined Mav_Debug_All || defined Mav_Debug_Mission
               Debug.print("Mavlink in #44 Mission Count: ");
               Debug.print("ap_mission_count="); Debug.println(ap_mission_count);   
             #endif
+            #if defined Request_Missions_From_FC
             if ((ap_mission_count > 0) && (ap_ms_count_ft)) {
               ap_ms_count_ft = false;
               RequestAllWaypoints(ap_mission_count);  // # multiple #40, then wait for them to arrive at #39
             }
+            #endif
           break; 
         #endif
         case MAVLINK_MSG_ID_NAV_CONTROLLER_OUTPUT:   // #62
@@ -1499,7 +1504,7 @@ void RequestMission(uint16_t ms_seq) {    //  #40
 #endif 
  
 //***************************************************
-#ifdef Request_Missions_From_FC
+#if defined Request_Missions_From_FC || defined Request_Mission_Count_From_FC
 void RequestMissionList() {   // #43   get back #44 Mission_Count
   ap_sysid = 0xFF;
   ap_compid = 0xBE;
@@ -1513,7 +1518,7 @@ void RequestMissionList() {   // #43   get back #44 Mission_Count
   len = mavlink_msg_to_send_buffer(buf, &msg);
   mavSerial.write(buf,len);
   #if defined Mav_Debug_All || defined Mav_Debug_Mission
-    Debug.println("Mavlink out #43 Request Mission List:");
+    Debug.println("Mavlink out #43 Request Mission List (count)");
   #endif  
 }
 #endif
