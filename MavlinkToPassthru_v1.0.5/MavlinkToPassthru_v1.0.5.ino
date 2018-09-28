@@ -137,7 +137,8 @@ v1.0.2  2018-07-31  Add support for Maple Mini
         2018-08-01  Implement circular buffer for mavlink incoming telemetry to avoid buffer tainting on aux port stream
 v1.0.3  2018-08-20  Add support for PX4 flight stack. Specifically flight mode.        
 v1.0.4  2018-08-26  Fix bug in current consumption. Two options, from FC or accumulated di/dt. They now track each other.
-v1.0.5  2018-08-30  Clean up battery capacity source logic.                                         
+v1.0.5  2018-08-30  Clean up battery capacity source logic.   
+-                                      
 */
 
 #include <CircularBuffer.h>
