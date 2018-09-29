@@ -154,9 +154,9 @@ v0.16 2018-09-28  Send mission (waypoint) count as parameter id = 6 in 0x5007 Pa
 
 //************************************* Please select your options here before compiling **************************
 // Choose one (only) of these target boards
-//#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
+#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
 //#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
-#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
+//#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
 
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
@@ -259,7 +259,7 @@ uint8_t BufLedState = LOW;
 //#define Mav_Debug_Text
 //#define Frs_Debug_Text    
 //#define Mav_Debug_Mission 
-#define Frs_Debug_Mission              
+//#define Frs_Debug_Mission              
 //*****************************************************************************************************************
 
 uint8_t   buf[MAVLINK_MAX_PACKET_LEN];
