@@ -155,9 +155,9 @@ v0.17 2018-09-28  Switch to Mavlink 2
 
 //************************************* Please select your options here before compiling **************************
 // Choose one (only) of these target boards
-#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
+//#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
 //#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
-//#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
+#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
 
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
@@ -226,7 +226,7 @@ uint8_t BufLedState = LOW;
 #define Max_Waypoints  256     // Note. This is a RAM trade-off. If exceeded then Debug message and shut down
 
 // Debugging options below ***************************************************************************************
-//#define Mav_Debug_All
+#define Mav_Debug_All
 //#define Frs_Debug_All
 //#define Frs_Debug_Payload
 //#define Mav_Debug_RingBuff
