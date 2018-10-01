@@ -147,7 +147,7 @@ v0.14 2018-09-17  Missions 0x500B after TLog testing.
 v0.15 2018-09-19  Included Alex's code into 0x500B. Use #24 for COG, not #62.
 v0.16 2018-09-28  Send mission (waypoint) count as parameter id = 6 in 0x5007 Parameter frame
 v0.17 2018-09-28  Switch to Mavlink 2
-
+.
 */
 
 #include <CircularBuffer.h>
