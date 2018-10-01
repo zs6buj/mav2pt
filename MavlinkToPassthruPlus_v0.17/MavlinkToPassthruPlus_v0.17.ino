@@ -226,7 +226,7 @@ uint8_t BufLedState = LOW;
 #define Max_Waypoints  256     // Note. This is a RAM trade-off. If exceeded then Debug message and shut down
 
 // Debugging options below ***************************************************************************************
-#define Mav_Debug_All
+//#define Mav_Debug_All
 //#define Frs_Debug_All
 //#define Frs_Debug_Payload
 //#define Mav_Debug_RingBuff
@@ -409,7 +409,13 @@ int32_t    ap_amsl24 = 0;             // 1000 = 1m
 uint16_t   ap_eph;                    // GPS HDOP horizontal dilution of position (unitless)
 uint16_t   ap_epv;                    // GPS VDOP vertical dilution of position (unitless)
 uint16_t   ap_vel;                    // GPS ground speed (m/s * 100) cm/s
-uint16_t   ap_cog;                    // Course over ground in degrees * 100, 0.0..359.99 degrees. 
+uint16_t   ap_cog;                    // Course over ground in degrees * 100, 0.0..359.99 degrees
+// mav2
+int32_t    ap_alt_ellipsoid;          // mm    Altitude (above WGS84, EGM96 ellipsoid). Positive for up.
+uint32_t   ap_h_acc;                  // mm    Position uncertainty. Positive for up.
+uint32_t   ap_v_acc;                  // mm    Altitude uncertainty. Positive for up.
+uint32_t   ap_vel_acc;                // mm    Speed uncertainty. Positive for up.
+uint32_t   ap_hdg_acc;                // degE5   Heading / track uncertainty
 
 // Message #27 RAW IMU 
 int32_t   ap_accX = 0;
@@ -983,11 +989,17 @@ void DecodeOneMavFrame() {
           if(ap_fixtype > 2)  {
             ap_latitude = mavlink_msg_gps_raw_int_get_lat(&msg);
             ap_longitude = mavlink_msg_gps_raw_int_get_lon(&msg);
-            ap_amsl24 = mavlink_msg_gps_raw_int_get_alt(&msg);             // 1m =1000 
-            ap_eph = mavlink_msg_gps_raw_int_get_eph(&msg);                // GPS HDOP 
-            ap_epv = mavlink_msg_gps_raw_int_get_epv(&msg);                // GPS VDOP 
-            ap_vel = mavlink_msg_gps_raw_int_get_vel(&msg);                // GPS ground speed (m/s * 100)
-            ap_cog = mavlink_msg_gps_raw_int_get_cog(&msg);                // Course over ground (NOT heading) in degrees * 100
+            ap_amsl24 = mavlink_msg_gps_raw_int_get_alt(&msg);                    // 1m =1000 
+            ap_eph = mavlink_msg_gps_raw_int_get_eph(&msg);                       // GPS HDOP 
+            ap_epv = mavlink_msg_gps_raw_int_get_epv(&msg);                       // GPS VDOP 
+            ap_vel = mavlink_msg_gps_raw_int_get_vel(&msg);                       // GPS ground speed (m/s * 100)
+            ap_cog = mavlink_msg_gps_raw_int_get_cog(&msg);                       // Course over ground (NOT heading) in degrees * 100
+     // mav2
+           ap_alt_ellipsoid = mavlink_msg_gps_raw_int_get_alt_ellipsoid(&msg);    // mm    Altitude (above WGS84, EGM96 ellipsoid). Positive for up.
+           ap_h_acc = mavlink_msg_gps_raw_int_get_h_acc(&msg);                    // mm    Position uncertainty. Positive for up.
+           ap_v_acc = mavlink_msg_gps_raw_int_get_v_acc(&msg);                    // mm    Altitude uncertainty. Positive for up.
+           ap_vel_acc = mavlink_msg_gps_raw_int_get_vel_acc(&msg);                // mm    Speed uncertainty. Positive for up.
+           ap_hdg_acc = mavlink_msg_gps_raw_int_get_hdg_acc(&msg);                // degE5   Heading / track uncertainty       
           }
           #if defined Mav_Debug_All || defined Mav_Debug_GPS_Raw
             Debug.print("Mavlink in #24 GPS_RAW_INT: ");  
@@ -1007,10 +1019,17 @@ void DecodeOneMavFrame() {
             Debug.print("  latitude="); Debug.print((float)(ap_latitude)/1E7, 7);
             Debug.print("  longitude="); Debug.print((float)(ap_longitude)/1E7, 7);
             Debug.print("  gps alt amsl="); Debug.print((float)(ap_amsl24)/1E3, 1);
-            Debug.print("  eph (hdop)="); Debug.print(ap_eph, 1);               // HDOP
-            Debug.print("  epv (vdop)="); Debug.print(ap_epv, 1);
-            Debug.print("  vel="); Debug.print((float)ap_vel / 100, 3);         // GPS ground speed (m/s)
-            Debug.print("  cog="); Debug.println((float)ap_cog / 100, 1);       // Course over ground in degrees
+            Debug.print("  eph (hdop)="); Debug.print((float)ap_eph, 1);                 // HDOP
+            Debug.print("  epv (vdop)="); Debug.print((float)ap_epv, 1);
+            Debug.print("  vel="); Debug.print((float)ap_vel / 100, 3);           // GPS ground speed (m/s)
+            Debug.print("  cog="); Debug.print((float)ap_cog / 100, 1);           // Course over ground in degrees
+            //  mav2
+            Debug.print("  alt_ellipsoid)="); Debug.print(ap_alt_ellipsoid / 1000, 2);      // alt_ellipsoid in mm
+            Debug.print("  h_acc="); Debug.print(ap_h_acc);                       // Position uncertainty in mm. Positive for up.
+            Debug.print("  v_acc="); Debug.print(ap_v_acc);                       // Altitude uncertainty in mm. Positive for up.
+            Debug.print("  ap_vel_acc="); Debug.print(ap_vel_acc);                // Speed uncertainty. Positive for up.
+            Debug.print("  ap_hdg_acc="); Debug.print(ap_hdg_acc);                // degE5   Heading / track uncertainty 
+            Debug.println();
           #endif     
           break;
         case MAVLINK_MSG_ID_RAW_IMU:   // #27
