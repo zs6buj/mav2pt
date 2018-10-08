@@ -139,6 +139,7 @@ v1.0.3  2018-08-20  Add support for PX4 flight stack. Specifically flight mode.
 v1.0.4  2018-08-26  Fix bug in current consumption. Two options, from FC or accumulated di/dt. They now track each other.
 v1.0.5  2018-08-30  Clean up battery capacity source logic. 
 v1.0.6  2018-10-01  Supports Mavlink 2 (and 1)  - ignore warning: "F" redefined emanating from Mavlink 2 code
+
 -                                      
 */
 
