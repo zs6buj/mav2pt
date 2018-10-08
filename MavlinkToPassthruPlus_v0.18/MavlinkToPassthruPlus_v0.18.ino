@@ -147,7 +147,7 @@ v0.14 2018-09-17  Missions 0x500B after TLog testing.
 v0.15 2018-09-19  Included Alex's code into 0x500B. Use #24 for COG, not #62.
 v0.16 2018-09-28  Send mission (waypoint) count as parameter id = 6 in 0x5007 Parameter frame
 v0.17 2018-09-28  Switch to Mavlink 2
-v0.18 2018-10-07  Update 
+v0.18 2018-10-07  Update PrintMavBuffer() for Mav2
 .
 */
 
@@ -156,9 +156,9 @@ v0.18 2018-10-07  Update
 
 //************************************* Please select your options here before compiling **************************
 // Choose one (only) of these target boards
-//#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
+#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
 //#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
-#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
+//#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
 
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)

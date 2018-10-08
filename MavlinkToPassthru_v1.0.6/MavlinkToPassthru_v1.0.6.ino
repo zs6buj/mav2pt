@@ -164,7 +164,7 @@ v1.0.6  2018-10-01  Supports Mavlink 2 (and 1)  - ignore warning: "F" redefined 
 const uint16_t bat1_capacity = 5200;   
 const uint16_t bat2_capacity = 0;
 
-#define SPort_Serial   1    // The default is Serial 1, but 3 is possible if we don't want aux port
+#define SPort_Serial   3    // The default is Serial 1, but 3 is possible if we don't want aux port
 
 //#define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough
 
@@ -1601,5 +1601,3 @@ void ShowPeriod() {
   prev_millis=now_millis;
 }
 //***************************************************
-
-
