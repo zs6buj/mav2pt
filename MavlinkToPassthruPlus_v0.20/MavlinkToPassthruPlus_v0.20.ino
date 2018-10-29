@@ -152,7 +152,8 @@ v0.16 2018-09-28  Send mission (waypoint) count as parameter id = 6 in 0x5007 Pa
 v0.17 2018-09-28  Switch to Mavlink 2
 v0.18 2018-10-07  Update PrintMavBuffer() for Mav2
 v0.19 2018-10-08  Re-arrange our custom message IDs as per Alex's request
-v0.20 2018-10-29  Blue Pill does not have serial 3. Trap and reports this configuration in pre-compile
+v0.20 2018-10-29  a) Blue Pill does not have serial 3. Trap and reports this configuration in pre-compile
+                  b) If not Teensy don't try to switch into single wire mode in ReadSPort()   
 .
 */
 

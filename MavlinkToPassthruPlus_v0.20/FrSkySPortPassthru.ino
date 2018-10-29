@@ -60,6 +60,9 @@ void FrSkySPort_Init(void)  {
 #if defined Air_Mode || defined Relay_Mode
 void ReadSPort(void) {
   uint8_t prevByt=0;
+  #if (Target_Board == 0) // Teensy3x
+    setSPortMode(RX);
+  #endif  
   setSPortMode(RX);
   uint8_t Byt = 0;
   while ( frSerial.available())   {  
