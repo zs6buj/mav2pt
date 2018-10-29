@@ -143,7 +143,9 @@ v1.0.4  2018-08-26  Fix bug in current consumption. Two options, from FC or accu
 v1.0.5  2018-08-30  Clean up battery capacity source logic. 
 v1.0.6  2018-10-01  Supports Mavlink 2 (and 1)  - ignore warning: "F" redefined emanating from Mavlink 2 code
 v1.0.7  2018-10-29  a) Blue Pill does not have serial 3. Trap and reports this configuration in pre-compile
-                    b) If not Teensy don't try to switch into single wire mode in ReadSPort()                   
+                    b) If not Teensy don't try to switch into single wire mode in ReadSPort()  
+v1.0.8  2018-10-29  In Air and Relay modes enter Frsky polling loop immediately any single Mavlink record is received. 
+                    Response much faster, especially for the STM32F103                                    
 */
 
 #include <CircularBuffer.h>
@@ -225,8 +227,8 @@ uint8_t BufLedState = LOW;
 //#define Data_Streams_Enabled // Rather set SRn in Mission Planner
 
 // Debugging options below ***************************************************************************************
-#define Mav_Debug_All
-#define Frs_Debug_All
+//#define Mav_Debug_All
+//#define Frs_Debug_All
 //#define Mav_Debug_RingBuff
 //#define Debug_Air_Mode
 //#define Mav_List_Params
@@ -710,7 +712,7 @@ void loop()  {
 
   if(mavSerial.available()) QueueOneMavFrame(); // Add one Mavlink frame to the ring buffer
 
-  DecodeOneMavFrame();                        // Decode a Mavlink frame from the ring buffer if there is one
+  DecodeOneMavFrame();                      // Decode a Mavlink frame from the ring buffer if there is one
 
   Aux_ReceiveAndForward();                 // Service aux incoming if enabled
 
@@ -722,8 +724,8 @@ void loop()  {
   #endif
      
   #if defined Air_Mode || defined Relay_Mode
-  if(mavGood && ((millis() - sp_millis) > 10)) {   
-     ReadSPort();                       // Receive round-robin of sensor IDs received from XRS receiver
+  if(mavGood && ((millis() - sp_millis) > 0)) {   // fine tuning, down to zero expecially for Blue Pill
+     ReadSPort();                       // Receive sensor IDs from XRS receiver, slot in ours, and send 
      sp_millis=millis();
     }
   #endif   
