@@ -97,8 +97,8 @@
      
    Please #define the appropriate Battery_mAh_Source below
    
-   Connections to Teensy3.2 are:
-
+    Connections to Teensy3.2 are:
+    0) USB                         Flashing and serial monitor for debug
     1) SPort S     -->TX1 Pin 1    S.Port out to Taranis bay, bottom pin
     2) Mavlink     <--RX2 Pin 9    Mavlink from Taranis to Teensy
     3) Mavlink     -->TX2 Pin 10   Mavlink from Teensy to Taranis
@@ -108,7 +108,10 @@
     7) GND
 
    Connections to Blue Pill STM32F103C  are:
-
+   
+    0) USB/TTL     -->TX1 Pin A9   Flashing and serial monitor for debug
+    0) USB/TTL     -->RX1 Pin A10 
+    
     1) SPort S     -->TX2 Pin A2   Serial1 to inverter, convert to single wire then to S.Port
     2) SPort S     <--RX2 Pin A3   Serial1 To inverter, convert to single wire then to S.Port
     3) Mavlink     -->TX3 Pin B10  Mavlink from STM32 to Taranis 
@@ -119,7 +122,7 @@
     8) GND
 
    Connections to Maple Mini STM32F103C are:
-
+    0) USB                          Flashing and serial monitor for debug
     1) SPort S     -->TX1 Pin A10   Serial1 to inverter, convert to single wire then to S.Port
     2) SPort S     <--RX1 Pin A9    Serial1 To inverter, convert to single wire then to S.Port
     3) Mavlink     -->TX2 Pin A2    Serial2 Mavlink from STM32 to Taranis
@@ -127,7 +130,7 @@
     5) Aux_Mavlink -->TX3 Pin B10   Serial3 NOT NECESSARY - wire direct from Orange TX to BT RX
     6) Aux_Mavlink <--RX3 Pin B11   Serial3 Auxiliary Mavlink From BT Module to Teensy  
     7) Vcc 3.3V !
-    8) GND    
+    8) GND  
     
 Change log:
 

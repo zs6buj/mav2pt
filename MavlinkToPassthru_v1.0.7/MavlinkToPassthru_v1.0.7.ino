@@ -98,7 +98,7 @@
    Please #define the appropriate Battery_mAh_Source below
    
    Connections to Teensy3.2 are:
-
+    0) USB                         Flashing and serial monitor for debug
     1) SPort S     -->TX1 Pin 1    S.Port out to Taranis bay, bottom pin
     2) Mavlink     <--RX2 Pin 9    Mavlink from Taranis to Teensy
     3) Mavlink     -->TX2 Pin 10   Mavlink from Teensy to Taranis
@@ -108,7 +108,10 @@
     7) GND
 
    Connections to Blue Pill STM32F103C  are:
-
+   
+    0) USB/TTL     -->TX1 Pin A9   Flashing and serial monitor for debug
+    0) USB/TTL     -->RX1 Pin A10 
+    
     1) SPort S     -->TX2 Pin A2   Serial1 to inverter, convert to single wire then to S.Port
     2) SPort S     <--RX2 Pin A3   Serial1 To inverter, convert to single wire then to S.Port
     3) Mavlink     -->TX3 Pin B10  Mavlink from STM32 to Taranis 
@@ -119,7 +122,7 @@
     8) GND
 
    Connections to Maple Mini STM32F103C are:
-
+    0) USB                          Flashing and serial monitor for debug
     1) SPort S     -->TX1 Pin A10   Serial1 to inverter, convert to single wire then to S.Port
     2) SPort S     <--RX1 Pin A9    Serial1 To inverter, convert to single wire then to S.Port
     3) Mavlink     -->TX2 Pin A2    Serial2 Mavlink from STM32 to Taranis
@@ -147,7 +150,7 @@ v1.0.7  2018-10-29  Blue Pill does not have serial 3. Trap and reports this conf
 #include <..\c_library_v2\ardupilotmega\mavlink.h>  
 
 //************************************* Please select your options here before compiling **************************
-#define PX4_Flight_stack   //  If your flight stack is PX4 and not APM, un-comment this line
+//#define PX4_Flight_stack   //  If your flight stack is PX4 and not APM, un-comment this line
 // Choose one (only) of these target boards
 #define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
 //#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
