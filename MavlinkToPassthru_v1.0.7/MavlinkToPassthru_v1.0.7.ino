@@ -139,8 +139,8 @@ v1.0.3  2018-08-20  Add support for PX4 flight stack. Specifically flight mode.
 v1.0.4  2018-08-26  Fix bug in current consumption. Two options, from FC or accumulated di/dt. They now track each other.
 v1.0.5  2018-08-30  Clean up battery capacity source logic. 
 v1.0.6  2018-10-01  Supports Mavlink 2 (and 1)  - ignore warning: "F" redefined emanating from Mavlink 2 code
-
--                                      
+v1.0.7  2018-10-29  Blue Pill does not have serial 3. Trap and reports this configuration in pre-compile
+                                      
 */
 
 #include <CircularBuffer.h>
@@ -149,8 +149,8 @@ v1.0.6  2018-10-01  Supports Mavlink 2 (and 1)  - ignore warning: "F" redefined 
 //************************************* Please select your options here before compiling **************************
 #define PX4_Flight_stack   //  If your flight stack is PX4 and not APM, un-comment this line
 // Choose one (only) of these target boards
-//#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
-#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
+#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
+//#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
 //#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
 
 // Choose one (only) of these three modes
@@ -165,7 +165,7 @@ v1.0.6  2018-10-01  Supports Mavlink 2 (and 1)  - ignore warning: "F" redefined 
 const uint16_t bat1_capacity = 5200;   
 const uint16_t bat2_capacity = 0;
 
-#define SPort_Serial   3    // The default is Serial 1, but 3 is possible if we don't want aux port
+#define SPort_Serial   1    // The default is Serial 1, but 3 is possible if we don't want aux port
 
 //#define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough
 
