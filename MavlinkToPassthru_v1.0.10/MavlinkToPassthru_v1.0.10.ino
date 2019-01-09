@@ -145,6 +145,7 @@ v1.0.6  2018-10-01  Supports Mavlink 2 (and 1)  - ignore warning: "F" redefined 
 v1.0.7  2018-10-29  a) Blue Pill does not have serial 3. Trap and reports this configuration in pre-compile
                     b) If not Teensy don't try to switch into single wire mode in ReadSPort()  
 v1.0.9  2019-01-05 Fix minor format bug in #24 debug Debug.print(ap_eph)and Debug.print(ap_epv). Int not float.                                     
+v1.0.10 2019-01-09 Change polling period in Air and Relay modes to 1mS. Trade off to maximise response but maintain sync.
 */
 
 #include <CircularBuffer.h>
@@ -158,8 +159,8 @@ v1.0.9  2019-01-05 Fix minor format bug in #24 debug Debug.print(ap_eph)and Debu
 //#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
 
 // Choose one (only) of these three modes
-//#define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
-#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
+#define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
+//#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
 //#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both RX and TX lines must be connected      
@@ -723,7 +724,7 @@ void loop()  {
   #endif
      
   #if defined Air_Mode || defined Relay_Mode
-  if(mavGood && ((millis() - sp_millis) > 1)) {   // fine tune the polling period
+  if(mavGood && ((millis() - sp_millis) > 1)) {   // fine tune the polling period, zero for Blue Pill
      ReadSPort();                       // Receive round-robin of sensor IDs received from XRS receiver
      sp_millis=millis();
     }
