@@ -658,10 +658,10 @@ void Send_VelYaw_5005() {
 void Send_Atti_5006() {
   fr_roll = (ap_roll * 5) + 900;             //  -- fr_roll units = [0,1800] ==> [-180,180]
   fr_pitch = (ap_pitch * 5) + 450;           //  -- fr_pitch units = [0,900] ==> [-90,90]
-  fr_range = 0;   
+  fr_range = roundf(ap_range*100);   
   bit32Pack(fr_roll, 0, 11);
   bit32Pack(fr_pitch, 11, 10); 
-  bit32Pack(fr_range, 21, 11);
+  bit32Pack(prep_number(fr_range,3,1), 21, 11);
   #if defined Frs_Debug_All || defined Frs_Debug_Attitude
     Debug.print("Frsky out Attitude 0x5006: ");         
     Debug.print("fr_roll=");  Debug.print(fr_roll);

@@ -257,7 +257,8 @@ uint8_t BufLedState = LOW;
 //#define Mav_Debug_Attitude
 //#define Frs_Debug_Attitude
 //#define Mav_Debug_Text
-//#define Frs_Debug_Text          
+//#define Frs_Debug_Text
+//#define Mav_Debug_Range          
 //*****************************************************************************************************************
 
 uint8_t   buf[MAVLINK_MAX_PACKET_LEN];
@@ -472,6 +473,10 @@ int32_t      ap_energy_consumed;    // HectoJoules (intergrated U*I*dt) (1 = 100
 int8_t       ap_battery_remaining;  // (0%: 0, 100%: 100)
 int32_t      ap_time_remaining;     // in seconds
 uint8_t      ap_charge_state;     
+
+
+// Message #173 RANGEFINDER 
+float ap_range; // m
 
 // Message #166 RADIO
 uint8_t ap_rssi;                // local signal strength
@@ -1158,7 +1163,15 @@ void DecodeOneMavFrame() {
             Debug.print("fixed="); Debug.println(ap_fixed);                                
          #endif        
           break; 
-        case MAVLINK_MSG_ID_AHRS2:             // #178   http://mavlink.org/messages/ardupilotmega
+        case MAVLINK_MSG_ID_RANGEFINDER:       // #173   http://mavlink.org/messages/ardupilotmega
+          if (!mavGood) break;       
+          ap_range = mavlink_msg_rangefinder_get_distance(&msg);  // distance in meters
+          #if defined Mav_Debug_All || defined Mav_Debug_Range
+            Debug.print("Mavlink in #173 rangefinder: ");        
+            Debug.print(" distance=");
+            Debug.println(ap_range);   // now V
+          #endif
+          break;          case MAVLINK_MSG_ID_AHRS2:             // #178   http://mavlink.org/messages/ardupilotmega
           if (!mavGood) break;       
           break;  
         case MAVLINK_MSG_ID_BATTERY2:          // #181   http://mavlink.org/messages/ardupilotmega
