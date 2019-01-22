@@ -960,15 +960,15 @@ void SendRssiF101() {          // data id 0xF101 RSSI tell LUA script in Taranis
   else
     fr_rssi = 255;     // We may have a connection but don't yet know how strong. Prevents spurious "Telemetry lost" announcement
   #ifdef Frs_Dummy_rssi
-    fr_rssi = 87;
+    fr_rssi = 70;
     Debug.print(" Dummy rssi="); Debug.println(fr_rssi); 
   #endif
   bit32Pack(fr_rssi ,0, 32);
   
   #ifdef Relay_Mode
     FrSkySPort_SendByte(0x7E, false);   
-    FrSkySPort_SendByte(0x1C, false);  
-    FrSkySPort_SendDataFrame(0x1C, 0xF101,fr_payload); 
+    FrSkySPort_SendByte(0x1B, false);  
+    FrSkySPort_SendDataFrame(0x1B, 0xF101,fr_payload); 
   #else
     FrSkySPort_SendDataFrame(0x1B, 0xF101,fr_payload); 
   #endif

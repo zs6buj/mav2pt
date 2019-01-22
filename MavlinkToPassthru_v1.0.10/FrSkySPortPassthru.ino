@@ -780,8 +780,8 @@ void SendRssiF101() {          // data id 0xF101 RSSI tell LUA script in Taranis
   
   #ifdef Relay_Mode
     FrSkySPort_SendByte(0x7E, false);   
-    FrSkySPort_SendByte(0x1C, false);  
-    FrSkySPort_SendDataFrame(0x1C, 0xF101,fr_payload); 
+    FrSkySPort_SendByte(0x1B, false);  
+    FrSkySPort_SendDataFrame(0x1B, 0xF101,fr_payload); 
   #else
     FrSkySPort_SendDataFrame(0x1B, 0xF101,fr_payload); 
   #endif
