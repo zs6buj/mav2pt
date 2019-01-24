@@ -157,7 +157,8 @@ v0.20 2018-10-29  a) Blue Pill does not have serial 3. Trap and reports this con
 v0.21 2018-10-29  In Air and Relay modes enter Frsky polling loop immediately when any single Mavlink record has been received.  
                   Response is much faster, especially for the STM32F103 
 v0.22 2019-01-05  Fix format bug in #24 debug Debug.print(ap_eph)and Debug.print(ap_epv). Int not float.     
-v0.23 2019-01-09 Change polling period in Air and Relay modes to 1mS. Trade off to maximise response but maintain sync.                                     
+v0.23 2019-01-09  Change polling period in Air and Relay modes to 1mS. Trade off to maximise response but maintain sync. 
+      2019-01-23  Merge pull from yaapu to change instance from 0x1c to 0x1b in relay mode                                        
 .
 */
 
