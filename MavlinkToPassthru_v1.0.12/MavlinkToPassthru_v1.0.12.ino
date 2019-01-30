@@ -146,7 +146,9 @@ v1.0.7  2018-10-29  a) Blue Pill does not have serial 3. Trap and reports this c
                     b) If not Teensy don't try to switch into single wire mode in ReadSPort()  
 v1.0.9  2019-01-05 Fix minor format bug in #24 debug Debug.print(ap_eph)and Debug.print(ap_epv). Int not float.                                     
 v1.0.10 2019-01-09 Change polling period in Air and Relay modes to 1mS. Trade off to maximise response but maintain sync.
-        2019-01-23  Merge pull from yaapu to change instance from 0x1c to 0x1b in relay mode    
+        2019-01-23 Merge pull from yaapu to change instance from 0x1c to 0x1b in relay mode   
+v1.0.11 2019-01-24 Merge urlu75 recommmendation as QLRS uses rssi from #35 rather than #65. Add #define QLRS option.
+v1.0.12 2019-01-30 Add some debugging for rssi        
 */
 
 #include <CircularBuffer.h>
@@ -171,10 +173,10 @@ v1.0.10 2019-01-09 Change polling period in Air and Relay modes to 1mS. Trade of
 const uint16_t bat1_capacity = 5200;   
 const uint16_t bat2_capacity = 0;
 
-#define SPort_Serial   1    // The default is Serial 1, but 3 is possible if we don't want aux port
+#define SPort_Serial   1      // The default is Serial 1, but 3 is possible if we don't want aux port
 
 //#define Aux_Port_Enabled    // For BlueTooth or other auxilliary serial passthrough
-
+//#define QLRS                // Un-comment this line only if you are using the QLRS telemetry system
 //*** LEDS ********************************************************************************************************
 //uint16_t MavStatusLed = 13; 
 uint8_t MavLedState = LOW; 
@@ -661,6 +663,10 @@ void setup()  {
     Debug.println("Using Serial_3 for S.Port"); 
   #endif  
 
+#if defined QLRS 
+    Debug.println("QLRS variant"); 
+#endif
+
    pinMode(MavStatusLed, OUTPUT); 
    pinMode(BufStatusLed, OUTPUT); 
    
@@ -1019,7 +1025,16 @@ void DecodeOneMavFrame() {
                 
           break;  
         case MAVLINK_MSG_ID_RC_CHANNELS_RAW:         // #35
-          if (!mavGood) break;        
+          if (!mavGood) break;   
+          #if defined QLRS
+            rssiGood=true;            //  We have received at least one rssi packet from air mavlink
+            ap_rssi = mavlink_msg_rc_channels_raw_get_rssi(&msg);
+            ap_rc_flag = true;
+          #endif  
+          #if defined Mav_Debug_All || defined Mav_Debug_Rssi || defined Mav_Debug_RC
+            Debug.print("Mavlink in #35 RC_Channels_Raw: ");                        
+            Debug.print("  Receive RSSI=");  Debug.println(ap_rssi/ 2.54); 
+          #endif         
           break; 
         case MAVLINK_MSG_ID_SERVO_OUTPUT_RAW:        // #36
           if (!mavGood) break;        
@@ -1032,7 +1047,6 @@ void DecodeOneMavFrame() {
           break;     
         case MAVLINK_MSG_ID_RC_CHANNELS:             // #65
           if (!mavGood) break; 
-          rssiGood=true;               //  We have received at least one rssi packet from air mavlink   
           ap_chcnt = mavlink_msg_rc_channels_get_chancount(&msg);
           ap_chan_raw[1] = mavlink_msg_rc_channels_get_chan1_raw(&msg);   
           ap_chan_raw[2] = mavlink_msg_rc_channels_get_chan2_raw(&msg);
@@ -1050,9 +1064,11 @@ void DecodeOneMavFrame() {
           ap_chan_raw[14] = mavlink_msg_rc_channels_get_chan14_raw(&msg);
           ap_chan_raw[15] = mavlink_msg_rc_channels_get_chan15_raw(&msg);   
           ap_chan_raw[16] = mavlink_msg_rc_channels_get_chan16_raw(&msg);
-          
-          ap_rssi = mavlink_msg_rc_channels_get_rssi(&msg);   // Receive RSSI 0: 0%, 254: 100%, 255: invalid/unknown
-          ap_rc_flag = true;                                  // tell fr routine we have an rc records
+          #ifndef QLRS
+            ap_rssi = mavlink_msg_rc_channels_get_rssi(&msg);   // Receive RSSI 0: 0%, 254: 100%, 255: invalid/unknown
+            ap_rc_flag = true;                                  // tell fr routine we have an rc records
+            rssiGood=true;                                      //  We have received at least one rssi packet from air mavlink
+          #endif  
           #if defined Mav_Debug_All || defined Mav_Debug_Rssi || defined Mav_Debug_RC
             Debug.print("Mavlink in #65 RC_Channels: ");
             Debug.print("Channel count= "); Debug.print(ap_chcnt); 

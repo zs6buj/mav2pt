@@ -161,9 +161,9 @@ v1.0.11 2019-01-24 Merge urlu75 recommmendation as QLRS uses rssi from #35 rathe
 //#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
 
 // Choose one (only) of these three modes
-#define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
+//#define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
 //#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
-//#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
+#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
 //#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both RX and TX lines must be connected      
 //#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
