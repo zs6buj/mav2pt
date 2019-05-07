@@ -20,7 +20,7 @@
     Acknowledgements and thanks to Craft and Theory (http://www.craftandtheoryllc.com/) for
     the Mavlink / Frsky Passthrough protocol
 
-    Thank you to yaapu for advice and testing, and his excellent LUA scrip
+    Thank you to yaapu for advice and testing, and his excellent LUA script
 
     Thank you athertop for advice and extensive testing
     
@@ -157,14 +157,14 @@ v1.0.12 2019-01-30 Add some debugging for rssi
 //************************************* Please select your options here before compiling **************************
 //#define PX4_Flight_stack   //  If your flight stack is PX4 and not APM, un-comment this line
 // Choose one (only) of these target boards
-#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
+//#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
 //#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
-//#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
+#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
 
 // Choose one (only) of these three modes
-//#define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
+#define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
 //#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
-#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
+//#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
 //#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both RX and TX lines must be connected      
 //#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
@@ -240,7 +240,7 @@ uint8_t BufLedState = LOW;
 //#define Mav_Debug_Params
 //#define Frs_Debug_Params
 //#define Frs_Debug_Payload
-#define Mav_Debug_Rssi
+//#define Mav_Debug_Rssi
 //#define Mav_Debug_RC
 //#define Frs_Debug_RC
 //#define Mav_Debug_Heartbeat
