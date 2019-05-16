@@ -176,9 +176,9 @@ v0.23 2019-01-09  Change polling period in Air and Relay modes to 1mS. Trade off
 //#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
-//#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both RX and TX lines must be connected      
+#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both RX and TX lines must be connected      
 //#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
-#define Battery_mAh_Source  3  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
+//#define Battery_mAh_Source  3  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
 
 const uint16_t bat1_capacity = 5200;       
 const uint16_t bat2_capacity = 0;
@@ -238,13 +238,13 @@ uint8_t BufLedState = LOW;
   #endif
 #endif
 
-//#define Frs_Dummy_rssi       // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
+#define Frs_Dummy_rssi       // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
 //#define Data_Streams_Enabled // Rather set SRn in Mission Planner
 
 #define Max_Waypoints  256     // Note. This is a RAM trade-off. If exceeded then Debug message and shut down
 
 // Debugging options below ***************************************************************************************
-#define Mav_Debug_All
+//#define Mav_Debug_All
 //#define Frs_Debug_All
 //#define Frs_Debug_Payload
 //#define Mav_Debug_RingBuff
@@ -279,6 +279,7 @@ uint8_t BufLedState = LOW;
 //#define Frs_Debug_Text    
 //#define Mav_Debug_Mission 
 //#define Frs_Debug_Mission              
+//#define Mav_Debug_Range 
 //*****************************************************************************************************************
 
 uint8_t   buf[MAVLINK_MAX_PACKET_LEN];
@@ -563,6 +564,9 @@ uint8_t ap_noise;               // background noise level
 uint8_t ap_remnoise;            // remote background noise level
 uint16_t ap_rxerrors;           // receive errors
 uint16_t ap_fixed;              // count of error corrected packets
+
+// Message #173 RANGEFINDER 
+float ap_range; // m
 
 // Message #181 BATTERY2 
 uint16_t   ap_voltage_battery2 = 0;    // 1000 = 1V
@@ -1395,6 +1399,15 @@ void DecodeOneMavFrame() {
             Debug.print("fixed="); Debug.println(ap_fixed);                                
          #endif        
           break; 
+        case MAVLINK_MSG_ID_RANGEFINDER:       // #173   http://mavlink.org/messages/ardupilotmega
+          if (!mavGood) break;       
+          ap_range = mavlink_msg_rangefinder_get_distance(&msg);  // distance in meters
+          #if defined Mav_Debug_All || defined Mav_Debug_Range
+            Debug.print("Mavlink in #173 rangefinder: ");        
+            Debug.print(" distance=");
+            Debug.println(ap_range);   // now V
+          #endif
+          break;  
         case MAVLINK_MSG_ID_AHRS2:             // #178   http://mavlink.org/messages/ardupilotmega
           if (!mavGood) break;       
           break;  
