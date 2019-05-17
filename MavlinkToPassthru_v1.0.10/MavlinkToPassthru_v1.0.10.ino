@@ -146,7 +146,6 @@ v1.0.7  2018-10-29  a) Blue Pill does not have serial 3. Trap and reports this c
                     b) If not Teensy don't try to switch into single wire mode in ReadSPort()  
 v1.0.9  2019-01-05 Fix minor format bug in #24 debug Debug.print(ap_eph)and Debug.print(ap_epv). Int not float.                                     
 v1.0.10 2019-01-09 Change polling period in Air and Relay modes to 1mS. Trade off to maximise response but maintain sync.
-        2019-01-23  Merge pull from yaapu to change instance from 0x1c to 0x1b in relay mode    
 */
 
 #include <CircularBuffer.h>
@@ -160,9 +159,9 @@ v1.0.10 2019-01-09 Change polling period in Air and Relay modes to 1mS. Trade of
 //#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
 
 // Choose one (only) of these three modes
-//#define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
+#define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
 //#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
-#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
+//#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
 //#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both RX and TX lines must be connected      
 //#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
@@ -238,7 +237,7 @@ uint8_t BufLedState = LOW;
 //#define Mav_Debug_Params
 //#define Frs_Debug_Params
 //#define Frs_Debug_Payload
-#define Mav_Debug_Rssi
+//#define Mav_Debug_Rssi
 //#define Mav_Debug_RC
 //#define Frs_Debug_RC
 //#define Mav_Debug_Heartbeat
@@ -258,7 +257,8 @@ uint8_t BufLedState = LOW;
 //#define Mav_Debug_Attitude
 //#define Frs_Debug_Attitude
 //#define Mav_Debug_Text
-//#define Frs_Debug_Text          
+//#define Frs_Debug_Text
+//#define Mav_Debug_Range          
 //*****************************************************************************************************************
 
 uint8_t   buf[MAVLINK_MAX_PACKET_LEN];
@@ -473,6 +473,10 @@ int32_t      ap_energy_consumed;    // HectoJoules (intergrated U*I*dt) (1 = 100
 int8_t       ap_battery_remaining;  // (0%: 0, 100%: 100)
 int32_t      ap_time_remaining;     // in seconds
 uint8_t      ap_charge_state;     
+
+
+// Message #173 RANGEFINDER 
+float ap_range; // m
 
 // Message #166 RADIO
 uint8_t ap_rssi;                // local signal strength
@@ -1159,7 +1163,15 @@ void DecodeOneMavFrame() {
             Debug.print("fixed="); Debug.println(ap_fixed);                                
          #endif        
           break; 
-        case MAVLINK_MSG_ID_AHRS2:             // #178   http://mavlink.org/messages/ardupilotmega
+        case MAVLINK_MSG_ID_RANGEFINDER:       // #173   http://mavlink.org/messages/ardupilotmega
+          if (!mavGood) break;       
+          ap_range = mavlink_msg_rangefinder_get_distance(&msg);  // distance in meters
+          #if defined Mav_Debug_All || defined Mav_Debug_Range
+            Debug.print("Mavlink in #173 rangefinder: ");        
+            Debug.print(" distance=");
+            Debug.println(ap_range);   // now V
+          #endif
+          break;          case MAVLINK_MSG_ID_AHRS2:             // #178   http://mavlink.org/messages/ardupilotmega
           if (!mavGood) break;       
           break;  
         case MAVLINK_MSG_ID_BATTERY2:          // #181   http://mavlink.org/messages/ardupilotmega
