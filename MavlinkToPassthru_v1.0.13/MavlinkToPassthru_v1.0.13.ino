@@ -148,7 +148,8 @@ v1.0.9  2019-01-05 Fix minor format bug in #24 debug Debug.print(ap_eph)and Debu
 v1.0.10 2019-01-09 Change polling period in Air and Relay modes to 1mS. Trade off to maximise response but maintain sync.
         2019-01-23 Merge pull from yaapu to change instance from 0x1c to 0x1b in relay mode   
 v1.0.11 2019-01-24 Merge urlu75 recommmendation as QLRS uses rssi from #35 rather than #65. Add #define QLRS option.
-v1.0.12 2019-01-30 Add some debugging for rssi        
+v1.0.12 2019-01-30 Add some debugging for rssi   
+v1.0.13 2019-05-17 Redo Alex's Rangefinder pull     
 */
 
 #include <CircularBuffer.h>
