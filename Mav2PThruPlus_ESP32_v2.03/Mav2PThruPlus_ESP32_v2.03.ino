@@ -146,6 +146,7 @@ v2.01 2019-06-09 Added OLED display support
 v2.02 2019-05-18 Belatedly include Alex's Rangefinder PR that I missed.
 v2.03 2019-05-21 Reduce voltage and current display moving average smoothing
                  Empirical correction of mAh consumed as per Markus Greinwald's measurements 
+                 Change mav heartbeat timeout from 3 to 6 seconds
 */
 
 #include <CircularBuffer.h>
@@ -846,7 +847,7 @@ void loop()  {
   }
   #endif
 
-  if(mavGood && (millis() - hb_millis) > 3000)  {   // if no heartbeat from APM in 3s then assume mav not connected
+  if(mavGood && (millis() - hb_millis) > 6000)  {   // if no heartbeat from APM in 6s then assume mav not connected
     mavGood=false;
     Debug.println("Heartbeat timed out! Mavlink not connected"); 
     OledDisplayln("Mavlink lost!");       

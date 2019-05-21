@@ -152,6 +152,7 @@ v1.0.12 2019-01-30 Add some debugging for rssi
 v1.0.13 2019-05-17 Redo Alex's Rangefinder pull   
 v1.0.14 2019-05-21 Reduce voltage and current display moving average smoothing 
                    Empirical correction of mAh consumed as per Markus Greinwald's measurements 
+                   Change mav heartbeat timeout from 3 to 6 seconds
 */
 
 #include <CircularBuffer.h>
@@ -692,7 +693,7 @@ void loop()  {
   }
 #endif 
 
-  if(mavGood && (millis() - hb_millis) > 3000)  {   // if no heartbeat from APM in 3s then assume mav not connected
+  if(mavGood && (millis() - hb_millis) > 6000)  {   // if no heartbeat from APM in 6s then assume mav not connected
     mavGood=false;
     Debug.println("Heartbeat timed out! Mavlink not connected");    
     hb_count = 0;

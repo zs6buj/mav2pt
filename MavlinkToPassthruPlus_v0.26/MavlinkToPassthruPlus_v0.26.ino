@@ -163,6 +163,7 @@ v0.24 2019-01-24  Merge urlu75 recommmendation as QLRS uses rssi from #35 rather
 v0.25 2019-05-18  Belatedly include Alex's Rangefinder PR that I missed. 
 v0.26 2019-05-21  Reduce voltage and current display moving average smoothing
                   Empirical correction of mAh consumed as per Markus Greinwald's measurements
+                  Change mav heartbeat timeout from 3 to 6 seconds         
 */
 
 #include <CircularBuffer.h>
