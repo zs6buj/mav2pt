@@ -1,5 +1,4 @@
 
-
 uint32_t Get_Volt_Average1(uint16_t mV)  {
 
   if (bat1.avg_mV < 1) bat1.avg_mV = mV;  // Initialise first time
@@ -38,10 +37,10 @@ void Accum_mAh1(uint32_t dAs) {        //  dA    10 = 1A
     
   double hrs = (float)(period / 3600000.0f);  // ms to hours
 
-  bat1.mAh = dAs * hrs;   //  Tiny dAh consumed this tiny period di/dt
+  bat1.mAh = dAs * hrs;     //  Tiny dAh consumed this tiny period di/dt
  // bat1.mAh *= 100;        //  dA to mA  
-  bat1.mAh *= 10;        //  dA to mA ?
-  
+  bat1.mAh *= 10;           //  dA to mA ?
+  bat1.mAh *= 1.0625;       // Emirical adjustment Markus Greinwald 2019/05/21
   bat1.tot_mAh += bat1.mAh;   //   Add them all in
 }
 
@@ -90,6 +89,8 @@ void Accum_mAh2(uint32_t dAs) {        //  dA    10 = 1A
   bat2.mAh = dAs * hrs;   //  Tiny dAh consumed this tiny period di/dt
  // bat2.mAh *= 100;        //  dA to mA  
   bat2.mAh *= 10;        //  dA to mA ?
+  bat2.mAh *= 1.0625;       // Emirical adjustment Markus Greinwald 2019/05/21 
+  bat2.tot_mAh += bat2.mAh;   //   Add them all in
 }
 
 float Total_mAh2() {

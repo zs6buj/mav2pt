@@ -8,25 +8,25 @@ uint8_t sv_count = 0;
 
 #if (Target_Board == 0) // Teensy3x
 volatile uint8_t *uartC3;
-enum SPortMode { RX = 0, TX = 1 };
+enum SPortMode { rx , tx };
 SPortMode mode, modeNow;
 
 void setSPortMode(SPortMode mode);
 
-void setSPortMode(SPortMode mode) {   // To share single wire on TX pin
+void setSPortMode(SPortMode mode) {   // To share single wire on tx pin
 
-  if(mode == TX && modeNow !=TX) {
+  if(mode == tx && modeNow !=tx) {
     *uartC3 |= 0x20;                 // Switch S.Port into send mode
     modeNow=mode;
     #ifdef Frs_Debug_All
-    Debug.println("TX");
+    Debug.println("tx");
     #endif
   }
-  else if(mode == RX && modeNow != RX) {   
+  else if(mode == rx && modeNow != rx) {   
     *uartC3 ^= 0x20;                 // Switch S.Port into receive mode
     modeNow=mode;
     #ifdef Frs_Debug_All
-    Debug.println("RX");
+    Debug.println("rx");
     #endif
   }
 }
@@ -41,17 +41,17 @@ void FrSkySPort_Init(void)  {
  #if (SPort_Serial == 1)
   // Manipulate UART registers for S.Port working
    uartC3   = &UART0_C3;  // UART0 is Serial1
-   UART0_C3 = 0x10;       // Invert Serial1 Tx levels
+   UART0_C3 = 0x10;       // Invert Serial1 tx levels
    UART0_C1 = 0xA0;       // Switch Serial1 into single wire mode
-   UART0_S2 = 0x10;       // Invert Serial1 Rx levels;
+   UART0_S2 = 0x10;       // Invert Serial1 rx levels;
    
  //   UART0_C3 |= 0x20;    // Switch S.Port into send mode
  //   UART0_C3 ^= 0x20;    // Switch S.Port into receive modearmed
  #else
    uartC3   = &UART2_C3;  // UART2 is Serial3
-   UART2_C3 = 0x10;       // Invert Serial1 Tx levels
+   UART2_C3 = 0x10;       // Invert Serial1 tx levels
    UART2_C1 = 0xA0;       // Switch Serial1 into single wire mode
-   UART2_S2 = 0x10;       // Invert Serial1 Rx levels;
+   UART2_S2 = 0x10;       // Invert Serial1 rx levels;
  #endif
 #endif   
 } 
@@ -61,9 +61,9 @@ void FrSkySPort_Init(void)  {
 void ReadSPort(void) {
   uint8_t prevByt=0;
   #if (Target_Board == 0) // Teensy3x
-    setSPortMode(RX);
+    setSPortMode(rx);
   #endif  
-  setSPortMode(RX);
+  setSPortMode(rx);
   uint8_t Byt = 0;
   while ( frSerial.available())   {  
     Byt =  frSerial.read();
@@ -88,7 +88,7 @@ void ReadSPort(void) {
 #if defined Ground_Mode
 void Emulate_ReadSPort() {
   #if (Target_Board == 0)      // Teensy3x
-  setSPortMode(TX);
+  setSPortMode(tx);
   #endif
  
   FrSkySPort_Process();  
@@ -275,7 +275,7 @@ void FrSkySPort_Process() {
 // ***********************************************************************
 void FrSkySPort_SendByte(uint8_t byte, bool addCrc) {
   #if (Target_Board == 0)      // Teensy3x
-   setSPortMode(TX); 
+   setSPortMode(tx); 
  #endif  
  if (!addCrc) { 
    frSerial.write(byte);  
@@ -318,7 +318,7 @@ void FrSkySPort_SendCrc() {
 void FrSkySPort_SendDataFrame(uint8_t Instance, uint16_t Id, uint32_t value) {
 
   #if (Target_Board == 0)      // Teensy3x
-  setSPortMode(TX); 
+  setSPortMode(tx); 
   #endif
   
   #ifdef Ground_Mode   // Only if ground mode send these bytes, else XSR sends them

@@ -145,6 +145,7 @@ v2.00 2019-06-07 Plus version firmware ported to ESP32 Dev Module V1 successfull
 v2.01 2019-06-09 Added OLED display support
 v2.02 2019-05-18 Belatedly include Alex's Rangefinder PR that I missed.
 v2.03 2019-05-21 Reduce voltage and current display moving average smoothing
+                 Empirical correction of mAh consumed as per Markus Greinwald's measurements 
 */
 
 #include <CircularBuffer.h>

@@ -150,7 +150,8 @@ v1.0.10 2019-01-09 Change polling period in Air and Relay modes to 1mS. Trade of
 v1.0.11 2019-01-24 Merge urlu75 recommmendation as QLRS uses rssi from #35 rather than #65. Add #define QLRS option.
 v1.0.12 2019-01-30 Add some debugging for rssi   
 v1.0.13 2019-05-17 Redo Alex's Rangefinder pull   
-v1.0.14 2019-05-21 Reduce voltage and current display moving average smoothing  
+v1.0.14 2019-05-21 Reduce voltage and current display moving average smoothing 
+                   Empirical correction of mAh consumed as per Markus Greinwald's measurements 
 */
 
 #include <CircularBuffer.h>
