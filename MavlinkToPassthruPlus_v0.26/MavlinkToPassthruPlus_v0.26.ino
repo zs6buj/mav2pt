@@ -1,4 +1,4 @@
- 
+   
 /*  *****************************************************************************
 
     MavToPassthruPlus  July 2018
@@ -43,7 +43,7 @@
     inverter). The Mavlink procol telemetry can still be fed on to Mission Planner or other GCSs.
 
     For now the Teensy 3.2 is prefered to the STM32 because of it's small size. It fits snugly 
-    into the Orange LRS UHF rx/tx enclosure in the back bay of the Taranis, and requires no 
+    into the Orange LRS UHF RX/TX enclosure in the back bay of the Taranis, and requires no 
     external inverter.
 
    FrSky telemetry is unlike regular telemetry. It evolved from a simple system to poll sensors 
@@ -93,77 +93,92 @@
    1 Requested from the flight controller via Mavlink
    2 Defined within this firmware  or 
    3 Defined within the LUA script on the Taranis/Horus. This is the prefered method as the Orange's
-     rx (and Teensy tx) line is freed-up for use for BlueTooth or other Mavlink connections
+     RX (and Teensy TX) line is freed-up for use for BlueTooth or other Mavlink connections
      
    Please #define the appropriate Battery_mAh_Source below
    
     Connections to Teensy3.2 are:
     0) USB                         Flashing and serial monitor for debug
-    1) SPort S     -->tx1 Pin 1    S.Port out to Taranis bay, bottom pin
-    2) Mavlink     <--rx2 Pin 9    Mavlink from Taranis to Teensy
-    3) Mavlink     -->tx2 Pin 10   Mavlink from Teensy to Taranis
-    4) Aux_Mavlink <--rx3 Pin 7    Auxiliary Mavlink From BT Module to Teensy
-    5) Aux_Mavlink -->tx3 Pin 8    NOT NECESSARY - wire direct from Orange tx to BT rx  
+    1) SPort S     -->TX1 Pin 1    S.Port out to Taranis bay, bottom pin
+    2) Mavlink     <--RX2 Pin 9    Mavlink from Taranis to Teensy
+    3) Mavlink     -->TX2 Pin 10   Mavlink from Teensy to Taranis
+    4) Aux_Mavlink <--RX3 Pin 7    Auxiliary Mavlink From BT Module to Teensy
+    5) Aux_Mavlink -->TX3 Pin 8    NOT NECESSARY - wire direct from Orange TX to BT RX  
     6) Vcc 3.3V !
     7) GND
 
    Connections to Blue Pill STM32F103C  are:
    
-    0) USB/TTL     UART0   -->tx1 Pin A9   Flashing and serial monitor for debug
-    0) USB/TTL     UART0   -->rx1 Pin A10 
+    0) USB/TTL     -->TX1 Pin A9   Flashing and serial monitor for debug
+    0) USB/TTL     -->RX1 Pin A10 
     
-    1) SPort S     UART1   -->tx2 Pin A2   Serial1 to inverter, convert to single wire then to S.Port
-    2) SPort S     UART1   <--rx2 Pin A3   Serial1 To inverter, convert to single wire then to S.Port
-    3) Mavlink     UART2   -->tx3 Pin B10  Serial2 Mavlink from STM32 to Taranis 
-    4) Mavlink     UART2   <--rx3 Pin B11  Serial2 Mavlink from Taranis to STM32  
-    5) Vcc 3.3V !
-    6) GND
+    1) SPort S     -->TX2 Pin A2   Serial1 to inverter, convert to single wire then to S.Port
+    2) SPort S     <--RX2 Pin A3   Serial1 To inverter, convert to single wire then to S.Port
+    3) Mavlink     -->TX3 Pin B10  Mavlink from STM32 to Taranis 
+    4) Mavlink     <--RX3 Pin B11  Mavlink from Taranis to STM32  
+    5) Aux_Mavlink    Not available   
+    6) Aux_Mavlink    Not available
+    7) Vcc 3.3V !
+    8) GND
 
    Connections to Maple Mini STM32F103C are:
     0) USB                          Flashing and serial monitor for debug
-    1) SPort S     -->tx1 Pin A10   Serial1 to inverter, convert to single wire then to S.Port
-    2) SPort S     <--rx1 Pin A9    Serial1 To inverter, convert to single wire then to S.Port
-    3) Mavlink     -->tx2 Pin A2    Serial2 Mavlink from STM32 to Taranis
-    4) Mavlink     <--rx2 Pin A3    Serial2 Mavlink from Taranis to STM32 
-    5) Aux_Mavlink -->tx3 Pin B10   Serial3 NOT NECESSARY - wire direct from Orange tx to BT rx
-    6) Aux_Mavlink <--rx3 Pin B11   Serial3 Auxiliary Mavlink From BT Module to Teensy  
+    1) SPort S     -->TX1 Pin A10   Serial1 to inverter, convert to single wire then to S.Port
+    2) SPort S     <--RX1 Pin A9    Serial1 To inverter, convert to single wire then to S.Port
+    3) Mavlink     -->TX2 Pin A2    Serial2 Mavlink from STM32 to Taranis
+    4) Mavlink     <--RX2 Pin A3    Serial2 Mavlink from Taranis to STM32 
+    5) Aux_Mavlink -->TX3 Pin B10   Serial3 NOT NECESSARY - wire direct from Orange TX to BT RX
+    6) Aux_Mavlink <--RX3 Pin B11   Serial3 Auxiliary Mavlink From BT Module to Teensy  
     7) Vcc 3.3V !
     8) GND  
     
-  Connections to ESP32 are: 
-   0) USB           UART0                    Flashing and serial monitor for debug
-   1) SPort S       UART1   <--rx1 pin d12   Already inverted, S.Port in from single-wire combiner from Taranis bay, bottom pin
-   2)               UART1   -->tx1 pin d14   Already inverted, S.Port out to single-wire combiner to Taranis bay, bottom pin             
-   3) Mavlink       UART2   <--rx2 pin       Mavlink from Taranis to Teensy
-   4)               UART2   -->tx2 pin       Mavlink from Teensy to Taranis
-   5) Vcc 3.3V !
-   6) GND
-   
 Change log:
-                                    
-v2.00 2019-06-07 Plus version firmware ported to ESP32 Dev Module V1 successfully - no improvements  
-v2.01 2019-06-09 Added OLED display support
-v2.02 2019-05-18 Belatedly include Alex's Rangefinder PR that I missed.
+
+v0.03 2018-07-11  Add sensor types 0x5009 RX Channels, 0x5010 VFR Hud 2018-07-17 board LED solid when mavGood
+v0.04 2018-07-31  Add support for Maple Mini. Change rc channel 0x5009 as per yaapu's proposal  
+v0.05 2018-08-02  Add circular buffers for mavlink incoming from FC
+v0.06 2018-08-03  Fixed "#if defined Target_Teensy3x" not changed everywhere - Thanks Alex
+                  Translate RC values : PWM 1000 to 2000 -> 6 bit 0-63 plus sign bit
+v0.07             Do some tests                  
+v0.08 2018-08-14  Servo outputs, not RC inputs 
+v0.09 2018-09-20  Add support for PX4 flight stack. Specifically flight mode. 2018-09-24 Use di/dt for mAh. 
+v0.10 2018-09-26  Fix bug in current consumption. Two options, from FC or accumulated di/dt. They now track each other.
+v0.11 2018-08-30  PX4 new flight mode scheme. Clean up battery capacity source logic.
+v0.12 2018-09-11  Add support for missions 
+v0.13 2018-09-16  COG - Azimuth offset as per yaapu requirements 
+v0.14 2018-09-17  Missions 0x500B after TLog testing. 
+v0.15 2018-09-19  Included Alex's code into 0x500B. Use #24 for COG, not #62.
+v0.16 2018-09-28  Send mission (waypoint) count as parameter id = 6 in 0x5007 Parameter frame
+v0.17 2018-09-28  Switch to Mavlink 2
+v0.18 2018-10-07  Update PrintMavBuffer() for Mav2
+v0.19 2018-10-08  Re-arrange our custom message IDs as per Alex's request
+v0.20 2018-10-29  a) Blue Pill does not have serial 3. Trap and reports this configuration in pre-compile
+                  b) If not Teensy don't try to switch into single wire mode in ReadSPort()   
+v0.21 2018-10-29  In Air and Relay modes enter Frsky polling loop immediately when any single Mavlink record has been received.  
+                  Response is much faster, especially for the STM32F103 
+v0.22 2019-01-05  Fix format bug in #24 debug Debug.print(ap_eph)and Debug.print(ap_epv). Int not float.     
+v0.23 2019-01-09  Change polling period in Air and Relay modes to 1mS. Trade off to maximise response but maintain sync. 
+      2019-01-23  Merge pull from yaapu to change instance from 0x1c to 0x1b in relay mode                                        
+v0.24 2019-01-24  Merge urlu75 recommmendation as QLRS uses rssi from #35 rather than #65. Add #define QLRS option.  
+v0.25 2019-05-18  Belatedly include Alex's Rangefinder PR that I missed. 
+v0.26 2019-05-21  Reduce voltage and current display moving average smoothing
 */
 
 #include <CircularBuffer.h>
-#include <..\c_library_v2\ardupilotmega\mavlink.h>
-          
-#include "SSD1306Wire.h" 
-SSD1306Wire  display(0x3c, 19, 18); //  5, 4);  //  SDA  SCL    19, 18);  //
+#include <..\c_library_v2\ardupilotmega\mavlink.h>          
+
 //************************************* Please select your options here before compiling **************************
 // Choose one (only) of these target boards
-//#define Target_Board   0      // Teensy 3.x              
-//#define Target_Board   1      // Blue Pill STM32F103C    
-//#define Target_Board   2      // Maple_Mini STM32F103C  
-#define Target_Board   3      // Espressif ESP32 Dev Module 
+#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
+//#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
+//#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
 
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
 //#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
-//#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both rx and tx lines must be connected      
+//#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both RX and TX lines must be connected      
 //#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
 #define Battery_mAh_Source  3  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
 
@@ -178,30 +193,28 @@ const uint16_t bat2_capacity = 0;
 //#define QLRS                        // Un-comment this line only if you are using the QLRS telemetry system
 
 //*** LEDS ********************************************************************************************************
-
+//uint16_t MavStatusLed = 13; 
 uint8_t MavLedState = LOW; 
 uint16_t BufStatusLed = 12; 
 uint8_t BufLedState = LOW; 
 
-#if (Target_Board == 0)      // Teensy3x
+#if (Target_Board == 0) // Teensy3x
   #define MavStatusLed  13
-#elif (Target_Board == 1)    // Blue Pill
+#elif (Target_Board == 1) // Blue Pill
   #define MavStatusLed  PC13
-#elif (Target_Board == 2)    //  Maple Mini
-  #define MavStatusLed  33        // PB1
-#elif (Target_Board == 3)    //  ESP32 Dev Module V2
-  #define MavStatusLed  16       // Dev Module=2, TTGO OLED Battey board =16   
+#elif (Target_Board == 2) //  Maple Mini
+  #define MavStatusLed  33  // PB1
 #endif
 //********************************************************* 
-#if (Target_Board == 1) || (Target_Board == 3) // Blue Pill or ESP32
+#if (Target_Board == 1) // Blue Pill
   #if defined Aux_Port_Enabled       
-    #error Board does not have enough UARTS for Auxilliary port. Un-comment #define Aux_Port_Enabled.
+    #error Blue Pill board does not have enough UARTS for Auxilliary port. Un-comment #define Aux_Port_Enabled.
   #endif
 #endif
 
-#if (Target_Board == 1) || (Target_Board == 3) // Blue Pill or ESP32
+#if (Target_Board == 1) // Blue Pill
   #if (SPort_Serial  == 3)    
-    #error Board does not have Serial3. This configuration is not possible.
+    #error Blue Pill board does not have Serial3. This configuration is not possible.
   #endif
 #endif
 
@@ -210,19 +223,13 @@ uint8_t BufLedState = LOW;
 #define mavSerial           Serial2        
 #define mavBaud             57600   
 
-#if (Target_Board == 1)
- #if (SPort_Serial == 1) 
+#if (SPort_Serial == 1) 
   #define frSerial              Serial1        // S.Port 
   #elif (SPort_Serial == 3)
     #define frSerial            Serial3        // S.Port 
   #else
     #error SPort_Serial can only be 1 or 3. Please correct.
- #endif 
-#endif 
-
-#if (Target_Board == 2) || (Target_Board == 3)
-  #define frSerial              Serial1        // S.Port 
-#endif 
+#endif  
    
 #if defined Aux_Port_Enabled
   #if (SPort_Serial == 3) 
@@ -683,63 +690,17 @@ CircularBuffer<ST_type, 10> MsgRingBuff;
 
 CircularBuffer<mavlink_message_t, 10> MavRingBuff; 
 
-// My OLED declarations *************************
-
-#define max_col  18
-#define max_row   4
-
-struct OLED_line {
-  char OLx[max_col];
-  };
-  
- OLED_line OL[max_row]; 
-
-uint8_t row = 0;
-uint8_t row_hgt;
 // ******************************************
 void setup()  {
- 
-  Debug.begin(115200);
-  delay(2500);
-  Debug.println("Starting .... ");
-
-  display.init();
-  display.flipScreenVertically();
-  display.setFont(Dialog_plain_12);  //  col=18 x row=4  on 128x64 display
-  display.setTextAlignment(TEXT_ALIGN_LEFT);
-  OledDisplayln("Starting .... ");
   
-/*
-  display.setFont(Dialog_plain_8);  //  col=24 x row 8  on 128x64 display
-  display.setFont(Dialog_plain_16);    //  col=13 x row=4  on 128x64 display
-  
-  OledDisplayln("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-  OledDisplayln("ABCDEFGHIJKLMNOPQRSTUVWXYZ");  
-  OledDisplayln("abcdefghijklmnopqrstuvwxyz");
-  OledDisplayln("bcdefghijklmnopqrstuvwxyza");
-  OledDisplayln("cdefghijklmnopqrstuvwxyzab");
-  OledDisplayln("defghijklmnopqrstuvwxyabcd");
-  OledDisplayln("efghijklmnopqrstuvwxyabcde");
-  OledDisplayln("fghijklmnopqrstuvwxyabcdef");
-  OledDisplayln("ghijklmnopqrstuvwxyabcdefg");
-  OledDisplayln("hijklmnopqrstuvwxyabcdefgh");
-  OledDisplayln("ijklmnopqrstuvwxyabcdefghi");
-  OledDisplayln("jklmnopqrstuvwxyabcdefghij");
-  OledDisplayln("klmnopqrstuvwxyabcdefghijk");
-  OledDisplayln("lmnopqrstuvwxyabcdefghijkl");  
-   */
   FrSkySPort_Init();
-
-  #if (Target_Board == 3) // ESP32
- //   mavSerial.begin(mavBaud, SERIAL_8N1, 9, 10);
-    mavSerial.begin(mavBaud);
-  #else
-    mavSerial.begin(mavBaud);
-  #endif
- 
+  mavSerial.begin(mavBaud);
+  
   #if defined  Aux_Port_Enabled 
-    auxSerial.begin(auxBaud);
+  auxSerial.begin(auxBaud);
   #endif
+  
+  Debug.begin(115200);
 
   mavGood = false;
   homGood = false;     
@@ -749,70 +710,55 @@ void setup()  {
   rds_millis=millis();
   em_millis=millis();
   
+  delay(2500);
+  Debug.println("Starting .... ");
+  
   Debug.print("Target Board is ");
   #if (Target_Board == 0) // Teensy3x
-    Debug.println("Teensy 3.x");
-    OledDisplayln("Teensy 3.x");
+  Debug.println("Teensy 3.x");
   #elif (Target_Board == 1) // Blue Pill
-    Debug.println("Blue Pill STM32F103C");
-    OledDisplayln("Blue Pill STM32F103C");
+  Debug.println("Blue Pill STM32F103C");
   #elif (Target_Board == 2) //  Maple Mini
-    Debug.println("Maple Mini STM32F103C");
-    OledDisplayln("Maple Mini STM32F103C");
-  #elif (Target_Board == 3) //  ESP32 Dev Module
-    Debug.println("ESP32 Dev Module");
-    OledDisplayln("ESP32 Dev Module");
+  Debug.println("Maple Mini STM32F103C");
   #endif
 
   #ifdef Ground_Mode
-    Debug.println("Ground Mode");
-    OledDisplayln("Ground Mode");
+  Debug.println("Ground Mode");
   #endif
   #ifdef Air_Mode
-    Debug.println("Air Mode");
-    OledDisplayln("Air Mode");
+  Debug.println("Air Mode");
   #endif
   #ifdef Relay_Mode
-    Debug.println("Relay Mode");
-    OledDisplayln("Relay Mode");
+  Debug.println("Relay Mode");
   #endif
 
   #if defined Aux_Port_Enabled
   Debug.print("Auxilliary Mavlink port enabled");
-  OledDisplayln("Aux Mavlink port enabled");
     #ifdef auxDuplex
       Debug.println(" for two-way telemetry to/from Flight Control computer"); 
-      OledDisplayln("Half Duplex");
     #else 
       Debug.println(" for one-way telemetry down from Flight Control computer"); 
-      OledDisplayln("Simplex");
     #endif 
   #endif  
   
   #if (Battery_mAh_Source == 1)  
     Debug.println("Battery_mAh_Source = 1 - Get battery capacities from the FC");
-    OledDisplayln("mAh from FC");
   #elif (Battery_mAh_Source == 2)
     Debug.println("Battery_mAh_Source = 2 - Define battery capacities in this firmware");  
-    OledDisplayln("mAh defined in fw");
   #elif (Battery_mAh_Source == 3)
-    Debug.println("Battery_mAh_Source = 3 - Define battery capacities in the LUA script");
-    OledDisplayln("Define mAh in LUA");     
+    Debug.println("Battery_mAh_Source = 3 - Define battery capacities in the LUA script"); 
   #else
     #error You must define at least one Battery_mAh_Source. Please correct.
   #endif            
 
   #if (SPort_Serial == 1) 
-    Debug.println("Using Serial_1 for S.Port");     
-    OledDisplayln("S.PORT is Serial1");  
+    Debug.println("Using Serial_1 for S.Port"); 
   #else
-    Debug.println("Using Serial_3 for S.Port");
-    OledDisplayln("S.PORT is Serial3");       
+    Debug.println("Using Serial_3 for S.Port"); 
   #endif  
 
   #if defined QLRS 
-    Debug.println("QLRS variant of Mavlink");
-    OledDisplayln("QLRS variant!");        
+    Debug.println("QLRS variant"); 
   #endif
 
    pinMode(MavStatusLed, OUTPUT); 
@@ -828,9 +774,8 @@ void loop()  {
   if(mavGood) {                      // If we have a link, request data streams from MavLink every 5s
     if(millis()-rds_millis > 5000) {
     rds_millis=millis();
-    Debug.println("Requesting data streams"); 
-    OledDisplayln("Reqstg datastreams");    
-    RequestDataStreams();   // ensure Teensy Tx connected to Taranis rx  (When SRx not enumerated)
+    Debug.println("Requesting data streams");    
+    RequestDataStreams();   // ensure Teensy Tx connected to Taranis RX  (When SRx not enumerated)
     }
   }
   #endif 
@@ -846,8 +791,7 @@ void loop()  {
 
   if(mavGood && (millis() - hb_millis) > 3000)  {   // if no heartbeat from APM in 3s then assume mav not connected
     mavGood=false;
-    Debug.println("Heartbeat timed out! Mavlink not connected"); 
-    OledDisplayln("Mavlink lost!");       
+    Debug.println("Heartbeat timed out! Mavlink not connected");    
     hb_count = 0;
    } 
 
@@ -860,13 +804,11 @@ void loop()  {
       Request_Param_Read(364);    // Request Bat2 capacity
       Request_Param_Read(364);    
       Debug.println("Battery capacities requested");
-      OledDisplayln("Bat mAh from FC");    
       ap_bat_paramsReq = true;
     } else {
       if (ap_bat_paramsRead &&  (!parm_msg_shown)) {
         parm_msg_shown = true; 
         Debug.println("Battery params successfully read"); 
-        OledDisplayln("Bat params read ok"); 
       }
     } 
   }
@@ -910,10 +852,8 @@ void QueueAvailableMavFrames() {
   while(mavSerial.available())             { 
     uint8_t c = mavSerial.read();
     if(mavlink_parse_char(MAVLINK_COMM_0, c, &ring_msg, &status)) {
-      if (MavRingBuff.isFull()) {
+      if (MavRingBuff.isFull()) 
         Debug.println("MavRingBuff is full. Dropping records!");
-        OledDisplayln("Mav buffer full!"); 
-      }
        else {
         MavRingBuff.push(ring_msg);
         #if defined Mav_Debug_RingBuff
@@ -1477,15 +1417,15 @@ void DecodeOneMavFrame() {
             Debug.print("fixed="); Debug.println(ap_fixed);                                
          #endif        
           break; 
-        case MAVLINK_MSG_ID_RANGEFINDER:       // #173   http://mavlink.org/messages/ardupilotmega
+         case MAVLINK_MSG_ID_RANGEFINDER:       // #173   http://mavlink.org/messages/ardupilotmega
           if (!mavGood) break;       
           ap_range = mavlink_msg_rangefinder_get_distance(&msg);  // distance in meters
           #if defined Mav_Debug_All || defined Mav_Debug_Range
             Debug.print("Mavlink in #173 rangefinder: ");        
             Debug.print(" distance=");
             Debug.println(ap_range);   // now V
-          #endif     
-          break;            
+          #endif
+          break;                  
         case MAVLINK_MSG_ID_AHRS2:             // #178   http://mavlink.org/messages/ardupilotmega
           if (!mavGood) break;       
           break;  
@@ -1769,7 +1709,7 @@ void PrintMavBuffer (const void *object){
 
 byte      b; 
 uint16_t  lth;
-bool      mav1 = true;  //(msg.magic == MAVLINK_Stx_MAVLINK1);
+bool      mav1 = (msg.magic == MAVLINK_STX_MAVLINK1);
 bool      mav2 = !mav1;
 uint32_t  mav2_msgid;
 
@@ -2036,25 +1976,3 @@ void ShowPeriod() {
   prev_millis=now_millis;
 }
 //***************************************************
-void OledDisplayln(String S) {
-
-  uint8_t i=0; 
-  row_hgt = (int)64 / max_row;
-  if (row>(max_row-1)) {  // last line    0 thru max_row-1  
-    display.clear();
-    for (i = 0; i < (max_row-1); i++) {     // leave space for new line at the bottom
-     // if (i > 1) {   // don't scroll the 2 heading lines   
-      if (i >= 0) {  
-        memset(OL[i].OLx, '\0', sizeof(OL[i].OLx));  // flush 
-        strncpy(OL[i].OLx, OL[i+1].OLx, max_col-1);       
-      }
-      display.drawString(0, (i*row_hgt),OL[i].OLx);
-    }
-    display.display();
-    row=max_row-1;
-  }
-  strncpy(OL[row].OLx, S.c_str(), max_col-1 );
-  display.drawString(0, (row * row_hgt), OL[row].OLx);
-  display.display();
-  row++;
-}
