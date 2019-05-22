@@ -153,13 +153,20 @@ v2.03 2019-05-21 Reduce voltage and current display moving average smoothing
 #include <..\c_library_v2\ardupilotmega\mavlink.h>
           
 #include "SSD1306Wire.h" 
-SSD1306Wire  display(0x3c, 19, 18); //  5, 4);  //  SDA  SCL    19, 18);  //
+SSD1306Wire  display(0x3c, 21, 22); //  5, 4);  //  SDA  SCL    19, 18);  //
 //************************************* Please select your options here before compiling **************************
 // Choose one (only) of these target boards
 //#define Target_Board   0      // Teensy 3.x              
 //#define Target_Board   1      // Blue Pill STM32F103C    
 //#define Target_Board   2      // Maple_Mini STM32F103C  
 #define Target_Board   3      // Espressif ESP32 Dev Module 
+
+#if (Target_Board == 3) // ESP32
+#include "BluetoothSerial.h"
+#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
+#error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
+#endif
+#endif
 
 // Choose one (only) of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
@@ -243,7 +250,7 @@ uint8_t BufLedState = LOW;
 #define Max_Waypoints  256     // Note. This is a RAM trade-off. If exceeded then Debug message and shut down
 
 // Debugging options below ***************************************************************************************
-#define Mav_Debug_All
+//#define Mav_Debug_All
 //#define Frs_Debug_All
 //#define Frs_Debug_Payload
 //#define Mav_Debug_RingBuff
@@ -683,7 +690,6 @@ typedef struct  {
 ST_type ST_record;
 
 CircularBuffer<ST_type, 10> MsgRingBuff; 
-
 CircularBuffer<mavlink_message_t, 10> MavRingBuff; 
 
 // My OLED declarations *************************
@@ -699,6 +705,12 @@ struct OLED_line {
 
 uint8_t row = 0;
 uint8_t row_hgt;
+
+// BT support declarations *****************
+#if (Target_Board == 3) // ESP32
+BluetoothSerial SerialBT;
+#endif
+
 // ******************************************
 void setup()  {
  
@@ -731,8 +743,14 @@ void setup()  {
   OledDisplayln("klmnopqrstuvwxyabcdefghijk");
   OledDisplayln("lmnopqrstuvwxyabcdefghijkl");  
    */
-  FrSkySPort_Init();
 
+#if (Target_Board == 3) // ESP32
+  SerialBT.begin("ESP32"); //Bluetooth device name
+  OledDisplayln("BT Started");
+#endif
+
+  FrSkySPort_Init();
+  
   #if (Target_Board == 3) // ESP32
  //   mavSerial.begin(mavBaud, SERIAL_8N1, 9, 10);
     mavSerial.begin(mavBaud);
@@ -820,13 +838,9 @@ void setup()  {
 
    pinMode(MavStatusLed, OUTPUT); 
    pinMode(BufStatusLed, OUTPUT); 
-   
 }
-
 // ******************************************
-// ******************************************
-void loop()  {
-  
+void loop() {
   #ifdef Data_Streams_Enabled
   if(mavGood) {                      // If we have a link, request data streams from MavLink every 5s
     if(millis()-rds_millis > 5000) {
@@ -884,6 +898,21 @@ void loop()  {
 
   if(mavSerial.available()) QueueAvailableMavFrames(); // to the ring buffer
 
+#if (Target_Board == 3) // ESP32
+  mavlink_message_t msg; 
+  mavlink_status_t status;
+
+  while(SerialBT.available()) { 
+    uint8_t c = SerialBT.read();
+    if(mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status)) {
+      Debug.println("SerialBT passed up to FC:");PrintMavBuffer(&msg);
+      len = mavlink_msg_to_send_buffer(buf, &msg);
+      mavSerial.write(buf,len);
+      break;
+    }
+  }
+#endif
+
   DecodeOneMavFrame();                     // Decode a Mavlink frame from the ring buffer if there is one
 
   Aux_ReceiveAndForward();                 // Service aux incoming if enabled
@@ -912,7 +941,9 @@ void QueueAvailableMavFrames() {
   mavlink_status_t status;
   while(mavSerial.available())             { 
     uint8_t c = mavSerial.read();
+
     if(mavlink_parse_char(MAVLINK_COMM_0, c, &ring_msg, &status)) {
+      // MAIN Queue
       if (MavRingBuff.isFull()) {
         Debug.println("MavRingBuff is full. Dropping records!");
         OledDisplayln("Mav buffer full!"); 
@@ -923,7 +954,13 @@ void QueueAvailableMavFrames() {
           Debug.print(" Mav queue length after push= "); 
           Debug.println(MavRingBuff.size());
         #endif
-       }
+      }
+#if (Target_Board == 3) // ESP32
+      len = mavlink_msg_to_send_buffer(buf, &ring_msg);
+      if ( SerialBT.hasClient()) {
+        SerialBT.write(buf,len);
+      }
+#endif
     }
   }
 }
