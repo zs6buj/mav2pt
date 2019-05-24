@@ -925,7 +925,9 @@ void DecodeOneMavFrame() {
         Debug.println("SerialBT passed down from FC:");
         PrintMavBuffer(&msg);
       #endif
-      SerialBT.write(buf,len);
+      if ( SerialBT.hasClient()) {
+        SerialBT.write(buf,len);
+      }
     #endif
      
     // Debug.print(" msgid="); Debug.println(msg.msgid); 
