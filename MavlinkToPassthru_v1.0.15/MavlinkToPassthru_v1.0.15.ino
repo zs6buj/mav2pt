@@ -153,13 +153,14 @@ v1.0.13 2019-05-17 Redo Alex's Rangefinder pull
 v1.0.14 2019-05-21 Reduce voltage and current display moving average smoothing 
                    Empirical correction of mAh consumed as per Markus Greinwald's measurements 
                    Change mav heartbeat timeout from 3 to 6 seconds
+v1.0.15 2019-06-05 Fix for PX4 flight stack. It uses GPS_Raw #24 rather than GPS_Int #33 like APM.                       
 */
 
 #include <CircularBuffer.h>
 #include <..\c_library_v2\ardupilotmega\mavlink.h>  
 
 //************************************* Please select your options here before compiling **************************
-#define PX4_Flight_stack   //  If your flight stack is PX4 and not APM, un-comment this line
+//#define PX4_Flight_stack   //  If your flight stack is PX4 and not APM, un-comment this line
 // Choose one (only) of these target boards
 #define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
 //#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
@@ -390,10 +391,10 @@ uint8_t  ap_param_type;
 uint16_t ap_param_count;              //  Total number of onboard parameters
 uint16_t ap_param_index;              //  Index of this onboard parameter
 
-// Message #24  GPS_RAW_INT 
+// Message #24  GPS_RAW_INT   - Used by PX4
 uint8_t    ap_fixtype = 3;            // 0= No GPS, 1=No Fix, 2=2D Fix, 3=3D Fix, 4=DGPS, 5=RTK_Float, 6=RTK_Fixed, 7=Static, 8=PPP
 uint8_t    ap_sat_visible = 0;        // numbers of visible satelites
-int32_t    ap_latitude = 0;           // 7 assumed decimal places
+int32_t    ap_latitude = 0;           // 7 assumed decimal places - use ap_lat and ap_lon for interoperability between APM and PX4
 int32_t    ap_longitude = 0;          // 7 assumed decimal places
 int32_t    ap_amsl24 = 0;             // 1000 = 1m
 uint16_t   ap_eph;                    // GPS HDOP horizontal dilution of position (unitless)
@@ -916,13 +917,13 @@ void DecodeOneMavFrame() {
             Debug.println(ap_param_index);
           #endif       
           break;    
-        case MAVLINK_MSG_ID_GPS_RAW_INT:          // #24
+        case MAVLINK_MSG_ID_GPS_RAW_INT:          // #24 - Used by PX4
           if (!mavGood) break;        
           ap_fixtype = mavlink_msg_gps_raw_int_get_fix_type(&msg);                   // 0 = No GPS, 1 =No Fix, 2 = 2D Fix, 3 = 3D Fix
           ap_sat_visible =  mavlink_msg_gps_raw_int_get_satellites_visible(&msg);    // number of visible satellites
           if(ap_fixtype > 2)  {
-            ap_latitude = mavlink_msg_gps_raw_int_get_lat(&msg);
-            ap_longitude = mavlink_msg_gps_raw_int_get_lon(&msg);
+            ap_lat = mavlink_msg_gps_raw_int_get_lat(&msg);
+            ap_lon = mavlink_msg_gps_raw_int_get_lon(&msg);
             ap_amsl24 = mavlink_msg_gps_raw_int_get_alt(&msg);             // 1m =1000 
             ap_eph = mavlink_msg_gps_raw_int_get_eph(&msg);                // GPS HDOP 
             ap_epv = mavlink_msg_gps_raw_int_get_epv(&msg);                // GPS VDOP 
@@ -944,8 +945,8 @@ void DecodeOneMavFrame() {
               else Debug.print(" Unknown");
 
             Debug.print("  sats visible="); Debug.print(ap_sat_visible);
-            Debug.print("  latitude="); Debug.print((float)(ap_latitude)/1E7, 7);
-            Debug.print("  longitude="); Debug.print((float)(ap_longitude)/1E7, 7);
+            Debug.print("  latitude="); Debug.print((float)(ap_lat)/1E7, 7);
+            Debug.print("  longitude="); Debug.print((float)(ap_lon)/1E7, 7);
             Debug.print("  gps alt amsl="); Debug.print((float)(ap_amsl24)/1E3, 1);
             Debug.print("  eph (hdop)="); Debug.print(ap_eph);               // HDOP
             Debug.print("  epv (vdop)="); Debug.print(ap_epv);
@@ -1002,7 +1003,7 @@ void DecodeOneMavFrame() {
           #endif             
 
           break;  
-        case MAVLINK_MSG_ID_GLOBAL_POSITION_INT:     // #33
+        case MAVLINK_MSG_ID_GLOBAL_POSITION_INT:     // #33 used by APM
           if ((!mavGood) || (ap_fixtype < 3)) break;  
           ap_lat = mavlink_msg_global_position_int_get_lat(&msg);             // Latitude, expressed as degrees * 1E7
           ap_lon = mavlink_msg_global_position_int_get_lon(&msg);             // Pitch angle (rad, -pi..+pi)
