@@ -14,8 +14,8 @@ typedef struct __mavlink_rc_channels_raw_t {
  uint16_t chan6_raw; /*< [us] RC channel 6 value.*/
  uint16_t chan7_raw; /*< [us] RC channel 7 value.*/
  uint16_t chan8_raw; /*< [us] RC channel 8 value.*/
- uint8_t port; /*<  Servo output port (set of 8 outputs = 1 port). Most MAVs will just use one, but this allows for more than 8 servos.*/
- uint8_t rssi; /*< [%] Receive signal strength indicator. Values: [0-100], 255: invalid/unknown.*/
+ uint8_t port; /*<  Servo output port (set of 8 outputs = 1 port). Flight stacks running on Pixhawk should use: 0 = MAIN, 1 = AUX.*/
+ uint8_t rssi; /*<  Receive signal strength indicator in device-dependent units/scale. Values: [0-254], 255: invalid/unknown.*/
 }) mavlink_rc_channels_raw_t;
 
 #define MAVLINK_MSG_ID_RC_CHANNELS_RAW_LEN 22
@@ -72,7 +72,7 @@ typedef struct __mavlink_rc_channels_raw_t {
  * @param msg The MAVLink message to compress the data into
  *
  * @param time_boot_ms [ms] Timestamp (time since system boot).
- * @param port  Servo output port (set of 8 outputs = 1 port). Most MAVs will just use one, but this allows for more than 8 servos.
+ * @param port  Servo output port (set of 8 outputs = 1 port). Flight stacks running on Pixhawk should use: 0 = MAIN, 1 = AUX.
  * @param chan1_raw [us] RC channel 1 value.
  * @param chan2_raw [us] RC channel 2 value.
  * @param chan3_raw [us] RC channel 3 value.
@@ -81,7 +81,7 @@ typedef struct __mavlink_rc_channels_raw_t {
  * @param chan6_raw [us] RC channel 6 value.
  * @param chan7_raw [us] RC channel 7 value.
  * @param chan8_raw [us] RC channel 8 value.
- * @param rssi [%] Receive signal strength indicator. Values: [0-100], 255: invalid/unknown.
+ * @param rssi  Receive signal strength indicator in device-dependent units/scale. Values: [0-254], 255: invalid/unknown.
  * @return length of the message in bytes (excluding serial stream start sign)
  */
 static inline uint16_t mavlink_msg_rc_channels_raw_pack(uint8_t system_id, uint8_t component_id, mavlink_message_t* msg,
@@ -130,7 +130,7 @@ static inline uint16_t mavlink_msg_rc_channels_raw_pack(uint8_t system_id, uint8
  * @param chan The MAVLink channel this message will be sent over
  * @param msg The MAVLink message to compress the data into
  * @param time_boot_ms [ms] Timestamp (time since system boot).
- * @param port  Servo output port (set of 8 outputs = 1 port). Most MAVs will just use one, but this allows for more than 8 servos.
+ * @param port  Servo output port (set of 8 outputs = 1 port). Flight stacks running on Pixhawk should use: 0 = MAIN, 1 = AUX.
  * @param chan1_raw [us] RC channel 1 value.
  * @param chan2_raw [us] RC channel 2 value.
  * @param chan3_raw [us] RC channel 3 value.
@@ -139,7 +139,7 @@ static inline uint16_t mavlink_msg_rc_channels_raw_pack(uint8_t system_id, uint8
  * @param chan6_raw [us] RC channel 6 value.
  * @param chan7_raw [us] RC channel 7 value.
  * @param chan8_raw [us] RC channel 8 value.
- * @param rssi [%] Receive signal strength indicator. Values: [0-100], 255: invalid/unknown.
+ * @param rssi  Receive signal strength indicator in device-dependent units/scale. Values: [0-254], 255: invalid/unknown.
  * @return length of the message in bytes (excluding serial stream start sign)
  */
 static inline uint16_t mavlink_msg_rc_channels_raw_pack_chan(uint8_t system_id, uint8_t component_id, uint8_t chan,
@@ -214,7 +214,7 @@ static inline uint16_t mavlink_msg_rc_channels_raw_encode_chan(uint8_t system_id
  * @param chan MAVLink channel to send the message
  *
  * @param time_boot_ms [ms] Timestamp (time since system boot).
- * @param port  Servo output port (set of 8 outputs = 1 port). Most MAVs will just use one, but this allows for more than 8 servos.
+ * @param port  Servo output port (set of 8 outputs = 1 port). Flight stacks running on Pixhawk should use: 0 = MAIN, 1 = AUX.
  * @param chan1_raw [us] RC channel 1 value.
  * @param chan2_raw [us] RC channel 2 value.
  * @param chan3_raw [us] RC channel 3 value.
@@ -223,7 +223,7 @@ static inline uint16_t mavlink_msg_rc_channels_raw_encode_chan(uint8_t system_id
  * @param chan6_raw [us] RC channel 6 value.
  * @param chan7_raw [us] RC channel 7 value.
  * @param chan8_raw [us] RC channel 8 value.
- * @param rssi [%] Receive signal strength indicator. Values: [0-100], 255: invalid/unknown.
+ * @param rssi  Receive signal strength indicator in device-dependent units/scale. Values: [0-254], 255: invalid/unknown.
  */
 #ifdef MAVLINK_USE_CONVENIENCE_FUNCTIONS
 
@@ -338,7 +338,7 @@ static inline uint32_t mavlink_msg_rc_channels_raw_get_time_boot_ms(const mavlin
 /**
  * @brief Get field port from rc_channels_raw message
  *
- * @return  Servo output port (set of 8 outputs = 1 port). Most MAVs will just use one, but this allows for more than 8 servos.
+ * @return  Servo output port (set of 8 outputs = 1 port). Flight stacks running on Pixhawk should use: 0 = MAIN, 1 = AUX.
  */
 static inline uint8_t mavlink_msg_rc_channels_raw_get_port(const mavlink_message_t* msg)
 {
@@ -428,7 +428,7 @@ static inline uint16_t mavlink_msg_rc_channels_raw_get_chan8_raw(const mavlink_m
 /**
  * @brief Get field rssi from rc_channels_raw message
  *
- * @return [%] Receive signal strength indicator. Values: [0-100], 255: invalid/unknown.
+ * @return  Receive signal strength indicator in device-dependent units/scale. Values: [0-254], 255: invalid/unknown.
  */
 static inline uint8_t mavlink_msg_rc_channels_raw_get_rssi(const mavlink_message_t* msg)
 {
