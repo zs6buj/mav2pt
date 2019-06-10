@@ -151,7 +151,8 @@ v2.04 2019-05-24 Merge Alex's BT classic PR. Thank you!
                  Remove Aux port as no longer required
                  Tidy #define options  
 v2.05 2019-06-09 Support 3 possible I/O channels on FC side, and 3 on GCS side. UART serial, BT and WiFi.
-                 WiFi AP ssid = 'Mav2Passthru', pw = 'password' for now.          
+                 WiFi AP ssid = 'Mav2Passthru', pw = 'password' for now.  
+                         
 */
 
 #include <CircularBuffer.h>
@@ -162,6 +163,7 @@ v2.05 2019-06-09 Support 3 possible I/O channels on FC side, and 3 on GCS side. 
 const uint8_t oledSDA = 19;  // TTGO = 5;  ESP Dev = 19;    Other = 21;
 const uint8_t oledSCL = 18;  // TTGO = 4;  ESP Dev = 18;    Other = 22;
 SSD1306Wire  display(0x3c, oledSDA, oledSCL); 
+
 //*****************************************************************************************************************
 //************************************* Please select your options here before compiling **************************
 // Choose one (only) of these target boards
@@ -184,13 +186,16 @@ SSD1306Wire  display(0x3c, oledSDA, oledSCL);
 //#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port          
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic
-//#define GCS_Mavlink_IO  2    // WiFi
+#define GCS_Mavlink_IO  2    // WiFi
+
+//#define WiFi_Mode   1  //AP
+#define WiFi_Mode   2  // STA
 
 //#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both rx and tx lines must be connected      
 //#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
-//#define Battery_mAh_Source  3  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
 const uint16_t bat1_capacity = 5200;       
 const uint16_t bat2_capacity = 0;
+#define Battery_mAh_Source  3  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
 
 #define SPort_Serial   1            // The default is Serial 1, but 3 is possible 
 
@@ -227,9 +232,15 @@ const uint16_t bat2_capacity = 0;
   #endif
 
   #ifndef Battery_mAh_Source
-    #error Pl3ease choose at least one Battery_mAh_Source
+    #error Please choose at least one Battery_mAh_Source
   #endif
-//*****************************************************************************************************************
+
+  #ifndef WiFi_Mode 
+    #error Please define WiFi_Mode
+  #endif
+
+
+//********************************************* LEDS *************************************************************
 
 #if (Target_Board == 0)      // Teensy3x
   #define MavStatusLed  13
@@ -238,8 +249,8 @@ const uint16_t bat2_capacity = 0;
 #elif (Target_Board == 2)    //  Maple Mini
   #define MavStatusLed  33        // PB1
 #elif (Target_Board == 3)   //  ESP32 Dev Module V2
-  #define MavStatusLed  16        // Dev Module=2, TTGO OLED Battey board = 16 
-  #define BufStatusLed  12  
+  #define MavStatusLed  02        // Dev Module=02, TTGO OLED Battey board = 16 
+  #define BufStatusLed  13  
 #endif
 
 ///************************************************************************** 
@@ -257,24 +268,29 @@ const uint16_t bat2_capacity = 0;
 
 ///************************************************************************** 
 //********************************** WiFi ***********************************
-  #if (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)  // WiFi
-    #if (Target_Board == 3) // ESP32
-      #include <WiFi.h>
-      #include <WiFiClient.h>
-      #include <WiFiAP.h>
-      int16_t wifi_rssi;    
-      const char *ssid =     "Mav2Passthru";    // Our AP SSID
-      const char *password = "password";        // Change me!
-      uint16_t myPort = 5760;
-      IPAddress myIP;
-      WiFiServer server(myPort);
+  #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2))  // WiFi
+  
+    #include <WiFi.h>
+    #include <WiFiClient.h>
+    int16_t wifi_rssi;    
     
-      WiFiClient client;    // Initialise object
+    #if (WiFi_Mode == 1)  // AP
+      #include <WiFiAP.h>  
+      const char *APssid =    "Mav2Passthru";    // The AP SSID that we advertise  ====>
+      const char *APpw =      "password";        // Change me!
+    #endif
     
-    #else
-      #error WiFi available only on ESP32
-    #endif    
-  #endif   
+    #if (WiFi_Mode == 2)  //  STA
+      const char *STAssid =     "OmegaOffice";    // Target AP to connect to      <====
+      const char *STApw =       "Navara@98";      // Change me!
+    #endif   
+    
+    uint16_t myPort = 5760;
+    IPAddress myIP;
+    WiFiServer server(myPort);
+    WiFiClient client;    // Create client object
+    
+ #endif   
  
 //************************************************************************** 
 //********************************** Serial ********************************
@@ -902,16 +918,35 @@ void setup()  {
     SerialBT.begin("ESP32");
   #endif  
   
-  #if (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) //  WiFi
-    WiFi.softAP(ssid, password);
-    myIP = WiFi.softAPIP();
-    Debug.print("AP IP address: ");
-    Debug.println(myIP);
-    server.begin();
-    Debug.println("AP Server started");
-    OledDisplayln("WiFi AP Started");
-    OledDisplayln(myIP.toString());
-
+  #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)) //  WiFi
+    #if (WiFi_Mode == 1)
+      WiFi.softAP(APssid, APpw);
+      myIP = WiFi.softAPIP();
+      Debug.print("AP IP address: ");
+      Debug.println(myIP);
+      server.begin();
+      Debug.println("AP Server started");
+      OledDisplayln("WiFi AP Started");
+      OledDisplayln(myIP.toString());
+    #endif  
+    #if (WiFi_Mode == 2)
+      Debug.print("Connecting to ....");
+      Debug.println(STAssid);
+      WiFi.begin(STAssid, STApw);
+      while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+      }
+      myIP = WiFi.localIP();
+      Debug.println("");
+      Debug.println("WiFi connected.");
+      Debug.println("IP address: ");
+      Debug.println(myIP);
+      server.begin();
+      OledDisplayln("Connected to");
+      OledDisplayln(myIP.toString());
+      OledDisplayln("Server started");
+    #endif
   #endif 
 
   mavGood = false;
@@ -2004,6 +2039,7 @@ void ServiceStatusLeds() {
 }
 void ServiceMavStatusLed() {
   if (mavGood) {
+
       MavLedState = HIGH;
       digitalWrite(MavStatusLed, MavLedState); 
   }
