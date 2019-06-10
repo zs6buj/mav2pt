@@ -152,7 +152,7 @@ v2.04 2019-05-24 Merge Alex's BT classic PR. Thank you!
                  Tidy #define options  
 v2.05 2019-06-09 Support 3 possible I/O channels on FC side, and 3 on GCS side. UART serial, BT and WiFi.
                  WiFi AP ssid = 'Mav2Passthru', pw = 'password' for now.  
-                         
+v2.06 2019-06-10 Support added for STA mode and AP mode. Tidied up some lose ends.                         
 */
 
 #include <CircularBuffer.h>
@@ -281,8 +281,8 @@ const uint16_t bat2_capacity = 0;
     #endif
     
     #if (WiFi_Mode == 2)  //  STA
-      const char *STAssid =     "OmegaOffice";    // Target AP to connect to      <====
-      const char *STApw =       "Navara@98";      // Change me!
+      const char *STAssid =     "TargetAPName";    // Target AP to connect to      <====
+      const char *STApw =       "targetPw";      // Change me!
     #endif   
     
     uint16_t myPort = 5760;
