@@ -281,10 +281,9 @@ const uint16_t bat2_capacity = 0;
     #endif
     
     #if (WiFi_Mode == 2)  //  STA
-  //    const char *STAssid =     "TargetAPName";    // Target AP to connect to      <====
-  //    const char *STApw =       "targetPw";      // Change me!
-      const char *STAssid =     "OmegaOffice";    // Target AP to connect to      <====
-      const char *STApw =       "Navara@98";      // Change me!
+      const char *STAssid =     "TargetAPName";    // Target AP to connect to      <====
+      const char *STApw =       "targetPw";      // Change me!
+
     #endif   
     
     uint16_t myPort = 5760;
