@@ -157,12 +157,6 @@ v2.06 2019-06-10 Support added for STA mode and AP mode. Tidied up some lose end
 
 #include <CircularBuffer.h>
 #include <..\c_library_v2\ardupilotmega\mavlink.h>
-          
-#include "SSD1306Wire.h" 
-
-const uint8_t oledSDA = 19;  // TTGO = 5;  ESP Dev = 19;    Other = 21;
-const uint8_t oledSCL = 18;  // TTGO = 4;  ESP Dev = 18;    Other = 22;
-SSD1306Wire  display(0x3c, oledSDA, oledSCL); 
 
 //*****************************************************************************************************************
 //************************************* Please select your options here before compiling **************************
@@ -240,17 +234,25 @@ const uint16_t bat2_capacity = 0;
   #endif
 
 
-//********************************************* LEDS *************************************************************
+//********************************************* LEDS and SSD1306 ********************************************
 
+  
 #if (Target_Board == 0)      // Teensy3x
   #define MavStatusLed  13
+  #define BufStatusLed  14 
 #elif (Target_Board == 1)    // Blue Pill
   #define MavStatusLed  PC13
+  #define BufStatusLed  PC14 
 #elif (Target_Board == 2)    //  Maple Mini
   #define MavStatusLed  33        // PB1
+  #define BufStatusLed  34 
 #elif (Target_Board == 3)   //  ESP32 Dev Module V2
   #define MavStatusLed  02        // Dev Module=02, TTGO OLED Battey board = 16 
   #define BufStatusLed  13  
+  #include "SSD1306Wire.h" 
+  const uint8_t oledSDA = 19;  // TTGO = 5;  ESP Dev = 19;    Other = 21;
+  const uint8_t oledSCL = 18;  // TTGO = 4;  ESP Dev = 18;    Other = 22;
+  SSD1306Wire  display(0x3c, oledSDA, oledSCL); 
 #endif
 
 ///************************************************************************** 
@@ -300,13 +302,13 @@ const uint16_t bat2_capacity = 0;
 #define mvSerialFC          Serial2        
 #define mvBaudFC            57600   
 
-#if (Target_Board == 1)
+#if (Target_Board == 0)      //  Teensy 3.1
  #if (SPort_Serial == 1) 
   #define frSerial              Serial1        // S.Port 
-  #elif (SPort_Serial == 3)
-    #define frSerial            Serial3        // S.Port 
-  #else
-    #error SPort_Serial can only be 1 or 3. Please correct.
+ #elif (SPort_Serial == 3)
+  #define frSerial              Serial3        // S.Port 
+ #else
+  #error SPort_Serial can only be 1 or 3. Please correct.
  #endif 
 #endif 
 
@@ -2099,13 +2101,13 @@ uint8_t mav_sysid;              ///< ID of message sender system/aircraft
 uint8_t mav_compid;             ///< ID of the message sender component
 
 uint32_t mav_msgid;              
-
+/*
 uint8_t mav_msgid_b1;           ///< first 8 bits of the ID of the message 0:7; 
 uint8_t mav_msgid_b2;           ///< middle 8 bits of the ID of the message 8:15;  
 uint8_t mav_msgid_b3;           ///< last 8 bits of the ID of the message 16:23;
-//uint8_t mav_payload[280];      ///< A maximum of 255 payload bytes
+uint8_t mav_payload[280];      ///< A maximum of 255 payload bytes
 uint16_t mav_checksum;          ///< X.25 CRC
-
+*/
   const unsigned char * const bytes = static_cast<const unsigned char *>(object);
 
   mav_magic = bytes[2];
@@ -2363,7 +2365,7 @@ void ShowPeriod() {
 }
 //***************************************************
 void OledDisplayln(String S) {
-
+#if (Target_Board == 3)
   uint8_t i=0; 
   row_hgt = (int)64 / max_row;
   if (row>(max_row-1)) {  // last line    0 thru max_row-1  
@@ -2383,5 +2385,6 @@ void OledDisplayln(String S) {
   display.drawString(0, (row * row_hgt), OL[row].OLx);
   display.display();
   row++;
+#endif  
 }
 //***************************************************
