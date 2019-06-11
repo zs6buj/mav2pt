@@ -381,7 +381,7 @@ void SendLon800() {
       ms2bits = 3;
     else ms2bits = 2;    
   } else {
-    fr_lat = Abs(ap_lon33) / 100 * 6;  // ap_lat * 60 / 1000
+    fr_lon = Abs(ap_lon33) / 100 * 6;  // ap_lat * 60 / 1000
     if (ap_lon33<0) 
       ms2bits = 3;
     else ms2bits = 2;

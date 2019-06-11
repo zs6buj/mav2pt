@@ -281,8 +281,10 @@ const uint16_t bat2_capacity = 0;
     #endif
     
     #if (WiFi_Mode == 2)  //  STA
-      const char *STAssid =     "TargetAPName";    // Target AP to connect to      <====
-      const char *STApw =       "targetPw";      // Change me!
+  //    const char *STAssid =     "TargetAPName";    // Target AP to connect to      <====
+  //    const char *STApw =       "targetPw";      // Change me!
+      const char *STAssid =     "OmegaOffice";    // Target AP to connect to      <====
+      const char *STApw =       "Navara@98";      // Change me!
     #endif   
     
     uint16_t myPort = 5760;
@@ -967,15 +969,17 @@ void setup()  {
 
 void loop() {            // For WiFi only
   #if (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)
-  client = server.available();  // listen for incoming clients 
+  client = server.available();              // listen for incoming clients 
   if(client) {
-    Debug.println("New client connected");          // print a message out the serial port 
+    Debug.println("New client connected");    
     while (client.connected()) {            // loop while the client's connected
-      main_loop();
+      main_loop(); 
     }
 
     client.stop();
     Debug.println("Client disconnected");
+  } else {
+     main_loop();
   }
  #else 
   main_loop();
