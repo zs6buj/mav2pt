@@ -834,8 +834,8 @@ void SendParameters5007() {
 // ***************************************************************** 
 void Send_Bat2_5008() {
   
-   fr_bat2_volts = ap_voltage_battery1 / 100;         // Were mV, now dV  - V * 10
-   fr_bat2_amps = ap_current_battery1 ;               // Remain       dA  - A * 10   
+   fr_bat2_volts = ap_voltage_battery2 / 100;         // Were mV, now dV  - V * 10
+   fr_bat2_amps = ap_current_battery2 ;               // Remain       dA  - A * 10   
    
   // fr_bat2_mAh is populated at #147 depending on battery id
   //fr_bat2_mAh = Total_mAh2();  // If record type #147 is not sent and good

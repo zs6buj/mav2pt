@@ -1,10 +1,10 @@
      
 // Frsky variables     
 short    crc;                         // of frsky-packet
-uint8_t  time_slot_max = 16;              
+uint8_t  time_slot_max = 12;              
 uint32_t time_slot = 1;
 float a, az, c, dis, dLat, dLon;
-uint8_t sv_count = 0;
+uint8_t rc_count = 0;
 
 #if (Target_Board == 0) // Teensy3x
 volatile uint8_t *uartC3;
@@ -63,7 +63,6 @@ void ReadSPort(void) {
   #if (Target_Board == 0) // Teensy3x
     setSPortMode(rx);
   #endif  
-  setSPortMode(rx);
   uint8_t Byt = 0;
   while ( frSerial.available())   {  
     Byt =  frSerial.read();
@@ -75,7 +74,7 @@ void ReadSPort(void) {
       #if defined Debug_Air_Mode
         Debug.print("S/S "); 
       #endif
-    FrSkySPort_Process(); 
+      FrSkySPort_Process(); 
 
     }     
   prevByt=Byt;
@@ -87,7 +86,7 @@ void ReadSPort(void) {
 
 #if defined Ground_Mode
 void Emulate_ReadSPort() {
-  #if (Target_Board == 0)      // Teensy3x
+#if (Target_Board == 0)   // Teensy3x
   setSPortMode(tx);
   #endif
  
@@ -227,43 +226,7 @@ void FrSkySPort_Process() {
             break; 
             }
           else
-            time_slot++;   // Donate the slot to next
-             
-         case 13:          // data id 0x5009 Waypoints/Missions
-           if ((ap_ms_current_flag) && (millis() - Way_5009_millis > 2000))  {  // 0.5 Hz        
-            Send_WayPoint_5009();
-            Way_5009_millis = millis();
-            break; 
-            }
-          else
-            time_slot++;   // Donate the slot to next     
-        case 14:          // data id 0x50F1 Servo_Raw
-          if (ap_servo_flag)   {                       // Use the slot or lose the slot
-            Send_Servo_Raw_50F1();
-            Servo_50F1_millis = millis();
-            break; 
-            }
-          else
-            time_slot++;   // Donate the slot to next  
-                  
-        case 15:          // data id 0x50F2 VFR HUD
-          if (millis() - Hud_50F2_millis > 500)   {        // 2 Hz, same as 0x5005 velyaw
-            Send_VFR_Hud_50F2();
-            Hud_50F2_millis = millis();
-            break; 
-            }
-          else
-            time_slot++;   // Donate the slot to next   
-             
-        case 16:          // data id 0x50F3 Wind Estimate
-          if (millis() - Wind_50F3_millis > 500)   {        // 2 Hz, same as 0x5005 velyaw
-            Send_VFR_Hud_50F2();
-            Wind_50F3_millis = millis();
-            break; 
-            }
-          else
-            time_slot++;   // Donate the slot to next   
-                                                    
+            time_slot++;   // Donate the slot to next                             
         default:
          // ERROR
          break;
@@ -274,7 +237,7 @@ void FrSkySPort_Process() {
  }     
 // ***********************************************************************
 void FrSkySPort_SendByte(uint8_t byte, bool addCrc) {
-  #if (Target_Board == 0)      // Teensy3x
+#if (Target_Board == 0)   // Teensy3x
    setSPortMode(tx); 
  #endif  
  if (!addCrc) { 
@@ -317,7 +280,7 @@ void FrSkySPort_SendCrc() {
 //***************************************************
 void FrSkySPort_SendDataFrame(uint8_t Instance, uint16_t Id, uint32_t value) {
 
-  #if (Target_Board == 0)      // Teensy3x
+#if (Target_Board == 0)   // Teensy3x
   setSPortMode(tx); 
   #endif
   
@@ -379,6 +342,7 @@ uint32_t createMask(uint8_t lo, uint8_t hi) {
   return r;
 }
 // *****************************************************************
+// *****************************************************************
 
 void SendLat800() {
   fr_gps_status = ap_fixtype < 3 ? ap_fixtype : 3;                   //  0 - 3
@@ -394,13 +358,13 @@ void SendLat800() {
       ms2bits = 1;
     else ms2bits = 0;
   }
+  
   bit32Pack(fr_lat, 0, 30);
   bit32Pack(ms2bits, 30, 2);
  // fr_payload = (ms2bits <<30) | fr_lat;
           
   #if defined Frs_Debug_All || defined Frs_Debug_LatLon
     Debug.print("Frsky out LatLon 0x800: ");   
-    Debug.print(" ap_lat="); Debug.print(ap_lat); 
     Debug.print(" fr_lat="); Debug.print(fr_lat);  
     Debug.print(" fr_payload="); Debug.println(fr_payload);
   #endif
@@ -422,6 +386,7 @@ void SendLon800() {
       ms2bits = 3;
     else ms2bits = 2;
   }
+  
   bit32Pack(fr_lon, 0, 30);
   bit32Pack(ms2bits, 30, 2);
           
@@ -561,7 +526,7 @@ void Send_GPS_Status5002() {
           
   fr_gps_status = ap_fixtype < 3 ? ap_fixtype : 3;                   //  0 - 3
   fr_gps_adv_status = ap_fixtype > 3 ? ap_fixtype - 3 : 0;           //  4 - 8 -> 0 - 3   
-          
+
   fr_amsl = ap_amsl24 / 100;  // dm
   fr_hdop = ap_eph /10;
           
@@ -594,12 +559,14 @@ void Send_GPS_Status5002() {
 }
 // *****************************************************************  
 void Send_Bat1_5003() {
-  
+  if (ap_voltage_battery1 < 0) { //  fix for px4 where bat volts drifts negative sometimes on start up
+    ap_voltage_battery1 = 0;
+   } 
   fr_bat1_volts = ap_voltage_battery1 / 100;         // Were mV, now dV  - V * 10
   fr_bat1_amps = ap_current_battery1 ;               // Remain       dA  - A * 10   
   
   // fr_bat1_mAh is populated at #147 depending on battery id
-  //fr_bat1_mAh = Total_mAh1();  // If record type #147 is not sent and good
+  //fr_bat1_mAh = Total_mAh1();  // If record type #147 is not sent by FC
   
   #if defined Frs_Debug_All || defined Debug_Batteries
     Debug.print("Frsky out Bat1 0x5003: ");   
@@ -613,7 +580,7 @@ void Send_Bat1_5003() {
   bit32Pack(fr_bat1_amps,9, 8);
   bit32Pack(fr_bat1_mAh,17, 15);
             
-  FrSkySPort_SendDataFrame(0x1B, 0x5003, fr_payload);           
+  FrSkySPort_SendDataFrame(0x1B, 0x5003, fr_payload);             
 }
 // ***************************************************************** 
 void Send_Home_5004() {
@@ -629,9 +596,10 @@ void Send_Home_5004() {
     az=a*180/PI;  // radians to degrees
     if (az<0) az=360+az;
 
-    fr_home_angle = Add360(az, -180);                           // Is now the angle from the craft to home in degrees
+    fr_home_angle = Add360(az, -180);                            // now is the angle from the craft to home in degrees
+ // fr_home_arrow = Add360(fr_home_angle, -ap_gps_hdg/100);        //  NO, this is done in OSD in Taranis
   
-    fr_home_arrow = fr_home_angle * 0.3333;                     // Units of 3 degrees
+    fr_home_arrow = fr_home_angle * 0.3333;                     // units of 3 degrees
 
     // Calculate the distance from home to craft
     dLat = (lat2-lat1);
@@ -725,7 +693,7 @@ void Send_Atti_5006() {
 //***************************************************
 void SendParameters5007() {
 
-  if (paramsID >= 6) {
+  if (paramsID >= 5) {
     fr_paramsSent = true;          // get this done early on and then regularly thereafter
     paramsID = 0;
     return;
@@ -759,7 +727,7 @@ void SendParameters5007() {
         fr_bat1_capacity = bat1_capacity;
       #elif  (Battery_mAh_Source == 1) //  FC
         fr_bat1_capacity = ap_bat1_capacity;
-      #endif  
+      #endif   
       bit32Pack(fr_bat1_capacity, 0, 24);
       bit32Pack(fr_param_id, 24, 4);
       FrSkySPort_SendDataFrame(0x1B, 0x5007,fr_payload); 
@@ -776,7 +744,7 @@ void SendParameters5007() {
         fr_bat2_capacity = bat2_capacity;
       #elif  (Battery_mAh_Source == 1) //  FC
         fr_bat2_capacity = ap_bat2_capacity;
-      #endif  
+      #endif   
       bit32Pack(fr_bat2_capacity, 0, 24);
       bit32Pack(fr_param_id, 24, 4);
       FrSkySPort_SendDataFrame(0x1B, 0x5007,fr_payload); 
@@ -788,27 +756,16 @@ void SendParameters5007() {
       #endif
       
       break;
-    case 6:                                   // Number of waypoints in mission
-      fr_param_id = paramsID;
-      fr_mission_count = ap_mission_count;
-      bit32Pack(fr_mission_count, 0, 24);
-      bit32Pack(fr_param_id, 24, 4);
-      FrSkySPort_SendDataFrame(0x1B, 0x5007,fr_payload); 
-      
-      #if defined Frs_Debug_All || defined Frs_Debug_Params || defined Debug_Batteries
-        Debug.print("Frsky out Params 0x5007: ");   
-        Debug.print(" fr_param_id="); Debug.print(fr_param_id);
-        Debug.print(" fr_mission_count="); Debug.println(fr_mission_count);           
-      #endif
-      
-      break;    
     }  
 }
 // ***************************************************************** 
 void Send_Bat2_5008() {
-  
-   fr_bat2_volts = ap_voltage_battery2 / 100;         // Were mV, now dV  - V * 10
-   fr_bat2_amps = ap_current_battery2 ;               // Remain       dA  - A * 10   
+  if (ap_voltage_battery2 < 0) { //  fix for px4 where bat volts drifts negative sometimes on start up
+    ap_voltage_battery2 = 0;
+   }
+
+  fr_bat2_volts = ap_voltage_battery2 / 100;         // Were mV, now dV  - V * 10
+  fr_bat2_amps = ap_current_battery2 ;               // Remain       dA  - A * 10   
    
   // fr_bat2_mAh is populated at #147 depending on battery id
   //fr_bat2_mAh = Total_mAh2();  // If record type #147 is not sent and good
@@ -828,145 +785,7 @@ void Send_Bat2_5008() {
   FrSkySPort_SendDataFrame(0x1B, 0x5008,fr_payload);          
 }
 
-
-// ***************************************************************** 
-
-void Send_WayPoint_5009() {
-
-  fr_ms_seq = ap_ms_seq;                                      // Current WP seq number, wp[0] = wp1, from regular #42
-  
-  fr_ms_dist = ap_wp_dist;                                        // Distance to next WP  
-
-  fr_ms_xtrack = ap_xtrack_error;                                 // Cross track error in metres from #62
-  fr_ms_target_bearing = ap_target_bearing;                       // Direction of next WP
-  fr_ms_cog = ap_cog * 0.01;                                      // COG in degrees from #24
-  int32_t angle = (int32_t)wrap_360(fr_ms_target_bearing - fr_ms_cog);
-  int32_t arrowStep = 360 / 8; 
-  fr_ms_offset = ((angle + (arrowStep/2)) / arrowStep) % 8;       // Next WP bearing offset from COG
-
-  /*
-   
-0 - up
-1 - up-right
-2 - right
-3 - down-right
-4 - down
-5 - down - left
-6 - left
-7 - up - left
- 
-   */
-  #if defined Frs_Debug_All || defined Frs_Debug_Mission
-    Debug.print("Frsky out RC 0x500B: ");   
-    Debug.print(" fr_ms_seq="); Debug.print(fr_ms_seq);
-    Debug.print(" fr_ms_dist="); Debug.print(fr_ms_dist);
-    Debug.print(" fr_ms_xtrack="); Debug.print(fr_ms_xtrack, 3);
-    Debug.print(" fr_ms_target_bearing="); Debug.print(fr_ms_target_bearing, 0);
-    Debug.print(" fr_ms_cog="); Debug.print(fr_ms_cog, 0);  
-    Debug.print(" fr_ms_offset="); Debug.print(fr_ms_offset);        
-    Debug.println();      
-  #endif
-
-  bit32Pack(fr_ms_seq, 0, 10);    //  WP number
-
-  fr_ms_dist = prep_number(roundf(fr_ms_dist), 3, 2);       //  number, digits, power
-  bit32Pack(fr_ms_dist, 10, 12);    
-
-  fr_ms_xtrack = prep_number(roundf(fr_ms_xtrack), 1, 1);  
-  bit32Pack(fr_ms_xtrack, 22, 6); 
-
-  bit32Pack(fr_ms_offset, 29, 3);  
-  FrSkySPort_SendDataFrame(0x1B, 0x5009,fr_payload); 
-        
-}
-
 // *****************************************************************  
-void Send_Servo_Raw_50F1() {
-uint8_t sv_chcnt = 8;
-  if (sv_count+4 > sv_chcnt) { // 4 channels at a time
-    sv_count = 0;
-    ap_servo_flag = false;  // done with the ap_servo record received
-    return;
-  } 
-
-  uint8_t  chunk = sv_count / 4; 
-
-  fr_sv[1] = PWM_To_63(ap_chan_raw[sv_count]);     // PWM 1000 to 2000 -> 6bit 0 to 63
-  fr_sv[2] = PWM_To_63(ap_chan_raw[sv_count+1]);    
-  fr_sv[3] = PWM_To_63(ap_chan_raw[sv_count+2]); 
-  fr_sv[4] = PWM_To_63(ap_chan_raw[sv_count+3]); 
-
-  bit32Pack(chunk, 0, 4);                // chunk number, 0 = chans 1-4, 1=chans 5-8, 2 = chans 9-12, 3 = chans 13 -16 .....
-  bit32Pack(Abs(fr_sv[1]) ,4, 6);        // fragment 1 
-  if (fr_sv[1] < 0)
-    bit32Pack(1, 10, 1);                 // neg
-  else 
-    bit32Pack(0, 10, 1);                 // pos          
-  bit32Pack(Abs(fr_sv[2]), 11, 6);      // fragment 2 
-  if (fr_sv[2] < 0) 
-    bit32Pack(1, 17, 1);                 // neg
-  else 
-    bit32Pack(0, 17, 1);                 // pos   
-  bit32Pack(Abs(fr_sv[3]), 18, 6);       // fragment 3
-  if (fr_sv[3] < 0)
-    bit32Pack(1, 24, 1);                 // neg
-  else 
-    bit32Pack(0, 24, 1);                 // pos      
-  bit32Pack(Abs(fr_sv[4]), 25, 6);       // fragment 4 
-  if (fr_sv[4] < 0)
-    bit32Pack(1, 31, 1);                 // neg
-  else 
-    bit32Pack(0, 31, 1);                 // pos  
-        
-  FrSkySPort_SendDataFrame(0x1B, 0x50F1,fr_payload); 
-
-  #if defined Frs_Debug_All || defined Frs_Debug_Servo
-    Debug.print("Frsky out Servo_Raw 0x5009: ");  
-    Debug.print(" sv_chcnt="); Debug.print(sv_chcnt); 
-    Debug.print(" sv_count="); Debug.print(sv_count); 
-    Debug.print(" chunk="); Debug.print(chunk);
-    Debug.print(" fr_sv1="); Debug.print(fr_sv[1]);
-    Debug.print(" fr_sv2="); Debug.print(fr_sv[2]);
-    Debug.print(" fr_sv3="); Debug.print(fr_sv[3]);   
-    Debug.print(" fr_sv4="); Debug.println(fr_sv[4]);       
-  #endif
-
-  sv_count += 4; 
-}
-// *****************************************************************  
-void Send_VFR_Hud_50F2() {
- 
-  fr_air_spd = ap_hud_air_spd * 10;      // from #74  m/s to dm/s
-  fr_throt = ap_hud_throt;               // 0 - 100%
-  fr_bar_alt = ap_hud_bar_alt * 10;      // m to dm
-
-  #if defined Frs_Debug_All || defined Frs_Debug_Hud
-    Debug.print("Frsky out RC 0x50F2: ");   
-    Debug.print(" fr_air_spd="); Debug.print(fr_air_spd);
-    Debug.print(" fr_throt="); Debug.print(fr_throt);
-    Debug.print(" fr_bar_alt="); Debug.println(fr_bar_alt);       
-  #endif
-  
-  fr_air_spd = prep_number(roundf(fr_air_spd), 2, 1);  
-  bit32Pack(fr_air_spd, 0, 8);    
-
-  bit32Pack(fr_throt, 8, 7);
-
-  fr_bar_alt =  prep_number(roundf(fr_bar_alt), 3, 2);
-  bit32Pack(fr_bar_alt, 15, 12);
-  if (fr_bar_alt < 0)
-    bit32Pack(1, 27, 1);  
-  else
-   bit32Pack(0, 27, 1);  
-    
-  FrSkySPort_SendDataFrame(0x1B, 0x50F2,fr_payload); 
-        
-}
-// *****************************************************************  
-void Send_Wind_Estimate_50F3() {
-
-}
-// *****************************************************************          
 void SendRssiF101() {          // data id 0xF101 RSSI tell LUA script in Taranis we are connected
 
   if (rssiGood)
@@ -975,7 +794,7 @@ void SendRssiF101() {          // data id 0xF101 RSSI tell LUA script in Taranis
   else
     fr_rssi = 255;     // We may have a connection but don't yet know how strong. Prevents spurious "Telemetry lost" announcement
   #ifdef Frs_Dummy_rssi
-    fr_rssi = 70;
+    fr_rssi = 87;
     Debug.print(" Dummy rssi="); Debug.println(fr_rssi); 
   #endif
   bit32Pack(fr_rssi ,0, 32);
@@ -989,19 +808,11 @@ void SendRssiF101() {          // data id 0xF101 RSSI tell LUA script in Taranis
   #endif
      
   #if defined Frs_Debug_All || defined Mav_Debug_Rssi
-    Debug.print("Frsky out: ");         
+    Debug.print("Frsky out: ");  
+    Debug.print(" rssiGood="); Debug.print(rssiGood);       
     Debug.print(" rssi="); Debug.println(fr_rssi);                
   #endif
 }
-//*************************************************** 
-int8_t PWM_To_63(uint16_t PWM) {       // PWM 1000 to 2000   ->    nominal -63 to 63
-int8_t myint;
-  myint = round((PWM - 1500) * 0.126); 
-  myint = myint < -63 ? -63 : myint;            
-  myint = myint > 63 ? 63 : myint;  
-  return myint; 
-}
-
 //***************************************************  
 uint32_t Abs(int32_t num) {
   if (num<0) 
@@ -1009,56 +820,12 @@ uint32_t Abs(int32_t num) {
   else
     return num;  
 }
-//***************************************************  
-float Distance(Loc2D loc1, Loc2D loc2) {
-float a, c, d, dLat, dLon;  
-
-  loc1.lat=loc1.lat/180*PI;  // degrees to radians
-  loc1.lon=loc1.lon/180*PI;
-  loc2.lat=loc2.lat/180*PI;
-  loc2.lon=loc2.lon/180*PI;
-    
-  dLat = (loc1.lat-loc2.lat);
-  dLon = (loc1.lon-loc2.lon);
-  a = sin(dLat/2) * sin(dLat/2) + sin(dLon/2) * sin(dLon/2) * cos(loc2.lat) * cos(loc1.lat); 
-  c = 2* asin(sqrt(a));  
-  d = 6371000 * c;    
-  return d;
-}
-//*************************************************** 
-float Azimuth(Loc2D loc1, Loc2D loc2) {
-// Calculate azimuth bearing from loc1 to loc2
-float a, az; 
-
-  loc1.lat=loc1.lat/180*PI;  // degrees to radians
-  loc1.lon=loc1.lon/180*PI;
-  loc2.lat=loc2.lat/180*PI;
-  loc2.lon=loc2.lon/180*PI;
-
-  a = sin(dLat/2) * sin(dLat/2) + sin(dLon/2) * sin(dLon/2) * cos(loc2.lat) * cos(loc1.lat); 
-  
-  az=a*180/PI;  // radians to degrees
-  if (az<0) az=360+az;
-  return az;
-}
 //***************************************************
-//Add two bearing in degrees and correct for 360 boundary
-int16_t Add360(int16_t arg1, int16_t arg2) {  
+int16_t Add360(int16_t arg1, int16_t arg2) {
   int16_t ret = arg1 + arg2;
   if (ret < 0) ret += 360;
   if (ret > 359) ret -= 360;
-  return ret; 
-}
-//***************************************************
-// Correct for 360 boundary - yaapu
-float wrap_360(int16_t angle)
-{
-    const float ang_360 = 360.f;
-    float res = fmodf(static_cast<float>(angle), ang_360);
-    if (res < 0) {
-        res += ang_360;
-    }
-    return res;
+  return ret;
 }
 //***************************************************
 // From Arducopter 3.5.5 code
@@ -1067,18 +834,7 @@ uint16_t prep_number(int32_t number, uint8_t digits, uint8_t power)
     uint16_t res = 0;
     uint32_t abs_number = abs(number);
 
-   if ((digits == 1) && (power == 1)) { // number encoded on 5 bits: 4 bits for digits + 1 for 10^power
-        if (abs_number < 10) {
-            res = abs_number<<1;
-        } else if (abs_number < 150) {
-            res = ((uint8_t)roundf(abs_number * 0.1f)<<1)|0x1;
-        } else { // transmit max possible value (0x0F x 10^1 = 150)
-            res = 0x1F;
-        }
-        if (number < 0) { // if number is negative, add sign bit in front
-            res |= 0x1<<5;
-        }
-    } else if ((digits == 2) && (power == 1)) { // number encoded on 8 bits: 7 bits for digits + 1 for 10^power
+    if ((digits == 2) && (power == 1)) { // number encoded on 8 bits: 7 bits for digits + 1 for 10^power
         if (abs_number < 100) {
             res = abs_number<<1;
         } else if (abs_number < 1270) {
@@ -1135,61 +891,4 @@ uint16_t prep_number(int32_t number, uint8_t digits, uint8_t power)
         }
     }
     return res;
-}  
-/*
- * // ***************************************************************** 
-void Send_RC_5009() {
-  ap_chcnt = ap_chcnt > 16 ? 16 : ap_chcnt;  // cap number of channels at 16 for now
-  if (rc_count+4 > ap_chcnt) { // 4 channels at a time
-    rc_count = 0;
-    ap_rc_flag = false;  // done with the ap_rc record received
-    return;
-  } 
-
-  fr_chcnt = rc_count / 4; 
-
-  fr_rc[1] = PWM_To_63(ap_chan_raw[sv_count]);     // PWM 1000 to 2000 -> nominal 0 to 63
-  fr_rc[2] = PWM_To_63(ap_chan_raw[sv_count+1]);    
-  fr_rc[3] = PWM_To_63(ap_chan_raw[sv_count+2]); 
-  fr_rc[4] = PWM_To_63(ap_chan_raw[sv_count+3]); 
-
-  bit32Pack(fr_chcnt, 0, 4);             //  channel count, 0 = chans 1-4, 1=chans 5-8, 2 = chans 9-12, 3 = chans 13 -16 .....
-  bit32Pack(Abs(fr_rc[1]) ,4, 6);        // fragment 1 
-  if (fr_rc[1] < 0)
-    bit32Pack(1, 10, 1);                 // neg
-  else 
-    bit32Pack(0, 10, 1);                 // pos          
-  bit32Pack(Abs(fr_rc[2]), 11, 6);       // fragment 2 
-  if (fr_rc[2] < 0)
-    bit32Pack(1, 17, 1);                 // neg
-  else 
-    bit32Pack(0, 17, 1);                 // pos   
-  bit32Pack(Abs(fr_rc[3]), 18, 6);       // fragment 3
-  if (fr_rc[3] < 0)
-    bit32Pack(1, 24, 1);                 // neg
-  else 
-    bit32Pack(0, 24, 1);                 // pos      
-  bit32Pack(Abs(fr_rc[4]), 25, 6);       // fragment 4 
-  if (fr_rc[4] < 0)
-    bit32Pack(1, 31, 1);                 // neg
-  else 
-    bit32Pack(0, 31, 1);                 // pos  
-        
-  FrSkySPort_SendDataFrame(0x1B, 0x5009,fr_payload); 
-
-  #if defined Frs_Debug_All || defined Frs_Debug_RC
-    Debug.print("Frsky out RC 0x5009: ");  
-    Debug.print(" ap_chcnt="); Debug.print(ap_chcnt); 
-    Debug.print(" sv_count="); Debug.print(sv_count); 
-    Debug.print(" fr_chcnt="); Debug.print(fr_chcnt);
-    Debug.print(" fr_rc1="); Debug.print(fr_rc[1]);
-    Debug.print(" fr_rc2="); Debug.print(fr_rc[2]);
-    Debug.print(" fr_rc3="); Debug.print(fr_rc[3]);   
-    Debug.print(" fr_rc4="); Debug.println(fr_rc[4]);       
-  #endif
-
-  rc_count += 4;   
-} 
-*/
-
-    
+}         
