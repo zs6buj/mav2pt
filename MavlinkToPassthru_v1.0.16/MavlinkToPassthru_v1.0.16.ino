@@ -760,7 +760,9 @@ void QueueOneMavFrame() {
     if(mavlink_parse_char(MAVLINK_COMM_0, c, &ring_msg, &status)) {
       if (MavRingBuff.isFull()) 
         Debug.println("MavRingBuff is full. Dropping records!");
+        BufLedState = HIGH;
        else {
+        BufLedState = LOW;
         MavRingBuff.push(ring_msg);
         #if defined Mav_Debug_RingBuff
           Debug.print(" Mav queue length after push= "); 
@@ -1427,12 +1429,7 @@ void ServiceMavStatusLed() {
 }
 
 void ServiceBufStatusLed() {
-  if (MsgRingBuff.isFull()) {
-      BufLedState = HIGH;
-  }
-    else 
-      BufLedState = LOW;
-    digitalWrite(BufStatusLed, BufLedState);  
+  digitalWrite(BufStatusLed, BufLedState);  
 }
 
 void BlinkMavLed(uint32_t period) {

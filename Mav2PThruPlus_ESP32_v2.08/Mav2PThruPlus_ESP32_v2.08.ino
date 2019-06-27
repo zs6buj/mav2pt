@@ -1,7 +1,7 @@
-   
+  
 /*  *****************************************************************************
 
-    MavToPassthruPlus  July 2018
+    MavToPassthruPlusESP32  May-June 2019
  
     This program is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 
     Thank you to yaapu for advice and testing, and his excellent LUA script
 
-    Thank you athertop for advice and extensive testing
+    Thank you athertop for advice and testing
     
     Thank you florent for advice on working with my FlightDeck
 
@@ -43,12 +43,12 @@
     inverter). The Mavlink procol telemetry can still be fed on to Mission Planner or other GCSs.
 
     For now the Teensy 3.2 is prefered to the STM32 because of it's small size. It fits snugly 
-    into the Orange LRS UHF RX/TX enclosure in the back bay of the Taranis, and requires no 
+    into the Orange LRS UHF rx/tx enclosure in the back bay of the Taranis, and requires no 
     external inverter.
 
    FrSky telemetry is unlike regular telemetry. It evolved from a simple system to poll sensors 
    on a 'plane, and as the number of sensors grew over time so too did the temetry requirements.
-   Synchromous sensor polling is central to the telemetry, and timing is critical.
+   Synchron  ous sensor polling is central to the telemetry, and timing is critical.
 
    On the other hand, most flight control computers manage internal and external sensors so 
    that the polling is handled internally. Telemetry is organised into meaningful records or 
@@ -93,159 +93,292 @@
    1 Requested from the flight controller via Mavlink
    2 Defined within this firmware  or 
    3 Defined within the LUA script on the Taranis/Horus. This is the prefered method as the Orange's
-     RX (and Teensy TX) line is freed-up for use for BlueTooth or other Mavlink connections
+     rx (and Teensy tx) line is freed-up for use for BlueTooth or other Mavlink connections
      
    Please #define the appropriate Battery_mAh_Source below
    
-    Connections to Teensy3.2 are:
+   Connections to Teensy3.2 are:
     0) USB                         Flashing and serial monitor for debug
-    1) SPort S     -->TX1 Pin 1    S.Port out to Taranis bay, bottom pin
-    2) Mavlink     <--RX2 Pin 9    Mavlink from Taranis to Teensy
-    3) Mavlink     -->TX2 Pin 10   Mavlink from Teensy to Taranis
-    4) Aux_Mavlink <--RX3 Pin 7    Auxiliary Mavlink From BT Module to Teensy
-    5) Aux_Mavlink -->TX3 Pin 8    NOT NECESSARY - wire direct from Orange TX to BT RX  
+    1) SPort S     -->tx1 Pin 1    S.Port out to Taranis bay, bottom pin
+    2) Mavlink_In  <--rx2 Pin 9    Mavlink from Taranis to Teensy
+    3) Mavlink_In  -->tx2 Pin 10   Mavlink from Teensy to Taranis
+    4) Mavlink_Out <--rx3 Pin 7    Optional feature
+    5) Mavlink_Out -->tx3 Pin 8    Optional feature 
     6) Vcc 3.3V !
     7) GND
 
    Connections to Blue Pill STM32F103C  are:
    
-    0) USB/TTL     -->TX1 Pin A9   Flashing and serial monitor for debug
-    0) USB/TTL     -->RX1 Pin A10 
+    0) USB/TTL     UART0   -->tx1 Pin A9   Flashing and serial monitor for debug
+    0) USB/TTL     UART0   -->rx1 Pin A10 
     
-    1) SPort S     -->TX2 Pin A2   Serial1 to inverter, convert to single wire then to S.Port
-    2) SPort S     <--RX2 Pin A3   Serial1 To inverter, convert to single wire then to S.Port
-    3) Mavlink     -->TX3 Pin B10  Mavlink from STM32 to Taranis 
-    4) Mavlink     <--RX3 Pin B11  Mavlink from Taranis to STM32  
-    5) Aux_Mavlink    Not available   
-    6) Aux_Mavlink    Not available
-    7) Vcc 3.3V !
-    8) GND
+    1) SPort S     UART1   -->tx2 Pin A2   Serial1 to inverter, convert to single wire then to S.Port
+    2) SPort S     UART1   <--rx2 Pin A3   Serial1 To inverter, convert to single wire then to S.Port
+    3) Mavlink_In  UART2   -->tx3 Pin B10  Serial2 Mavlink from STM32 to Taranis 
+    4) Mavlink_In  UART2   <--rx3 Pin B11  Serial2 Mavlink from Taranis to STM32  
+    5) Vcc 3.3V !
+    6) GND
 
    Connections to Maple Mini STM32F103C are:
     0) USB                          Flashing and serial monitor for debug
-    1) SPort S     -->TX1 Pin A10   Serial1 to inverter, convert to single wire then to S.Port
-    2) SPort S     <--RX1 Pin A9    Serial1 To inverter, convert to single wire then to S.Port
-    3) Mavlink     -->TX2 Pin A2    Serial2 Mavlink from STM32 to Taranis
-    4) Mavlink     <--RX2 Pin A3    Serial2 Mavlink from Taranis to STM32 
-    5) Aux_Mavlink -->TX3 Pin B10   Serial3 NOT NECESSARY - wire direct from Orange TX to BT RX
-    6) Aux_Mavlink <--RX3 Pin B11   Serial3 Auxiliary Mavlink From BT Module to Teensy  
+    1) SPort S     -->tx1 Pin A10   Serial1 to inverter, convert to single wire then to S.Port
+    2) SPort S     <--rx1 Pin A9    Serial1 To inverter, convert to single wire then to S.Port
+    3) Mavlink_In  -->tx2 Pin A2    Serial2 Mavlink from STM32 to Taranis
+    4) Mavlink_In  <--rx2 Pin A3    Serial2 Mavlink from Taranis to STM32 
+    5) Mavlink_Out -->tx3 Pin B10   Serial3 Optional feature
+    6) Mavlink_Out <--rx3 Pin B11   Serial3 Optional 
     7) Vcc 3.3V !
     8) GND  
     
+  Connections to ESP32 are: 
+   0) USB           UART0                    Flashing and serial monitor for debug
+   1) SPort S       UART1   <--rx1 pin d12   Already inverted, S.Port in from single-wire combiner from Taranis bay, bottom pin
+   2)               UART1   -->tx1 pin d14   Already inverted, S.Port out to single-wire combiner to Taranis bay, bottom pin             
+   3) Mavlink       UART2   <--rx2 pin d9    Mavlink from Taranis to Teensy
+   4)               UART2   -->tx2 pin d10   Mavlink from Teensy to Taranis
+   5) Vcc 3.3V !
+   6) GND
+   
 Change log:
-
-v0.03 2018-07-11  Add sensor types 0x5009 RX Channels, 0x5010 VFR Hud 2018-07-17 board LED solid when mavGood
-v0.04 2018-07-31  Add support for Maple Mini. Change rc channel 0x5009 as per yaapu's proposal  
-v0.05 2018-08-02  Add circular buffers for mavlink incoming from FC
-v0.06 2018-08-03  Fixed "#if defined Target_Teensy3x" not changed everywhere - Thanks Alex
-                  Translate RC values : PWM 1000 to 2000 -> 6 bit 0-63 plus sign bit
-v0.07             Do some tests                  
-v0.08 2018-08-14  Servo outputs, not RC inputs 
-v0.09 2018-09-20  Add support for PX4 flight stack. Specifically flight mode. 2018-09-24 Use di/dt for mAh. 
-v0.10 2018-09-26  Fix bug in current consumption. Two options, from FC or accumulated di/dt. They now track each other.
-v0.11 2018-08-30  PX4 new flight mode scheme. Clean up battery capacity source logic.
-v0.12 2018-09-11  Add support for missions 
-v0.13 2018-09-16  COG - Azimuth offset as per yaapu requirements 
-v0.14 2018-09-17  Missions 0x500B after TLog testing. 
-v0.15 2018-09-19  Included Alex's code into 0x500B. Use #24 for COG, not #62.
-v0.16 2018-09-28  Send mission (waypoint) count as parameter id = 6 in 0x5007 Parameter frame
-v0.17 2018-09-28  Switch to Mavlink 2
-v0.18 2018-10-07  Update PrintMavBuffer() for Mav2
-v0.19 2018-10-08  Re-arrange our custom message IDs as per Alex's request
-v0.20 2018-10-29  a) Blue Pill does not have serial 3. Trap and reports this configuration in pre-compile
-                  b) If not Teensy don't try to switch into single wire mode in ReadSPort()   
-v0.21 2018-10-29  In Air and Relay modes enter Frsky polling loop immediately when any single Mavlink record has been received.  
-                  Response is much faster, especially for the STM32F103 
-v0.22 2019-01-05  Fix format bug in #24 debug Debug.print(ap_eph)and Debug.print(ap_epv). Int not float.     
-v0.23 2019-01-09  Change polling period in Air and Relay modes to 1mS. Trade off to maximise response but maintain sync. 
-      2019-01-23  Merge pull from yaapu to change instance from 0x1c to 0x1b in relay mode                                        
-v0.24 2019-01-24  Merge urlu75 recommmendation as QLRS uses rssi from #35 rather than #65. Add #define QLRS option.  
-v0.25 2019-05-18  Belatedly include Alex's Rangefinder PR that I missed. 
-v0.26 2019-05-21  Reduce voltage and current display moving average smoothing
-                  Empirical correction of mAh consumed as per Markus Greinwald's measurements
-                  Change mav heartbeat timeout from 3 to 6 seconds   
-v0.27 2019-06-05 Fix for PX4 flight stack. It uses GPS_Raw #24 rather than GPS_Int #33 like APM.  
-                 Also fix altitude and heading.                      
+                                    
+v2.00 2019-06-07 Plus version firmware ported to ESP32 Dev Module V1 successfully - no improvements  
+v2.01 2019-06-09 Added OLED display support
+v2.02 2019-05-18 Belatedly include Alex's Rangefinder PR that I missed.
+v2.03 2019-05-21 Reduce voltage and current display moving average smoothing
+                 Empirical correction of mAh consumed as per Markus Greinwald's measurements 
+                 Change mav heartbeat timeout from 3 to 6 seconds
+v2.04 2019-05-24 Merge Alex's BT classic PR. Thank you! 
+                 Remove Aux port as no longer required
+                 Tidy #define options  
+v2.05 2019-06-09 Support 3 possible I/O channels on FC side, and 3 on GCS side. UART serial, BT and WiFi.
+                 WiFi AP ssid = 'Mav2Passthru', pw = 'password' for now.  
+v2.06 2019-06-10 Support added for STA mode and AP mode. Tidied up some lose ends. 
+v2.07 2019-06-16 Initiate WiFi session with push button from GPIO15 momentary to ground. 
+v2.08 2019-06-27 Add SD/TF card support - wip!!  Added UTP protocol option                       
 */
 
 #include <CircularBuffer.h>
-#include <..\c_library_v2\ardupilotmega\mavlink.h>          
+#include <..\c_library_v2\ardupilotmega\mavlink.h>
 
+//*****************************************************************************************************************
 //************************************* Please select your options here before compiling **************************
 // Choose one (only) of these target boards
-#define Target_Board   0      // Teensy 3.x              Un-comment this line if you are using a Teensy 3.x
-//#define Target_Board   1      // Blue Pill STM32F103C    OR un-comment this line if you are using a Blue Pill STM32F103C
-//#define Target_Board   2      // Maple_Mini STM32F103C   OR un-comment this line if you are using a Maple_Mini STM32F103C
+//#define Target_Board   0      // Teensy 3.x              
+//#define Target_Board   1      // Blue Pill STM32F103C    
+//#define Target_Board   2      // Maple_Mini STM32F103C  
+#define Target_Board   3      // Espressif ESP32 Dev Module 
 
-// Choose one (only) of these three modes
+// Choose one only of these three modes
 #define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
 //#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
-//#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both RX and TX lines must be connected      
-//#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
-#define Battery_mAh_Source  3  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
+// Choose one only of these Flight Controller side I/O channels
+#define FC_Mavlink_IO  0    // Serial Port (default)         
+//#define FC_Mavlink_IO  1    // BlueTooth Classic
+//#define FC_Mavlink_IO  2    // WiFi
+//#define FC_Mavlink_IO  3    // SD Card / TF 
 
+// Choose one only of these GCS side I/O channels
+//#define GCS_Mavlink_IO  9    // NONE (default)
+//#define GCS_Mavlink_IO  0    // Serial Port          
+//#define GCS_Mavlink_IO  1    // BlueTooth Classic
+#define GCS_Mavlink_IO  2    // WiFi
+
+//#define WiFi_Protocol 1    // TCP/IP
+#define WiFi_Protocol 2    // UDP     - not supported in AP mode
+
+//#define WiFi_Mode   1  //AP            - not allowed for UDP protocol
+#define WiFi_Mode   2  // STA
+
+// Activate SD Card Output 
+//#define GCS_Mavlink_SD       // SD Card / TF
+
+//#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both rx and tx lines must be connected      
+//#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
 const uint16_t bat1_capacity = 5200;       
 const uint16_t bat2_capacity = 0;
+#define Battery_mAh_Source  3  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
 
-#define SPort_Serial   1    // The default is Serial 1, but 3 is possible if we don't want aux port
+#define SPort_Serial   1            // The default is Serial 1, but 3 is possible 
 
-//#define Aux_Port_Enabled            // For BlueTooth or other auxilliary serial passthrough
 //#define Request_Missions_From_FC    // Un-comment if you need mission waypoint from FC - NOT NECESSARY RIGHT NOW
 #define Request_Mission_Count_From_FC // Needed for yaapu's mission/waypoint script
 //#define QLRS                        // Un-comment this line only if you are using the QLRS telemetry system
 
-//*** LEDS ********************************************************************************************************
-//uint16_t MavStatusLed = 13; 
-uint8_t MavLedState = LOW; 
-uint16_t BufStatusLed = 12; 
-uint8_t BufLedState = LOW; 
 
-#if (Target_Board == 0) // Teensy3x
+//************************************************************************************************** 
+// Check #defines options logic
+
+  #ifndef Target_Board
+    #error Please choose at least one target board
+  #endif
+
+  #if (Target_Board == 0) || (Target_Board == 1) || (Target_Board == 2) 
+     #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1) || (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)
+       #error WiFi or Bluetooth work only on an ESP32 board
+     #endif  
+  #endif
+
+  #ifndef GCS_Mavlink_IO
+    #define GCS_Mavlink_IO  9    // NONE (default)
+  #endif
+  
+  #ifndef FC_Mavlink_IO
+    #error Please choose at least one Mavlink FC IO channel
+  #endif
+
+  #if (Target_Board == 1) || (Target_Board == 3) // Blue Pill or ESP32
+    #if (SPort_Serial  == 3)    
+      #error Board does not have Serial3. This configuration is not possible.
+    #endif
+  #endif
+
+  #ifndef Battery_mAh_Source
+    #error Please choose at least one Battery_mAh_Source
+  #endif
+
+  #ifndef WiFi_Mode 
+    #error Please define WiFi_Mode
+  #endif
+
+  #ifndef WiFi_Protocol
+    #error Please define WiFi_Protocol
+  #endif
+
+  #if (WiFi_Protocol == 2) && (WiFi_Mode == 1)  // if UDP protocol and AP mode
+    #error Sorry - AP mode does not support UDP protocol
+  #endif
+
+//********************************************* LEDS and SSD1306 ********************************************
+
+  
+#if (Target_Board == 0)      // Teensy3x
   #define MavStatusLed  13
-#elif (Target_Board == 1) // Blue Pill
+  #define BufStatusLed  14 
+#elif (Target_Board == 1)    // Blue Pill
   #define MavStatusLed  PC13
-#elif (Target_Board == 2) //  Maple Mini
-  #define MavStatusLed  33  // PB1
-#endif
-//********************************************************* 
-#if (Target_Board == 1) // Blue Pill
-  #if defined Aux_Port_Enabled       
-    #error Blue Pill board does not have enough UARTS for Auxilliary port. Un-comment #define Aux_Port_Enabled.
-  #endif
-#endif
-
-#if (Target_Board == 1) // Blue Pill
-  #if (SPort_Serial  == 3)    
-    #error Blue Pill board does not have Serial3. This configuration is not possible.
-  #endif
+  #define BufStatusLed  PC14 
+#elif (Target_Board == 2)    //  Maple Mini
+  #define MavStatusLed  33        // PB1
+  #define BufStatusLed  34 
+#elif (Target_Board == 3)   //  ESP32 Dev Module V2
+  #define MavStatusLed  02        // Dev Module=02, TTGO OLED Battey board = 16 
+  #define BufStatusLed  13  
+  #include "SSD1306Wire.h" 
+  const uint8_t oledSDA = 26;  // TTGO = 5;  ESP Dev = 19;    Other = 21;
+  const uint8_t oledSCL = 25;  // TTGO = 4;  ESP Dev = 18;    Other = 22;
+  SSD1306Wire  display(0x3c, oledSDA, oledSCL); 
 #endif
 
+///************************************************************************** 
+//******************************** Bluetooth  *******************************
+  #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1)  // Bluetooth
+    #if (Target_Board == 3) // ESP32
+      #include "BluetoothSerial.h"
+      #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
+        #error Bluetooth is not enabled! Please run `make menuconfig in ESP32 IDF` 
+      #endif
+    #else
+      #error Bluetooth only available on ESP32
+    #endif    
+#endif
+
+///************************************************************************** 
+//********************************** WiFi ***********************************
+  #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2))  // WiFi
+  
+    #include <WiFi.h>
+    
+    #if (WiFi_Protocol == 1)
+      #include <WiFiClient.h>
+    #endif 
+    
+    #if (WiFi_Protocol == 2)
+      #include <WiFiUDP.h>
+    #endif   
+    
+    int16_t wifi_rssi;    
+    uint8_t activateWiFiPin = 15;    // D15
+    
+    #if (WiFi_Mode == 1)  // AP
+      #include <WiFiAP.h>  
+      const char *APssid =    "Mav2Passthru";    // The AP SSID that we advertise  ====>
+      const char *APpw =      "password";        // Change me!
+    #endif
+    
+    #if (WiFi_Mode == 2)  //  STA
+  //    const char *STAssid =     "TargetAPName";    // Target AP to connect to      <====
+   //   const char *STApw =       "targetPw";      // Change me!
+      const char *STAssid =     "OmegaOffice";    // Target AP to connect to      <====
+      const char *STApw =       "Navara@98";      // Change me!
+
+    #endif   
+    
+    #if (WiFi_Protocol == 1)
+      uint16_t tcp_remotePort = 5760;
+      WiFiClient tcp;    // Create tcp client object
+      WiFiServer server(tcp_remotePort);
+    #endif 
+    
+    #if (WiFi_Protocol == 2)
+      uint16_t udp_localPort = 22222;
+      uint16_t udp_remotePort = 14550;
+      bool remIpFt = true;
+      IPAddress udp_remoteIP =  (192, 168, 1, 255);    // Start with broadcast, then target Udp.remoteIP()   
+      WiFiUDP udp;       // Create udp object      
+    #endif   
+    
+    IPAddress localIP;
+
+    
+ #endif  
+  
+//************************************************************************** 
+//******************************* SD Card **********************************
+  #if ((FC_Mavlink_IO == 3) || (defined GCS_Mavlink_SD))  // SD Card
+
+  // Pins generally   CS=5    MOSI=23   MISO=19   SCK=18    3.3V   GND   Dev Board, LilyGO/TTGO
+ 
+  #include "FS.h"
+  #include "SD.h"
+  #include "SPI.h"
+  
+  #endif 
+//************************************************************************** 
+//********************************** Serial ********************************
 #define Debug               Serial         // USB 
 #define frBaud              57600          // Use 57600
-#define mavSerial           Serial2        
-#define mavBaud             57600   
+#define mvSerialFC          Serial2        
+#define mvBaudFC            57600   
 
-#if (SPort_Serial == 1) 
+#if (Target_Board == 0)      //  Teensy 3.1
+ #if (SPort_Serial == 1) 
   #define frSerial              Serial1        // S.Port 
-  #elif (SPort_Serial == 3)
-    #define frSerial            Serial3        // S.Port 
-  #else
-    #error SPort_Serial can only be 1 or 3. Please correct.
-#endif  
-   
-#if defined Aux_Port_Enabled
+ #elif (SPort_Serial == 3)
+  #define frSerial              Serial3        // S.Port 
+ #else
+  #error SPort_Serial can only be 1 or 3. Please correct.
+ #endif 
+#endif 
+
+#if (Target_Board == 2) || (Target_Board == 3)
+  #define frSerial              Serial1        // S.Port 
+#endif 
+
+#if (GCS_Mavlink_IO == 0) // Mavlink_GCS optional feature available for Teensy 3.1/2 and Maple Mini
+  Debug.Print("GCS_Mavlink_IO ="); Debug.println(GCS_Mavlink_IO);
   #if (SPort_Serial == 3) 
-   #error Aux port and SPort both configured for Serial3. Please correct.
+   #error Mavlink_GCS and SPort both configured for Serial3. Please correct.
   #else 
-    #define auxSerial             Serial3        // Mavlink telemetry to and from auxilliary adapter     
-    #define auxBaud               57600          // Use 57600
-    #define auxDuplex                            // Pass aux <-> FC traffic up and down, else only down from FC
+    #define mvSerialGCS             Serial3 
+    #define mvBaudGCS               57600        // Use 57600
   #endif
 #endif
 
-//#define Frs_Dummy_rssi       // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
+//************************************************************************** 
+//******************************** Other ***********************************  
+//#define Frs_Dummy_rssi       // For testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
 //#define Data_Streams_Enabled // Rather set SRn in Mission Planner
 
 #define Max_Waypoints  256     // Note. This is a RAM trade-off. If exceeded then Debug message and shut down
@@ -257,13 +390,15 @@ uint8_t BufLedState = LOW;
 //#define Mav_Debug_RingBuff
 //#define Debug_Air_Mode
 //#define Mav_List_Params
-//#define Aux_Debug_Params
-//#define Aux_Port_Debug
+//#define Debug_BT
+//#define Debug_FC        // traffic down from FC to Ring Buffer
+//#define Debug_GCS       // traffic from RB to GCS
+//#define Debug_GCS_Up      // traffic up from GCS to FC
 //#define Mav_Debug_Params
 //#define Frs_Debug_Params
 //#define Mav_Debug_Servo
 //#define Frs_Debug_Servo
-//#define Mav_Debug_Rssi
+//#define Debug_Rssi
 //#define Mav_Debug_RC
 //#define Frs_Debug_RC
 //#define Mav_Debug_Heartbeat
@@ -285,10 +420,13 @@ uint8_t BufLedState = LOW;
 //#define Mav_Debug_Text
 //#define Frs_Debug_Text    
 //#define Mav_Debug_Mission 
-//#define Frs_Debug_Mission              
+//#define Frs_Debug_Mission   
+//#define Debug_SD          
 //*****************************************************************************************************************
 
-uint8_t   buf[MAVLINK_MAX_PACKET_LEN];
+uint8_t   MavLedState = LOW; 
+uint8_t   BufLedState = LOW; 
+ 
 uint16_t  hb_count=0;
 
 bool      ap_bat_paramsReq = false;
@@ -297,9 +435,11 @@ bool      parm_msg_shown = false;
 bool      ap_paramsList=false;
 uint8_t   paramsID=0;
 
-bool      homGood=false;      
-bool      mavGood=false;
-bool      rssiGood=false;
+bool      homGood = false;      
+bool      mavGood = false;
+bool      rssiGood = false;
+bool      wifiSuGood = false;
+bool      sdGood = false;
 
 uint32_t  hb_millis=0;
 uint32_t  rds_millis=0;
@@ -372,9 +512,14 @@ struct Battery bat2     = {
 
 // ******************************************
 
-mavlink_message_t msg;
+mavlink_message_t   F2Rmsg, R2Gmsg, G2Fmsg;
 
-uint16_t len;
+
+uint8_t             FCbuf [MAVLINK_MAX_PACKET_LEN];
+uint8_t             GCSbuf[MAVLINK_MAX_PACKET_LEN];
+
+bool                GCS_available = false;
+uint16_t            len;
 
 // Mavlink Messages
 
@@ -429,8 +574,8 @@ uint16_t ap_param_index;              //  Index of this onboard parameter
 // Message #24  GPS_RAW_INT 
 uint8_t    ap_fixtype = 3;            // 0= No GPS, 1=No Fix, 2=2D Fix, 3=3D Fix, 4=DGPS, 5=RTK_Float, 6=RTK_Fixed, 7=Static, 8=PPP
 uint8_t    ap_sat_visible = 0;        // numbers of visible satelites
-int32_t    ap_lat24 = 0;           // 7 assumed decimal places
-int32_t    ap_lon24 = 0;          // 7 assumed decimal places
+int32_t    ap_lat24 = 0;              // 7 assumed decimal places
+int32_t    ap_lon24 = 0;              // 7 assumed decimal places
 int32_t    ap_amsl24 = 0;             // 1000 = 1m
 uint16_t   ap_eph;                    // GPS HDOP horizontal dilution of position (unitless)
 uint16_t   ap_epv;                    // GPS VDOP vertical dilution of position (unitless)
@@ -660,7 +805,7 @@ float fr_bat2_amps;
 uint16_t fr_bat2_mAh;
 
 //0x5009 Servo_raw         // 4 ch per frame
-uint8_t  fr_port; 
+uint8_t  frPort; 
 int8_t   fr_sv[5];       
 
 //0x5010 HUD
@@ -691,21 +836,194 @@ typedef struct  {
 ST_type ST_record;
 
 CircularBuffer<ST_type, 10> MsgRingBuff; 
-
 CircularBuffer<mavlink_message_t, 10> MavRingBuff; 
+
+// OLED declarations *************************
+
+#define max_col  18
+#define max_row   4
+
+struct OLED_line {
+  char OLx[max_col];
+  };
+  
+ OLED_line OL[max_row]; 
+
+uint8_t row = 0;
+uint8_t row_hgt;
+
+// BT support declarations *****************
+#if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1) // Bluetooth
+BluetoothSerial SerialBT;
+#endif
 
 // ******************************************
 void setup()  {
+ 
+  Debug.begin(115200);
+  delay(2500);
+  Debug.println("Starting .... ");
+
+  display.init();
+  display.flipScreenVertically();
+  display.setFont(Dialog_plain_12);  //  col=18 x row=4  on 128x64 display
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  OledDisplayln("Starting .... ");
   
+/*
+  display.setFont(Dialog_plain_8);     //  col=24 x row 8  on 128x64 display
+  display.setFont(Dialog_plain_16);    //  col=13 x row=4  on 128x64 display
+*/
+
+  Debug.print("Target Board is ");
+  #if (Target_Board == 0) // Teensy3x
+    Debug.println("Teensy 3.x");
+    OledDisplayln("Teensy 3.x");
+  #elif (Target_Board == 1) // Blue Pill
+    Debug.println("Blue Pill STM32F103C");
+    OledDisplayln("Blue Pill STM32F103C");
+  #elif (Target_Board == 2) //  Maple Mini
+    Debug.println("Maple Mini STM32F103C");
+    OledDisplayln("Maple Mini STM32F103C");
+  #elif (Target_Board == 3) //  ESP32 Dev Module
+    Debug.println("ESP32 Dev Module");
+    OledDisplayln("ESP32 Dev Module");
+  #endif
+
+  #ifdef Ground_Mode
+    Debug.println("Ground Mode");
+    OledDisplayln("Ground Mode");
+  #endif
+  #ifdef Air_Mode
+    Debug.println("Air Mode");
+    OledDisplayln("Air Mode");
+  #endif
+  #ifdef Relay_Mode
+    Debug.println("Relay Mode");
+    OledDisplayln("Relay Mode");
+  #endif
+
+  #if (Battery_mAh_Source == 1)  
+    Debug.println("Battery_mAh_Source = 1 - Get battery capacities from the FC");
+    OledDisplayln("mAh from FC");
+  #elif (Battery_mAh_Source == 2)
+    Debug.println("Battery_mAh_Source = 2 - Define battery capacities in this firmware");  
+    OledDisplayln("mAh defined in fw");
+  #elif (Battery_mAh_Source == 3)
+    Debug.println("Battery_mAh_Source = 3 - Define battery capacities in the LUA script");
+    OledDisplayln("Define mAh in LUA");     
+  #else
+    #error You must define at least one Battery_mAh_Source. Please correct.
+  #endif            
+
+  #if (SPort_Serial == 1) 
+    Debug.println("Using Serial_1 for S.Port");     
+    OledDisplayln("S.PORT is Serial1");  
+  #else
+    Debug.println("Using Serial_3 for S.Port");
+    OledDisplayln("S.PORT is Serial3");       
+  #endif  
+
+  #if defined QLRS 
+    Debug.println("QLRS variant of Mavlink");
+    OledDisplayln("QLRS variant!");        
+  #endif
+
+  #if (FC_Mavlink_IO == 0)  // Serial
+    Debug.println("Mavlink Serial In");
+    OledDisplayln("Mavlink Serial In");
+  #endif  
+
+  #if (GCS_Mavlink_IO == 0)  // Serial
+    Debug.println("Mavlink Serial Out");
+    OledDisplayln("Mavlink Serial Out");
+  #endif  
+  #if (FC_Mavlink_IO == 1)  // Bluetooth
+    Debug.println("Mavlink BT In");
+    OledDisplayln("Mavlink BT In");
+  #endif  
+
+  #if (GCS_Mavlink_IO == 1)  // Bluetooth
+    Debug.println("Mavlink BT Out");
+    OledDisplayln("Mavlink BT Out");
+  #endif  
+
+ #if (FC_Mavlink_IO == 2)  // WiFi
+    Debug.println("Mavlink WiFi In");
+    OledDisplayln("Mavlink WiFi In");
+ #endif  
+  
+ #if (GCS_Mavlink_IO == 2)  // WiFi
+    Debug.println("Mavlink WiFi Out");
+    OledDisplayln("Mavlink WiFi Out");
+ #endif
+ 
+ #if (FC_Mavlink_IO == 3)  // Sd/TF Card
+    Debug.println("Mavlink SD In");
+    OledDisplayln("Mavlink SD Out");
+ #endif
+ 
+// ************************ Setup Serial ******************************
   FrSkySPort_Init();
-  mavSerial.begin(mavBaud);
-  
-  #if defined  Aux_Port_Enabled 
-  auxSerial.begin(auxBaud);
+
+  #if (FC_Mavlink_IO == 0)    //  Serial
+    mvSerialFC.begin(mvBaudFC);
+ //   mvSerial.begin(mvBaudFC, SERIAL_8N1, 9, 10);  //  rx=9   tx=10
   #endif
   
-  Debug.begin(115200);
+  #if (GCS_Mavlink_IO == 0)   //  Serial
+    mvSerialGCS.begin(mvBaudGCS);
+  #endif 
+  
+// ************************ Setup Bluetooth ***************************  
+  #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1) // Bluetooth 
+    SerialBT.begin("ESP32");
+  #endif  
+  
+  // ************************* Setup WiFi ****************************  
+  #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)) //  WiFi
+    pinMode(activateWiFiPin, INPUT_PULLUP); 
+  #endif 
+  
+ // ************************* Setup SD Card ************************** 
+  #if ((FC_Mavlink_IO == 3) || (defined GCS_Mavlink_SD))  // SD Card
+    if(!SD.begin()){   
+        Debug.println("No SD card reader found. Ignoring SD!"); 
+        OledDisplayln("No SD reader");
+        OledDisplayln("Ignoring!");
+        sdGood = false;
+    } else {
+      Debug.println("SD card reader mount OK");
+      OledDisplayln("SD drv mount OK");
+      uint8_t cardType = SD.cardType();
 
+      if(cardType == CARD_NONE){
+          Serial.println("No SD card found");
+          OledDisplayln("No SD card");
+          OledDisplayln("Ignoring!");      
+          sdGood = false;
+      } else {
+        sdGood = true;
+        Debug.println("SD card found");
+        OledDisplayln("SD card found");
+
+        Debug.printf("Total space: %lluMB\n", SD.totalBytes() / (1024 * 1024));
+        Debug.printf("Used space: %lluMB\n", SD.usedBytes() / (1024 * 1024));
+
+        listDir(SD, "/", 2);
+
+        #if (defined GCS_Mavlink_SD)
+
+        deleteFile(SD, "/mav2passthu.tlog");
+
+        writeFile(SD, "/mav2passthu.tlog", "Mavlink to FrSky Passthrough");
+        
+        #endif 
+      }  
+    }
+  #endif
+
+// *********************************************************************
   mavGood = false;
   homGood = false;     
   hb_count = 0;
@@ -714,72 +1032,76 @@ void setup()  {
   rds_millis=millis();
   em_millis=millis();
   
-  delay(2500);
-  Debug.println("Starting .... ");
-  
-  Debug.print("Target Board is ");
-  #if (Target_Board == 0) // Teensy3x
-  Debug.println("Teensy 3.x");
-  #elif (Target_Board == 1) // Blue Pill
-  Debug.println("Blue Pill STM32F103C");
-  #elif (Target_Board == 2) //  Maple Mini
-  Debug.println("Maple Mini STM32F103C");
-  #endif
-
-  #ifdef Ground_Mode
-  Debug.println("Ground Mode");
-  #endif
-  #ifdef Air_Mode
-  Debug.println("Air Mode");
-  #endif
-  #ifdef Relay_Mode
-  Debug.println("Relay Mode");
-  #endif
-
-  #if defined Aux_Port_Enabled
-  Debug.print("Auxilliary Mavlink port enabled");
-    #ifdef auxDuplex
-      Debug.println(" for two-way telemetry to/from Flight Control computer"); 
-    #else 
-      Debug.println(" for one-way telemetry down from Flight Control computer"); 
-    #endif 
-  #endif  
-  
-  #if (Battery_mAh_Source == 1)  
-    Debug.println("Battery_mAh_Source = 1 - Get battery capacities from the FC");
-  #elif (Battery_mAh_Source == 2)
-    Debug.println("Battery_mAh_Source = 2 - Define battery capacities in this firmware");  
-  #elif (Battery_mAh_Source == 3)
-    Debug.println("Battery_mAh_Source = 3 - Define battery capacities in the LUA script"); 
-  #else
-    #error You must define at least one Battery_mAh_Source. Please correct.
-  #endif            
-
-  #if (SPort_Serial == 1) 
-    Debug.println("Using Serial_1 for S.Port"); 
-  #else
-    Debug.println("Using Serial_3 for S.Port"); 
-  #endif  
-
-  #if defined QLRS 
-    Debug.println("QLRS variant"); 
-  #endif
-
    pinMode(MavStatusLed, OUTPUT); 
    pinMode(BufStatusLed, OUTPUT); 
-   
 }
 
-// ******************************************
-// ******************************************
-void loop()  {
+// *******************************************************************************************
+
+void loop() {            // For WiFi only
   
-  #ifdef Data_Streams_Enabled
+#if (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)
+
+  uint8_t WiFiPinState = digitalRead(activateWiFiPin);
+  if (WiFiPinState == 0) {
+    SetupWiFi();
+    }
+
+  #if (WiFi_Protocol == 1)  // TCP  
+    if (wifiSuGood) {
+      tcp = server.available();              // listen for incoming clients 
+      if(tcp) {
+        Debug.println("New client connected"); 
+        OledDisplayln("New client ok!");      
+        while (tcp.connected()) {            // loop while the client's connected
+          main_loop(); 
+        }
+      tcp.stop();
+      Debug.println("Client disconnected");
+      OledDisplayln("Client discnnct!");      
+      } else {
+         main_loop();
+     } 
+    }  else { 
+       main_loop();
+    }  
+  #endif  
+  
+  #if (WiFi_Protocol == 2)  // UDP  
+    main_loop();       
+  #endif  
+     
+#else 
+  main_loop();
+#endif
+  
+}
+// *******************************************************************************************
+//********************************************************************************************
+void main_loop() {
+ 
+  FC_To_RingBuffer();
+
+  RB_To_Decode_To_SPort_and_GCS();
+  
+  Read_From_GCS();
+  
+  Write_To_FC();                            
+  
+  if(mavGood && (millis() - hb_millis) > 6000)  {   // if no heartbeat from APM in 6s then assume mav not connected
+    mavGood=false;
+    Debug.println("Heartbeat timed out! Mavlink not connected"); 
+    OledDisplayln("Mavlink lost!");       
+    hb_count = 0;
+   } 
+   
+  #ifdef Data_Streams_Enabled 
   if(mavGood) {                      // If we have a link, request data streams from MavLink every 5s
     if(millis()-rds_millis > 5000) {
     rds_millis=millis();
-    Debug.println("Requesting data streams");    
-    RequestDataStreams();   // ensure Teensy Tx connected to Taranis RX  (When SRx not enumerated)
+    Debug.println("Requesting data streams"); 
+    OledDisplayln("Reqstg datastreams");    
+    RequestDataStreams();   // ensure Teensy Tx connected to Taranis rx  (When SRx not enumerated)
     }
   }
   #endif 
@@ -793,12 +1115,6 @@ void loop()  {
   }
   #endif
 
-  if(mavGood && (millis() - hb_millis) > 3000)  {   // if no heartbeat from APM in 3s then assume mav not connected
-    mavGood=false;
-    Debug.println("Heartbeat timed out! Mavlink not connected");    
-    hb_count = 0;
-   } 
-
   #if (Battery_mAh_Source == 1)  // Get battery capacity from the FC
   // Request battery capacity params 
   if (mavGood) {
@@ -808,11 +1124,13 @@ void loop()  {
       Request_Param_Read(364);    // Request Bat2 capacity
       Request_Param_Read(364);    
       Debug.println("Battery capacities requested");
+      OledDisplayln("Bat mAh from FC");    
       ap_bat_paramsReq = true;
     } else {
       if (ap_bat_paramsRead &&  (!parm_msg_shown)) {
         parm_msg_shown = true; 
         Debug.println("Battery params successfully read"); 
+        OledDisplayln("Bat params read ok"); 
       }
     } 
   }
@@ -825,12 +1143,94 @@ void loop()  {
     }
   #endif 
 
-  if(mavSerial.available()) QueueAvailableMavFrames(); // to the ring buffer
+  ServiceStatusLeds();
+}
+// *******************************************************************************
+//********************************************************************************
 
-  DecodeOneMavFrame();                     // Decode a Mavlink frame from the ring buffer if there is one
+void FC_To_RingBuffer() {
+  mavlink_status_t status;
+ 
+  #if (FC_Mavlink_IO == 0) // Serial
+  while(mvSerialFC.available()) { 
+    uint8_t c = mvSerialFC.read();
+    if(mavlink_parse_char(MAVLINK_COMM_0, c, &F2Rmsg, &status)) {  // Read a frame
+       #ifdef  Debug_FC
+         Debug.println("Passed to RB from FC Serial:");
+         PrintMavBuffer(&F2Rmsg);
+      #endif              
+      MavToRingBuffer();       
+    }
+  } 
+  #endif 
 
-  Aux_ReceiveAndForward();                 // Service aux incoming if enabled
+  #if (FC_Mavlink_IO == 1) // Bluetooth
+  while(SerialBT.available()) { 
+    uint8_t c = SerialBT.read();
+    if(mavlink_parse_char(MAVLINK_COMM_0, c, &F2Rmsg, &status)) {
+       #ifdef  Debug_FC
+         Debug.println("Passed to RB from FC BT:");
+         PrintMavBuffer(&F2Rmsg);
+      #endif          
+      MavToRingBuffer(); 
+    }
+  }  
+  #endif    
 
+  #if (FC_Mavlink_IO == 2)  //  WiFi
+            
+    //Read Data from connected client (FC side)   
+    #if (WiFi_Protocol == 1) //  TCP     
+    if (tcp.available()) {             // if there are bytes to read  
+      tcp.read(FCbuf, len); 
+      memcpy(&F2Rmsg, FCbuf, len);  
+      #ifdef  Debug_FC
+        Debug.println("Passed to RB from FC TCP WiFi:");
+        PrintMavBuffer(&F2Rmsg);
+      #endif                        
+      MavToRingBuffer();        
+    }
+    #endif
+    
+    #if (WiFi_Protocol == 2) //  UDP    
+      len = udp.parsePacket();
+      if (len) {             // if there is a packet to read
+        udp.read(FCbuf, len); 
+        udp_remoteIP = udp.remoteIP();  // remember which remote client sent this packet so we can target it
+        DisplayRemoteIP();
+        for (int i = 0 ; i < len ; i++) {
+          uint8_t c = FCbuf[i];
+          if(mavlink_parse_char(MAVLINK_COMM_0, c, &G2Fmsg, &status)) {
+            GCS_available = true;  // Record waiting 
+            #ifdef  Debug_FC
+              Debug.println("Passed to RB from FC UDP WiFi:");
+              PrintMavBuffer(&F2Rmsg);
+            #endif 
+            MavToRingBuffer();     
+            }                                  
+          }                        
+      }
+      #endif 
+  #endif 
+}
+//********************************************************************************
+
+void RB_To_Decode_To_SPort_and_GCS() {
+
+  if (!MavRingBuff.isEmpty()) {
+    R2Gmsg = (MavRingBuff.shift());  // Get a mavlink message from front of queue
+    #if defined Mav_Debug_RingBuff
+      Debug.print("Mavlink ring buffer R2Gmsg: ");  
+      PrintMavBuffer(&R2Gmsg);
+      Debug.print("Mav queue length after shift= "); Debug.println(MavRingBuff.size());
+    #endif
+    
+    From_RingBuf_To_GCS();
+    
+    DecodeOneMavFrame();  // Decode a Mavlink frame from the ring buffer 
+
+  }
+                              //*** Decoded Mavlink to S.Port  ****
   #ifdef Ground_Mode
   if(mavGood && ((millis() - em_millis) > 10)) {   
      Emulate_ReadSPort();                // Emulate the sensor IDs received from XRS receiver on SPort
@@ -844,74 +1244,235 @@ void loop()  {
      sp_millis=millis();
     }
   #endif   
-  
-  ServiceStatusLeds();
-}
-// ******************************************
-//*******************************************
-
-void QueueAvailableMavFrames() {
-  mavlink_message_t ring_msg;
+}  
+//********************************************************************************
+void Read_From_GCS() {
   mavlink_status_t status;
-  while(mavSerial.available())             { 
-    uint8_t c = mavSerial.read();
-    if(mavlink_parse_char(MAVLINK_COMM_0, c, &ring_msg, &status)) {
-      if (MavRingBuff.isFull()) 
+
+  #if (GCS_Mavlink_IO == 0) // Serial
+  while(mvSerialGCS.available()) { 
+    uint8_t c = mvSerialGCS.read();
+    if(mavlink_parse_char(MAVLINK_COMM_0, c, &G2Fmsg, &status)) {  // Read a frame from GCS  
+    GCS_available = true;  // Record waiting
+    #ifdef  Debug_GCS_Up
+      Debug.println("Passed up from GCS Serial to G2Fmsg:");
+      PrintMavBuffer(&G2Fmsg);
+    #endif     
+    }
+  } 
+  #endif 
+
+ #if (GCS_Mavlink_IO == 1) // Bluetooth
+
+  while(SerialBT.available()) { 
+    uint8_t c = SerialBT.read();
+    if(mavlink_parse_char(MAVLINK_COMM_0, c, &G2Fmsg, &status)) {
+      GCS_available = true;  // Record waiting
+      #ifdef  Debug_GCS_Up
+        Debug.println("Passed up from GCS BT to G2Fmsg:");
+        PrintMavBuffer(&G2Fmsg);
+      #endif     
+    }
+  }  
+
+  #endif    
+
+  #if (GCS_Mavlink_IO == 2)  //  WiFi
+      #if (WiFi_Protocol == 1) // TCP 
+      if (tcp.available()) {             // if there are bytes to read 
+        uint8_t c = tcp.read();
+        if(mavlink_parse_char(MAVLINK_COMM_0, c, &G2Fmsg, &status)) {
+          GCS_available = true;  // Record waiting 
+          #ifdef  Debug_GCS_Up
+            Debug.println("Passed up from GCS TCP WiFi to G2Fmsg:");
+            PrintMavBuffer(&G2Fmsg);
+          #endif 
+          }                                   
+      }
+      #endif
+      
+      #if (WiFi_Protocol == 2) // UDP 
+      len = udp.parsePacket();
+      if (len) {             // if there is a packet to read
+        udp.read(GCSbuf, len); 
+        udp_remoteIP = udp.remoteIP();  // remember which remote client sent this packet so we can target it
+        DisplayRemoteIP();
+        for (int i = 0 ; i < len ; i++) {
+          uint8_t c = GCSbuf[i];
+          if(mavlink_parse_char(MAVLINK_COMM_0, c, &G2Fmsg, &status)) {
+            GCS_available = true;  // Record waiting 
+            #ifdef  Debug_GCS_Up
+              Debug.println("Passed up from GCS UDP WiFi to G2Fmsg:");
+              PrintMavBuffer(&G2Fmsg);
+            #endif 
+            }                                     
+          }                        
+      }
+      #endif 
+  #endif 
+}
+//********************************************************************************
+
+void Write_To_FC() {
+                            
+  #if (FC_Mavlink_IO == 0) || (FC_Mavlink_IO == 1) || (FC_Mavlink_IO == 2) 
+
+    if (GCS_available) {                            // unsent record waiting in the buffer
+      GCS_available = false;
+      len = mavlink_msg_to_send_buffer(FCbuf, &G2Fmsg);
+    
+      #if (FC_Mavlink_IO == 0)  // Serial to FC
+        #ifdef  Debug_FC
+          Debug.println("Passed up to FC Serial from G2Fmsg:");
+          PrintMavBuffer(&G2Fmsg);
+        #endif
+         mvSerialFC.write(FCbuf,len);  
+      #endif
+  
+      #if (FC_Mavlink_IO == 1)  // Bluetooth to FC
+        #ifdef  Debug_FC
+          Debug.println("Passed up to FC Bluetooth from G2Fmsg:");
+          PrintMavBuffer(&G2Fmsg);
+        #endif
+        if (SerialBT.hasClient()) {
+          SerialBT.write(FCbuf,len);
+        }
+      #endif
+
+      #if (FC_Mavlink_IO == 2)  // WiFi to FC
+
+        #ifdef  Debug_FC
+          Debug.println("Passed up to FC WiFi from G2Fmsg:");
+          PrintMavBuffer(&G2Fmsg);
+        #endif
+        
+        #if (WiFi_Protocol == 1) // TCP   
+          tcp.write(FCbuf,len);
+        #endif
+        
+        #if (WiFi_Protocol == 2) // UDP   
+          udp.beginPacket(utp_remote_ip, utp_remotePort);
+          udp.write(FCbuf,len);
+          udp.endPacket();
+        #endif 
+              
+      #endif
+    }
+  #endif
+}  
+//********************************************************************************
+
+void MavToRingBuffer() {
+
+      // MAIN Queue
+      if (MavRingBuff.isFull()) {
         BufLedState = HIGH;
-        Debug.println("MavRingBuff is full. Dropping records!");
+        Debug.println("MavRingBuff full. Dropping records!");
+     //   OledDisplayln("Mav buffer full!"); 
+      }
        else {
         BufLedState = LOW;
-        MavRingBuff.push(ring_msg);
+        MavRingBuff.push(F2Rmsg);
         #if defined Mav_Debug_RingBuff
-          Debug.print(" Mav queue length after push= "); 
+          Debug.print("Mav queue length after push= "); 
           Debug.println(MavRingBuff.size());
         #endif
-       }
-    }
+      }
   }
+  
+//********************************************************************************
+
+void From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
+#if (GCS_Mavlink_IO == 0) || (GCS_Mavlink_IO == 1) || (GCS_Mavlink_IO == 2) || (defined GCS_Mavlink_SD)
+
+    len = mavlink_msg_to_send_buffer(GCSbuf, &R2Gmsg);
+    
+    #if (GCS_Mavlink_IO == 0)  // Serial
+      #ifdef  Debug_GCS
+        Debug.println("Passed down from Ring buffer to GCS by Serial:");
+        PrintMavBuffer(&R2Gmsg);
+      #endif
+       mvSerialGCS.write(GCSbuf,len);  
+    #endif
+
+    #if (GCS_Mavlink_IO == 1)  // Bluetooth 
+      #ifdef  Debug_GCS
+        Debug.println("Passed down from Ring buffer to GCS by Bluetooth:");
+        PrintMavBuffer(&R2Gmsg);
+      #endif
+      if (SerialBT.hasClient()) {
+        SerialBT.write(GCSbuf,len);
+      }
+    #endif
+
+    #if  (GCS_Mavlink_IO == 2) //  WiFi
+      if (wifiSuGood) {
+        #ifdef  Debug_GCS
+          Debug.println("Passed down from Ring buffer to GCS by WiFi:");
+          PrintMavBuffer(&R2Gmsg);
+        #endif
+        
+        #if (WiFi_Protocol == 1) // TCP   
+          tcp.write(GCSbuf,len);
+        #endif
+        
+        #if (WiFi_Protocol == 2) // UDP 
+          udp.beginPacket(udp_remoteIP, udp_remotePort);
+          udp.write(GCSbuf,len);
+          udp.endPacket();         
+        #endif 
+              
+      }
+    #endif
+    
+    #if  (defined GCS_Mavlink_SD) //  SD Card
+      if (sdGood) {
+        File file = SD.open("/mav2passthu.tlog", FILE_APPEND);
+        if(!file){
+           Debug.println("Failed to open file for appending");
+           return;
+          }
+        if(file.write(GCSbuf, len)){   
+         // Debug.print(">");
+          } else {
+          Debug.println("Append failed");
+         }
+         
+        file.close();
+ 
+        #ifdef  Debug_SD
+          Debug.println("Passed down from Ring buffer to SD:");
+          PrintMavBuffer(&R2Gmsg);
+          PrintMavBuffer(GCSbuf);
+        #endif        
+      }  
+    #endif    
+   
+ #endif 
 }
+
 //*******************************************
 void DecodeOneMavFrame() { 
 
-  if (!MavRingBuff.isEmpty()) {
-    
-    msg = (MavRingBuff.shift());  // Get a mavlink message from front of queue
-    
-    #if defined Mav_Debug_RingBuff
-      Debug.print("Mavlink ring buffer msg: ");  
-      PrintMavBuffer(&msg);
-      Debug.print(" Mav queue length after shift= "); Debug.println(MavRingBuff.size());
-    #endif
-
-      
-    #if defined  Aux_Port_Enabled 
-    len = mavlink_msg_to_send_buffer(buf, &msg);
-    #ifdef  Aux_Port_Debug
-      Debug.println("auxSerial passed down from FC:");
-      PrintMavBuffer(&msg);
-    #endif
-    auxSerial.write(buf,len);
-    #endif
-     
     // Debug.print(" msgid="); Debug.println(msg.msgid); 
 
-    switch(msg.msgid) {
+   switch(R2Gmsg.msgid) {
     
         case MAVLINK_MSG_ID_HEARTBEAT:    // #0   http://mavlink.org/messages/common
-          ap_type_tmp = mavlink_msg_heartbeat_get_type(&msg);   // Alex - don't contaminate the ap-type variable
+          ap_type_tmp = mavlink_msg_heartbeat_get_type(&R2Gmsg);   // Alex - don't contaminate the ap-type variable
           if (ap_type_tmp == 5 || ap_type_tmp == 6 || ap_type_tmp == 27) break;      
           // Ignore heartbeats from GCS (6) or Ant Trackers(5) or ADSB (27))
           ap_type = ap_type_tmp;
-          ap_autopilot = mavlink_msg_heartbeat_get_autopilot(&msg);
-          ap_base_mode = mavlink_msg_heartbeat_get_base_mode(&msg);
-          ap_custom_mode = mavlink_msg_heartbeat_get_custom_mode(&msg);
+          ap_autopilot = mavlink_msg_heartbeat_get_autopilot(&R2Gmsg);
+          ap_base_mode = mavlink_msg_heartbeat_get_base_mode(&R2Gmsg);
+          ap_custom_mode = mavlink_msg_heartbeat_get_custom_mode(&R2Gmsg);
           
           px4_main_mode = bit32Extract(ap_custom_mode,16, 8);
           px4_sub_mode = bit32Extract(ap_custom_mode,24, 8);
           px4_flight_stack = (ap_autopilot == MAV_AUTOPILOT_PX4);
             
-          ap_system_status = mavlink_msg_heartbeat_get_system_status(&msg);
-          ap_mavlink_version = mavlink_msg_heartbeat_get_mavlink_version(&msg);
+          ap_system_status = mavlink_msg_heartbeat_get_system_status(&R2Gmsg);
+          ap_mavlink_version = mavlink_msg_heartbeat_get_mavlink_version(&R2Gmsg);
           hb_millis=millis(); 
 
           if ((ap_base_mode >> 7) && (!homGood)) 
@@ -951,8 +1512,8 @@ void DecodeOneMavFrame() {
           break;
         case MAVLINK_MSG_ID_SYS_STATUS:   // #1
           if (!mavGood) break;
-          ap_voltage_battery1= Get_Volt_Average1(mavlink_msg_sys_status_get_voltage_battery(&msg));        // 1000 = 1V  i.e mV
-          ap_current_battery1= Get_Current_Average1(mavlink_msg_sys_status_get_current_battery(&msg));     //  100 = 1A, i.e dA
+          ap_voltage_battery1= Get_Volt_Average1(mavlink_msg_sys_status_get_voltage_battery(&R2Gmsg));        // 1000 = 1V  i.e mV
+          ap_current_battery1= Get_Current_Average1(mavlink_msg_sys_status_get_current_battery(&R2Gmsg));     //  100 = 1A, i.e dA
           if(ap_voltage_battery1> 21000) ap_ccell_count1= 6;
             else if (ap_voltage_battery1> 16800 && ap_ccell_count1!= 6) ap_ccell_count1= 5;
             else if(ap_voltage_battery1> 12600 && ap_ccell_count1!= 5) ap_ccell_count1= 4;
@@ -981,10 +1542,10 @@ void DecodeOneMavFrame() {
           break;  
         case MAVLINK_MSG_ID_PARAM_VALUE:          // #22
           if (!mavGood) break;        
-          len=mavlink_msg_param_value_get_param_id(&msg, ap_param_id);
-          ap_param_value=mavlink_msg_param_value_get_param_value(&msg);
-          ap_param_count=mavlink_msg_param_value_get_param_count(&msg);
-          ap_param_index=mavlink_msg_param_value_get_param_index(&msg); 
+          len=mavlink_msg_param_value_get_param_id(&R2Gmsg, ap_param_id);
+          ap_param_value=mavlink_msg_param_value_get_param_value(&R2Gmsg);
+          ap_param_count=mavlink_msg_param_value_get_param_count(&R2Gmsg);
+          ap_param_index=mavlink_msg_param_value_get_param_index(&R2Gmsg); 
 
           switch(ap_param_index) {      // if #define Battery_mAh_Source !=1 these will never arrive
             case 356:         // Bat1 Capacity
@@ -1018,29 +1579,29 @@ void DecodeOneMavFrame() {
             Debug.println(ap_param_index);
           #endif       
           break;    
-        case MAVLINK_MSG_ID_GPS_RAW_INT:          // #24  - Used by PX4
+        case MAVLINK_MSG_ID_GPS_RAW_INT:          // #24
           if (!mavGood) break;        
-          ap_fixtype = mavlink_msg_gps_raw_int_get_fix_type(&msg);                   // 0 = No GPS, 1 =No Fix, 2 = 2D Fix, 3 = 3D Fix
-          ap_sat_visible =  mavlink_msg_gps_raw_int_get_satellites_visible(&msg);    // number of visible satellites
+          ap_fixtype = mavlink_msg_gps_raw_int_get_fix_type(&R2Gmsg);                   // 0 = No GPS, 1 =No Fix, 2 = 2D Fix, 3 = 3D Fix
+          ap_sat_visible =  mavlink_msg_gps_raw_int_get_satellites_visible(&R2Gmsg);    // number of visible satellites
           if(ap_fixtype > 2)  {
-            ap_lat24 = mavlink_msg_gps_raw_int_get_lat(&msg);
-            ap_lon24= mavlink_msg_gps_raw_int_get_lon(&msg);
-            ap_amsl24 = mavlink_msg_gps_raw_int_get_alt(&msg);                    // 1m =1000 
-            ap_eph = mavlink_msg_gps_raw_int_get_eph(&msg);                       // GPS HDOP 
-            ap_epv = mavlink_msg_gps_raw_int_get_epv(&msg);                       // GPS VDOP 
-            ap_vel = mavlink_msg_gps_raw_int_get_vel(&msg);                       // GPS ground speed (m/s * 100)
-            ap_cog = mavlink_msg_gps_raw_int_get_cog(&msg);                       // Course over ground (NOT heading) in degrees * 100
+            ap_lat24 = mavlink_msg_gps_raw_int_get_lat(&R2Gmsg);
+            ap_lon24 = mavlink_msg_gps_raw_int_get_lon(&R2Gmsg);
+            ap_amsl24 = mavlink_msg_gps_raw_int_get_alt(&R2Gmsg);                    // 1m =1000 
+            ap_eph = mavlink_msg_gps_raw_int_get_eph(&R2Gmsg);                       // GPS HDOP 
+            ap_epv = mavlink_msg_gps_raw_int_get_epv(&R2Gmsg);                       // GPS VDOP 
+            ap_vel = mavlink_msg_gps_raw_int_get_vel(&R2Gmsg);                       // GPS ground speed (m/s * 100)
+            ap_cog = mavlink_msg_gps_raw_int_get_cog(&R2Gmsg);                       // Course over ground (NOT heading) in degrees * 100
      // mav2
-           ap_alt_ellipsoid = mavlink_msg_gps_raw_int_get_alt_ellipsoid(&msg);    // mm    Altitude (above WGS84, EGM96 ellipsoid). Positive for up.
-           ap_h_acc = mavlink_msg_gps_raw_int_get_h_acc(&msg);                    // mm    Position uncertainty. Positive for up.
-           ap_v_acc = mavlink_msg_gps_raw_int_get_v_acc(&msg);                    // mm    Altitude uncertainty. Positive for up.
-           ap_vel_acc = mavlink_msg_gps_raw_int_get_vel_acc(&msg);                // mm    Speed uncertainty. Positive for up.
-           ap_hdg_acc = mavlink_msg_gps_raw_int_get_hdg_acc(&msg);                // degE5   Heading / track uncertainty 
+           ap_alt_ellipsoid = mavlink_msg_gps_raw_int_get_alt_ellipsoid(&R2Gmsg);    // mm    Altitude (above WGS84, EGM96 ellipsoid). Positive for up.
+           ap_h_acc = mavlink_msg_gps_raw_int_get_h_acc(&R2Gmsg);                    // mm    Position uncertainty. Positive for up.
+           ap_v_acc = mavlink_msg_gps_raw_int_get_v_acc(&R2Gmsg);                    // mm    Altitude uncertainty. Positive for up.
+           ap_vel_acc = mavlink_msg_gps_raw_int_get_vel_acc(&R2Gmsg);                // mm    Speed uncertainty. Positive for up.
+           ap_hdg_acc = mavlink_msg_gps_raw_int_get_hdg_acc(&R2Gmsg);                // degE5   Heading / track uncertainty       
 
            cur.lat =  (float)ap_lat24 / 1E7;
            cur.lon = (float)ap_lon24 / 1E7;
            cur.alt = ap_amsl24 / 1E3;
-      
+           
           }
           #if defined Mav_Debug_All || defined Mav_Debug_GPS_Raw
             Debug.print("Mavlink in #24 GPS_RAW_INT: ");  
@@ -1075,9 +1636,9 @@ void DecodeOneMavFrame() {
           break;
         case MAVLINK_MSG_ID_RAW_IMU:   // #27
           if (!mavGood) break;        
-          ap_accX = mavlink_msg_raw_imu_get_xacc(&msg);                 
-          ap_accY = mavlink_msg_raw_imu_get_yacc(&msg);
-          ap_accZ = mavlink_msg_raw_imu_get_zacc(&msg);
+          ap_accX = mavlink_msg_raw_imu_get_xacc(&R2Gmsg);                 
+          ap_accY = mavlink_msg_raw_imu_get_yacc(&R2Gmsg);
+          ap_accZ = mavlink_msg_raw_imu_get_zacc(&R2Gmsg);
           #if defined Mav_Debug_All || defined Mav_Debug_Raw_IMU
             Debug.print("Mavlink in #27 Raw_IMU: ");
             Debug.print("accX="); Debug.print((float)ap_accX / 1000); 
@@ -1087,8 +1648,8 @@ void DecodeOneMavFrame() {
           break;      
         case MAVLINK_MSG_ID_SCALED_PRESSURE:         // #29
           if (!mavGood) break;        
-          ap_press_abs = mavlink_msg_scaled_pressure_get_press_abs(&msg);
-          ap_temperature = mavlink_msg_scaled_pressure_get_temperature(&msg);
+          ap_press_abs = mavlink_msg_scaled_pressure_get_press_abs(&R2Gmsg);
+          ap_temperature = mavlink_msg_scaled_pressure_get_temperature(&R2Gmsg);
           #if defined Mav_Debug_All || defined Mav_Debug_Scaled_Pressure
             Debug.print("Mavlink in #29 Scaled_Pressure: ");
             Debug.print("  press_abs=");  Debug.print(ap_press_abs,1);
@@ -1100,12 +1661,12 @@ void DecodeOneMavFrame() {
         case MAVLINK_MSG_ID_ATTITUDE:                // #30
           if (!mavGood) break;   
 
-          ap_roll = mavlink_msg_attitude_get_roll(&msg);              // Roll angle (rad, -pi..+pi)
-          ap_pitch = mavlink_msg_attitude_get_pitch(&msg);            // Pitch angle (rad, -pi..+pi)
-          ap_yaw = mavlink_msg_attitude_get_yaw(&msg);                // Yaw angle (rad, -pi..+pi)
-          ap_rollspeed = mavlink_msg_attitude_get_rollspeed(&msg);    // Roll angular speed (rad/s)
-          ap_pitchspeed = mavlink_msg_attitude_get_pitchspeed(&msg);  // Pitch angular speed (rad/s)
-          ap_yawspeed = mavlink_msg_attitude_get_yawspeed(&msg);      // Yaw angular speed (rad/s)           
+          ap_roll = mavlink_msg_attitude_get_roll(&R2Gmsg);              // Roll angle (rad, -pi..+pi)
+          ap_pitch = mavlink_msg_attitude_get_pitch(&R2Gmsg);            // Pitch angle (rad, -pi..+pi)
+          ap_yaw = mavlink_msg_attitude_get_yaw(&R2Gmsg);                // Yaw angle (rad, -pi..+pi)
+          ap_rollspeed = mavlink_msg_attitude_get_rollspeed(&R2Gmsg);    // Roll angular speed (rad/s)
+          ap_pitchspeed = mavlink_msg_attitude_get_pitchspeed(&R2Gmsg);  // Pitch angular speed (rad/s)
+          ap_yawspeed = mavlink_msg_attitude_get_yawspeed(&R2Gmsg);      // Yaw angular speed (rad/s)           
 
           ap_roll = RadToDeg(ap_roll);   // Now degrees
           ap_pitch = RadToDeg(ap_pitch);
@@ -1124,14 +1685,14 @@ void DecodeOneMavFrame() {
           break;  
         case MAVLINK_MSG_ID_GLOBAL_POSITION_INT:     // #33
           if ((!mavGood) || (ap_fixtype < 3)) break;  
-          ap_lat33 = mavlink_msg_global_position_int_get_lat(&msg);             // Latitude, expressed as degrees * 1E7
-          ap_lon33 = mavlink_msg_global_position_int_get_lon(&msg);             // Pitch angle (rad, -pi..+pi)
-          ap_amsl33 = mavlink_msg_global_position_int_get_alt(&msg);          // Altitude above mean sea level (millimeters)
-          ap_alt_ag = mavlink_msg_global_position_int_get_relative_alt(&msg); // Altitude above ground (millimeters)
-          ap_vx = mavlink_msg_global_position_int_get_vx(&msg);               //  Ground X Speed (Latitude, positive north), expressed as m/s * 100
-          ap_vy = mavlink_msg_global_position_int_get_vy(&msg);               //  Ground Y Speed (Longitude, positive east), expressed as m/s * 100
-          ap_vz = mavlink_msg_global_position_int_get_vz(&msg);               // Ground Z Speed (Altitude, positive down), expressed as m/s * 100
-          ap_gps_hdg = mavlink_msg_global_position_int_get_hdg(&msg);         // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees        
+          ap_lat33 = mavlink_msg_global_position_int_get_lat(&R2Gmsg);             // Latitude, expressed as degrees * 1E7
+          ap_lon33 = mavlink_msg_global_position_int_get_lon(&R2Gmsg);             // Pitch angle (rad, -pi..+pi)
+          ap_amsl33 = mavlink_msg_global_position_int_get_alt(&R2Gmsg);          // Altitude above mean sea level (millimeters)
+          ap_alt_ag = mavlink_msg_global_position_int_get_relative_alt(&R2Gmsg); // Altitude above ground (millimeters)
+          ap_vx = mavlink_msg_global_position_int_get_vx(&R2Gmsg);               //  Ground X Speed (Latitude, positive north), expressed as m/s * 100
+          ap_vy = mavlink_msg_global_position_int_get_vy(&R2Gmsg);               //  Ground Y Speed (Longitude, positive east), expressed as m/s * 100
+          ap_vz = mavlink_msg_global_position_int_get_vz(&R2Gmsg);               // Ground Z Speed (Altitude, positive down), expressed as m/s * 100
+          ap_gps_hdg = mavlink_msg_global_position_int_get_hdg(&R2Gmsg);         // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees        
  
           cur.lat = (float)ap_lat33 / 1E7;
           cur.lon = (float)ap_lon33 / 1E7;
@@ -1155,10 +1716,10 @@ void DecodeOneMavFrame() {
           if (!mavGood) break;   
           #if defined QLRS
             rssiGood=true;            //  We have received at least one rssi packet from air mavlink
-            ap_rssi = mavlink_msg_rc_channels_raw_get_rssi(&msg);
+            ap_rssi = mavlink_msg_rc_channels_raw_get_rssi(&R2Gmsg);
             ap_rc_flag = true;
           #endif  
-          #if defined Mav_Debug_All || defined Mav_Debug_Rssi || defined Mav_Debug_RC
+          #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
             Debug.print("Mavlink in #35 RC_Channels_Raw: ");                        
             Debug.print("  Receive RSSI=");  Debug.println(ap_rssi/ 2.54); 
           #endif         
@@ -1166,25 +1727,25 @@ void DecodeOneMavFrame() {
         case MAVLINK_MSG_ID_SERVO_OUTPUT_RAW :          // #36
           if (!mavGood) break; 
       
-          ap_port = mavlink_msg_servo_output_raw_get_port(&msg);
-          ap_servo_raw[0] = mavlink_msg_servo_output_raw_get_servo1_raw(&msg);   
-          ap_servo_raw[1] = mavlink_msg_servo_output_raw_get_servo2_raw(&msg);
-          ap_servo_raw[2]= mavlink_msg_servo_output_raw_get_servo3_raw(&msg);   
-          ap_servo_raw[3] = mavlink_msg_servo_output_raw_get_servo4_raw(&msg);  
-          ap_servo_raw[4] = mavlink_msg_servo_output_raw_get_servo5_raw(&msg);   
-          ap_servo_raw[5] = mavlink_msg_servo_output_raw_get_servo6_raw(&msg);
-          ap_servo_raw[6] = mavlink_msg_servo_output_raw_get_servo7_raw(&msg);   
-          ap_servo_raw[7] = mavlink_msg_servo_output_raw_get_servo8_raw(&msg); 
+          ap_port = mavlink_msg_servo_output_raw_get_port(&R2Gmsg);
+          ap_servo_raw[0] = mavlink_msg_servo_output_raw_get_servo1_raw(&R2Gmsg);   
+          ap_servo_raw[1] = mavlink_msg_servo_output_raw_get_servo2_raw(&R2Gmsg);
+          ap_servo_raw[2] = mavlink_msg_servo_output_raw_get_servo3_raw(&R2Gmsg);   
+          ap_servo_raw[3] = mavlink_msg_servo_output_raw_get_servo4_raw(&R2Gmsg);  
+          ap_servo_raw[4] = mavlink_msg_servo_output_raw_get_servo5_raw(&R2Gmsg);   
+          ap_servo_raw[5] = mavlink_msg_servo_output_raw_get_servo6_raw(&R2Gmsg);
+          ap_servo_raw[6] = mavlink_msg_servo_output_raw_get_servo7_raw(&R2Gmsg);   
+          ap_servo_raw[7] = mavlink_msg_servo_output_raw_get_servo8_raw(&R2Gmsg); 
           /* 
            *  not supported right now
-          ap_servo_raw[8] = mavlink_msg_servo_output_raw_get_servo9_raw(&msg);   
-          ap_servo_raw[9] = mavlink_msg_servo_output_raw_get_servo10_raw(&msg);
-          ap_servo_raw[10] = mavlink_msg_servo_output_raw_get_servo11_raw(&msg);   
-          ap_servo_raw[11] = mavlink_msg_servo_output_raw_get_servo12_raw(&msg); 
-          ap_servo_raw[12] = mavlink_msg_servo_output_raw_get_servo13_raw(&msg);   
-          ap_servo_raw[13] = mavlink_msg_servo_output_raw_get_servo14_raw(&msg);
-          ap_servo_raw[14] = mavlink_msg_servo_output_raw_get_servo15_raw(&msg);   
-          ap_servo_raw[15] = mavlink_msg_servo_output_raw_get_servo16_raw(&msg);
+          ap_servo_raw[8] = mavlink_R2Gmsg_servo_output_raw_get_servo9_raw(&R2Gmsg);   
+          ap_servo_raw[9] = mavlink_R2Gmsg_servo_output_raw_get_servo10_raw(&R2Gmsg);
+          ap_servo_raw[10] = mavlink_R2Gmsg_servo_output_raw_get_servo11_raw(&R2Gmsg);   
+          ap_servo_raw[11] = mavlink_R2Gmsg_servo_output_raw_get_servo12_raw(&R2Gmsg); 
+          ap_servo_raw[12] = mavlink_R2Gmsg_servo_output_raw_get_servo13_raw(&R2Gmsg);   
+          ap_servo_raw[13] = mavlink_R2Gmsg_servo_output_raw_get_servo14_raw(&R2Gmsg);
+          ap_servo_raw[14] = mavlink_R2Gmsg_servo_output_raw_get_servo15_raw(&R2Gmsg);   
+          ap_servo_raw[15] = mavlink_R2Gmsg_servo_output_raw_get_servo16_raw(&R2Gmsg);
           */       
           ap_servo_flag = true;                                  // tell fr routine we have a servo record
           #if defined Mav_Debug_All ||  defined Mav_Debug_Servo
@@ -1202,18 +1763,18 @@ void DecodeOneMavFrame() {
           break;  
         case MAVLINK_MSG_ID_MISSION_ITEM :          // #39
           if (!mavGood) break;
-            ap_ms_seq = mavlink_msg_mission_item_get_seq(&msg);
-            ap_ms_frame = mavlink_msg_mission_item_get_frame(&msg);                // The coordinate system of the waypoint.
-            ap_ms_command = mavlink_msg_mission_item_get_command(&msg);            // The scheduled action for the waypoint.
-            ap_ms_current = mavlink_msg_mission_item_get_current(&msg);            // false:0, true:1
-            ap_ms_autocontinue = mavlink_msg_mission_item_get_autocontinue(&msg);  //  Autocontinue to next waypoint
-            ap_ms_param1 = mavlink_msg_mission_item_get_param1(&msg);              // PARAM1, see MAV_CMD enum
-            ap_ms_param2 = mavlink_msg_mission_item_get_param2(&msg);              // PARAM2, see MAV_CMD enum
-            ap_ms_param3 = mavlink_msg_mission_item_get_param3(&msg);              // PARAM3, see MAV_CMD enum
-            ap_ms_param3 = mavlink_msg_mission_item_get_param4(&msg);              // PARAM4, see MAV_CMD enum
-            ap_ms_x = mavlink_msg_mission_item_get_x(&msg);                        // PARAM5 / local: X coordinate, global: latitude
-            ap_ms_y = mavlink_msg_mission_item_get_y(&msg);                        // PARAM6 / local: Y coordinate, global: longitude
-            ap_ms_z = mavlink_msg_mission_item_get_z(&msg);                        // PARAM7 / local: Z coordinate, global: altitude (relative or absolute, depending on frame).
+            ap_ms_seq = mavlink_msg_mission_item_get_seq(&R2Gmsg);
+            ap_ms_frame = mavlink_msg_mission_item_get_frame(&R2Gmsg);                // The coordinate system of the waypoint.
+            ap_ms_command = mavlink_msg_mission_item_get_command(&R2Gmsg);            // The scheduled action for the waypoint.
+            ap_ms_current = mavlink_msg_mission_item_get_current(&R2Gmsg);            // false:0, true:1
+            ap_ms_autocontinue = mavlink_msg_mission_item_get_autocontinue(&R2Gmsg);  //  Autocontinue to next waypoint
+            ap_ms_param1 = mavlink_msg_mission_item_get_param1(&R2Gmsg);              // PARAM1, see MAV_CMD enum
+            ap_ms_param2 = mavlink_msg_mission_item_get_param2(&R2Gmsg);              // PARAM2, see MAV_CMD enum
+            ap_ms_param3 = mavlink_msg_mission_item_get_param3(&R2Gmsg);              // PARAM3, see MAV_CMD enum
+            ap_ms_param3 = mavlink_msg_mission_item_get_param4(&R2Gmsg);              // PARAM4, see MAV_CMD enum
+            ap_ms_x = mavlink_msg_mission_item_get_x(&R2Gmsg);                        // PARAM5 / local: X coordinate, global: latitude
+            ap_ms_y = mavlink_msg_mission_item_get_y(&R2Gmsg);                        // PARAM6 / local: Y coordinate, global: longitude
+            ap_ms_z = mavlink_msg_mission_item_get_z(&R2Gmsg);                        // PARAM7 / local: Z coordinate, global: altitude (relative or absolute, depending on frame).
                      
             #if defined Mav_Debug_All || defined Mav_Debug_Mission
               Debug.print("Mavlink in #39 Mission Item: ");
@@ -1243,7 +1804,7 @@ void DecodeOneMavFrame() {
           break;                    
         case MAVLINK_MSG_ID_MISSION_CURRENT:         // #42 should come down regularly as part of EXTENDED_STATUS group
           if (!mavGood) break;   
-            ap_ms_seq =  mavlink_msg_mission_current_get_seq(&msg);  
+            ap_ms_seq =  mavlink_msg_mission_current_get_seq(&R2Gmsg);  
             
             #if defined Mav_Debug_All || defined Mav_Debug_Mission
               Debug.print("Mavlink in #42 Mission Current: ");
@@ -1256,7 +1817,7 @@ void DecodeOneMavFrame() {
         case MAVLINK_MSG_ID_MISSION_COUNT :          // #44   received back after #43 Mission_Request_List sent
         #if defined Request_Missions_From_FC || defined Request_Mission_Count_From_FC
           if (!mavGood) break;  
-            ap_mission_count =  mavlink_msg_mission_count_get_count(&msg); 
+            ap_mission_count =  mavlink_msg_mission_count_get_count(&R2Gmsg); 
             #if defined Mav_Debug_All || defined Mav_Debug_Mission
               Debug.print("Mavlink in #44 Mission Count: ");
               Debug.print("ap_mission_count="); Debug.println(ap_mission_count);   
@@ -1271,14 +1832,14 @@ void DecodeOneMavFrame() {
         #endif
         case MAVLINK_MSG_ID_NAV_CONTROLLER_OUTPUT:   // #62
           if (!mavGood) break;    
-            ap_nav_roll =  mavlink_msg_nav_controller_output_get_nav_roll(&msg);             // Current desired roll
-            ap_nav_pitch = mavlink_msg_nav_controller_output_get_nav_pitch(&msg);            // Current desired pitch
-            ap_nav_bearing = mavlink_msg_nav_controller_output_get_nav_bearing(&msg);        // Current desired heading
-            ap_target_bearing = mavlink_msg_nav_controller_output_get_target_bearing(&msg);  // Bearing to current waypoint/target
-            ap_wp_dist = mavlink_msg_nav_controller_output_get_wp_dist(&msg);                // Distance to active waypoint
-            ap_alt_error = mavlink_msg_nav_controller_output_get_alt_error(&msg);            // Current altitude error
-            ap_aspd_error = mavlink_msg_nav_controller_output_get_aspd_error(&msg);          // Current airspeed error
-            ap_xtrack_error = mavlink_msg_nav_controller_output_get_xtrack_error(&msg);      // Current crosstrack error on x-y plane
+            ap_nav_roll =  mavlink_msg_nav_controller_output_get_nav_roll(&R2Gmsg);             // Current desired roll
+            ap_nav_pitch = mavlink_msg_nav_controller_output_get_nav_pitch(&R2Gmsg);            // Current desired pitch
+            ap_nav_bearing = mavlink_msg_nav_controller_output_get_nav_bearing(&R2Gmsg);        // Current desired heading
+            ap_target_bearing = mavlink_msg_nav_controller_output_get_target_bearing(&R2Gmsg);  // Bearing to current waypoint/target
+            ap_wp_dist = mavlink_msg_nav_controller_output_get_wp_dist(&R2Gmsg);                // Distance to active waypoint
+            ap_alt_error = mavlink_msg_nav_controller_output_get_alt_error(&R2Gmsg);            // Current altitude error
+            ap_aspd_error = mavlink_msg_nav_controller_output_get_aspd_error(&R2Gmsg);          // Current airspeed error
+            ap_xtrack_error = mavlink_msg_nav_controller_output_get_xtrack_error(&R2Gmsg);      // Current crosstrack error on x-y plane
 
             #if defined Mav_Debug_All || defined Mav_Debug_Mission
               Debug.print("Mavlink in #62 Mission Item: ");
@@ -1296,33 +1857,33 @@ void DecodeOneMavFrame() {
           break;     
         case MAVLINK_MSG_ID_RC_CHANNELS:             // #65
           if (!mavGood) break; 
-          ap_chcnt = mavlink_msg_rc_channels_get_chancount(&msg);
-          ap_chan_raw[0] = mavlink_msg_rc_channels_get_chan1_raw(&msg);   
-          ap_chan_raw[1] = mavlink_msg_rc_channels_get_chan2_raw(&msg);
-          ap_chan_raw[2] = mavlink_msg_rc_channels_get_chan3_raw(&msg);   
-          ap_chan_raw[3] = mavlink_msg_rc_channels_get_chan4_raw(&msg);  
-          ap_chan_raw[4] = mavlink_msg_rc_channels_get_chan5_raw(&msg);   
-          ap_chan_raw[5] = mavlink_msg_rc_channels_get_chan6_raw(&msg);
-          ap_chan_raw[6] = mavlink_msg_rc_channels_get_chan7_raw(&msg);   
-          ap_chan_raw[7] = mavlink_msg_rc_channels_get_chan8_raw(&msg);  
-          ap_chan_raw[8] = mavlink_msg_rc_channels_get_chan9_raw(&msg);   
-          ap_chan_raw[9] = mavlink_msg_rc_channels_get_chan10_raw(&msg);
-          ap_chan_raw[10] = mavlink_msg_rc_channels_get_chan11_raw(&msg);   
-          ap_chan_raw[11] = mavlink_msg_rc_channels_get_chan12_raw(&msg); 
-          ap_chan_raw[12] = mavlink_msg_rc_channels_get_chan13_raw(&msg);   
-          ap_chan_raw[13] = mavlink_msg_rc_channels_get_chan14_raw(&msg);
-          ap_chan_raw[14] = mavlink_msg_rc_channels_get_chan15_raw(&msg);   
-          ap_chan_raw[15] = mavlink_msg_rc_channels_get_chan16_raw(&msg);
-          ap_chan_raw[16] = mavlink_msg_rc_channels_get_chan17_raw(&msg);   
-          ap_chan_raw[17] = mavlink_msg_rc_channels_get_chan18_raw(&msg);
+          ap_chcnt = mavlink_msg_rc_channels_get_chancount(&R2Gmsg);
+          ap_chan_raw[0] = mavlink_msg_rc_channels_get_chan1_raw(&R2Gmsg);   
+          ap_chan_raw[1] = mavlink_msg_rc_channels_get_chan2_raw(&R2Gmsg);
+          ap_chan_raw[2] = mavlink_msg_rc_channels_get_chan3_raw(&R2Gmsg);   
+          ap_chan_raw[3] = mavlink_msg_rc_channels_get_chan4_raw(&R2Gmsg);  
+          ap_chan_raw[4] = mavlink_msg_rc_channels_get_chan5_raw(&R2Gmsg);   
+          ap_chan_raw[5] = mavlink_msg_rc_channels_get_chan6_raw(&R2Gmsg);
+          ap_chan_raw[6] = mavlink_msg_rc_channels_get_chan7_raw(&R2Gmsg);   
+          ap_chan_raw[7] = mavlink_msg_rc_channels_get_chan8_raw(&R2Gmsg);  
+          ap_chan_raw[8] = mavlink_msg_rc_channels_get_chan9_raw(&R2Gmsg);   
+          ap_chan_raw[9] = mavlink_msg_rc_channels_get_chan10_raw(&R2Gmsg);
+          ap_chan_raw[10] = mavlink_msg_rc_channels_get_chan11_raw(&R2Gmsg);   
+          ap_chan_raw[11] = mavlink_msg_rc_channels_get_chan12_raw(&R2Gmsg); 
+          ap_chan_raw[12] = mavlink_msg_rc_channels_get_chan13_raw(&R2Gmsg);   
+          ap_chan_raw[13] = mavlink_msg_rc_channels_get_chan14_raw(&R2Gmsg);
+          ap_chan_raw[14] = mavlink_msg_rc_channels_get_chan15_raw(&R2Gmsg);   
+          ap_chan_raw[15] = mavlink_msg_rc_channels_get_chan16_raw(&R2Gmsg);
+          ap_chan_raw[16] = mavlink_msg_rc_channels_get_chan17_raw(&R2Gmsg);   
+          ap_chan_raw[17] = mavlink_msg_rc_channels_get_chan18_raw(&R2Gmsg);
           
           #ifndef QLRS
-            ap_rssi = mavlink_msg_rc_channels_get_rssi(&msg);   // Receive RSSI 0: 0%, 254: 100%, 255: invalid/unknown
+            ap_rssi = mavlink_msg_rc_channels_get_rssi(&R2Gmsg);   // Receive RSSI 0: 0%, 254: 100%, 255: invalid/unknown
             ap_rc_flag = true;                                  // tell fr routine we have an rc records
             rssiGood=true;                                      //  We have received at least one rssi packet from air mavlink
           #endif  
           // tell fr routine we have an rc records
-          #if defined Mav_Debug_All || defined Mav_Debug_Rssi || defined Mav_Debug_RC
+          #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
             Debug.print("Mavlink in #65 RC_Channels: ");
             Debug.print("ap_chcnt="); Debug.print(ap_chcnt); 
             Debug.print(" PWM: ");
@@ -1340,15 +1901,15 @@ void DecodeOneMavFrame() {
           break;                             
         case MAVLINK_MSG_ID_VFR_HUD:                 //  #74
           if (!mavGood) break;      
-          ap_hud_air_spd = mavlink_msg_vfr_hud_get_airspeed(&msg);
-          ap_hud_grd_spd = mavlink_msg_vfr_hud_get_groundspeed(&msg);      //  in m/s
-          ap_hud_hdg = mavlink_msg_vfr_hud_get_heading(&msg);              //  in degrees
-          ap_hud_throt = mavlink_msg_vfr_hud_get_throttle(&msg);           //  integer percent
-          ap_hud_bar_alt = mavlink_msg_vfr_hud_get_alt(&msg);              //  m
-          ap_hud_climb = mavlink_msg_vfr_hud_get_climb(&msg);              //  m/s
+          ap_hud_air_spd = mavlink_msg_vfr_hud_get_airspeed(&R2Gmsg);
+          ap_hud_grd_spd = mavlink_msg_vfr_hud_get_groundspeed(&R2Gmsg);      //  in m/s
+          ap_hud_hdg = mavlink_msg_vfr_hud_get_heading(&R2Gmsg);              //  in degrees
+          ap_hud_throt = mavlink_msg_vfr_hud_get_throttle(&R2Gmsg);           //  integer percent
+          ap_hud_bar_alt = mavlink_msg_vfr_hud_get_alt(&R2Gmsg);              //  m
+          ap_hud_climb = mavlink_msg_vfr_hud_get_climb(&R2Gmsg);              //  m/s
 
           cur.hdg = ap_hud_hdg;
-          
+
           #if defined Mav_Debug_All || defined Mav_Debug_Hud
             Debug.print("Mavlink in #74 VFR_HUD: ");
             Debug.print("Airspeed= "); Debug.print(ap_hud_air_spd, 2);                    // m/s    
@@ -1359,14 +1920,14 @@ void DecodeOneMavFrame() {
             Debug.print("  Climb rate= "); Debug.println(ap_hud_climb);               // m/s
           #endif  
           break; 
-        case MAVLINK_MSG_ID_SCALED_IMU2:       // #116   http://mavlink.org/messages/common
+        case MAVLINK_MSG_ID_SCALED_IMU2:       // #116   https://mavlink.io/en/messages/common.html
           if (!mavGood) break;       
           break; 
-        case MAVLINK_MSG_ID_POWER_STATUS:      // #125   http://mavlink.org/messages/common
+        case MAVLINK_MSG_ID_POWER_STATUS:      // #125   https://mavlink.io/en/messages/common.html
           if (!mavGood) break;  
-          ap_Vcc = mavlink_msg_power_status_get_Vcc(&msg);         // 5V rail voltage in millivolts
-          ap_Vservo = mavlink_msg_power_status_get_Vservo(&msg);   // servo rail voltage in millivolts
-          ap_flags = mavlink_msg_power_status_get_flags(&msg);     // power supply status flags (see MAV_POWER_STATUS enum)
+          ap_Vcc = mavlink_msg_power_status_get_Vcc(&R2Gmsg);         // 5V rail voltage in millivolts
+          ap_Vservo = mavlink_msg_power_status_get_Vservo(&R2Gmsg);   // servo rail voltage in millivolts
+          ap_flags = mavlink_msg_power_status_get_flags(&R2Gmsg);     // power supply status flags (see MAV_POWER_STATUS enum)
           #ifdef Mav_Debug_All
             Debug.print("Mavlink in #125 Power Status: ");
             Debug.print("Vcc= "); Debug.print(ap_Vcc); 
@@ -1374,12 +1935,12 @@ void DecodeOneMavFrame() {
             Debug.print("  flags= ");  Debug.println(ap_flags);       
           #endif  
           break; 
-        case MAVLINK_MSG_ID_BATTERY_STATUS:      // #147   http://mavlink.org/messages/common
+        case MAVLINK_MSG_ID_BATTERY_STATUS:      // #147   https://mavlink.io/en/messages/common.html
           if (!mavGood) break;       
-          ap_battery_id = mavlink_msg_battery_status_get_id(&msg);  
-          ap_current_battery = mavlink_msg_battery_status_get_current_battery(&msg);      // in 10*milliamperes (1 = 10 milliampere)
-          ap_current_consumed = mavlink_msg_battery_status_get_current_consumed(&msg);    // mAh
-          ap_battery_remaining = mavlink_msg_battery_status_get_battery_remaining(&msg);  // (0%: 0, 100%: 100)  
+          ap_battery_id = mavlink_msg_battery_status_get_id(&R2Gmsg);  
+          ap_current_battery = mavlink_msg_battery_status_get_current_battery(&R2Gmsg);      // in 10*milliamperes (1 = 10 milliampere)
+          ap_current_consumed = mavlink_msg_battery_status_get_current_consumed(&R2Gmsg);    // mAh
+          ap_battery_remaining = mavlink_msg_battery_status_get_battery_remaining(&R2Gmsg);  // (0%: 0, 100%: 100)  
 
           if (ap_battery_id == 0) {  // Battery 1
             fr_bat1_mAh = ap_current_consumed;                       
@@ -1404,21 +1965,21 @@ void DecodeOneMavFrame() {
           #endif                        
           
           break;    
-        case MAVLINK_MSG_ID_SENSOR_OFFSETS:    // #150   http://mavlink.org/messages/ardupilotmega
+        case MAVLINK_MSG_ID_SENSOR_OFFSETS:    // #150   https://mavlink.io/en/messages/ardupilotmega.html
           if (!mavGood) break;        
           break; 
-        case MAVLINK_MSG_ID_MEMINFO:           // #152   http://mavlink.org/messages/ardupilotmega
+        case MAVLINK_MSG_ID_MEMINFO:           // #152   https://mavlink.io/en/messages/ardupilotmega.html
           if (!mavGood) break;        
           break;   
-        case MAVLINK_MSG_ID_RADIO:             // #166   http://mavlink.org/messages/ardupilotmega
+        case MAVLINK_MSG_ID_RADIO:             // #166   https://mavlink.io/en/messages/ardupilotmega.html
           if (!mavGood) break;
-          ap_rssi = mavlink_msg_radio_get_rssi(&msg);            // local signal strength
-          ap_remrssi = mavlink_msg_radio_get_remrssi(&msg);      // remote signal strength
-          ap_txbuf = mavlink_msg_radio_get_txbuf(&msg);          // how full the tx buffer is as a percentage
-          ap_noise = mavlink_msg_radio_get_noise(&msg);          // remote background noise level
-          ap_remnoise = mavlink_msg_radio_get_remnoise(&msg);    // receive errors
-          ap_rxerrors = mavlink_msg_radio_get_rxerrors(&msg);    // count of error corrected packets
-          ap_fixed = mavlink_msg_radio_get_fixed(&msg);    
+          ap_rssi = mavlink_msg_radio_get_rssi(&R2Gmsg);            // local signal strength
+          ap_remrssi = mavlink_msg_radio_get_remrssi(&R2Gmsg);      // remote signal strength
+          ap_txbuf = mavlink_msg_radio_get_txbuf(&R2Gmsg);          // how full the tx buffer is as a percentage
+          ap_noise = mavlink_msg_radio_get_noise(&R2Gmsg);          // remote background noise level
+          ap_remnoise = mavlink_msg_radio_get_remnoise(&R2Gmsg);    // receive errors
+          ap_rxerrors = mavlink_msg_radio_get_rxerrors(&R2Gmsg);    // count of error corrected packets
+          ap_fixed = mavlink_msg_radio_get_fixed(&R2Gmsg);    
          #ifdef Mav_Debug_All
             Debug.print("Mavlink in #166 Radio: "); 
             Debug.print("rssi="); Debug.print(ap_rssi);
@@ -1430,22 +1991,22 @@ void DecodeOneMavFrame() {
             Debug.print("fixed="); Debug.println(ap_fixed);                                
          #endif        
           break; 
-         case MAVLINK_MSG_ID_RANGEFINDER:       // #173   http://mavlink.org/messages/ardupilotmega
+        case MAVLINK_MSG_ID_RANGEFINDER:       // #173   https://mavlink.io/en/messages/ardupilotmega.html
           if (!mavGood) break;       
-          ap_range = mavlink_msg_rangefinder_get_distance(&msg);  // distance in meters
+          ap_range = mavlink_msg_rangefinder_get_distance(&R2Gmsg);  // distance in meters
           #if defined Mav_Debug_All || defined Mav_Debug_Range
             Debug.print("Mavlink in #173 rangefinder: ");        
             Debug.print(" distance=");
             Debug.println(ap_range);   // now V
-          #endif
-          break;                  
-        case MAVLINK_MSG_ID_AHRS2:             // #178   http://mavlink.org/messages/ardupilotmega
+          #endif     
+          break;            
+        case MAVLINK_MSG_ID_AHRS2:             // #178   https://mavlink.io/en/messages/ardupilotmega.html
           if (!mavGood) break;       
           break;  
-        case MAVLINK_MSG_ID_BATTERY2:          // #181   http://mavlink.org/messages/ardupilotmega
+        case MAVLINK_MSG_ID_BATTERY2:          // #181   https://mavlink.io/en/messages/ardupilotmega.html
           if (!mavGood) break;
-          ap_voltage_battery2 = Get_Volt_Average2(mavlink_msg_battery2_get_voltage(&msg));        // 1000 = 1V
-          ap_current_battery2 = Get_Current_Average2(mavlink_msg_battery2_get_current_battery(&msg));     //  100 = 1A
+          ap_voltage_battery2 = Get_Volt_Average2(mavlink_msg_battery2_get_voltage(&R2Gmsg));        // 1000 = 1V
+          ap_current_battery2 = Get_Current_Average2(mavlink_msg_battery2_get_current_battery(&R2Gmsg));     //  100 = 1A
           if(ap_voltage_battery2 > 21000) ap_cell_count2 = 6;
             else if (ap_voltage_battery2 > 16800 && ap_cell_count2 != 6) ap_cell_count2 = 5;
             else if(ap_voltage_battery2 > 12600 && ap_cell_count2 != 5) ap_cell_count2 = 4;
@@ -1467,12 +2028,12 @@ void DecodeOneMavFrame() {
           #endif
           break;
           
-        case MAVLINK_MSG_ID_AHRS3:             // #182   http://mavlink.org/messages/ardupilotmega
+        case MAVLINK_MSG_ID_AHRS3:             // #182   https://mavlink.io/en/messages/ardupilotmega.html
           if (!mavGood) break;       
           break;
         case MAVLINK_MSG_ID_STATUSTEXT:        // #253      
-          ap_severity = mavlink_msg_statustext_get_severity(&msg);
-          len=mavlink_msg_statustext_get_text(&msg, ap_text);
+          ap_severity = mavlink_msg_statustext_get_severity(&R2Gmsg);
+          len=mavlink_msg_statustext_get_text(&R2Gmsg, ap_text);
 
           for (int i=0; i<=len ; i++) {       // Get real len
             if ((ap_text[i]==32 || ap_text[i]==0) && (ap_text[i+1]==32 || ap_text[i+1]==0)) {      // find first consecutive double-space
@@ -1500,7 +2061,6 @@ void DecodeOneMavFrame() {
           } else {
             ST_record.severity = ap_severity;
             memcpy(ST_record.text, ap_text, ap_txtlth+ 4);   // length + rest of last chunk at least
-       //     memcpy(&ST_record.text[0], &ap_text[0], ap_txtlth);
             ST_record.txtlth = ap_txtlth;
             ST_record.simple = ap_simple;
             MsgRingBuff.push(ST_record);
@@ -1509,7 +2069,7 @@ void DecodeOneMavFrame() {
           #if defined Mav_Debug_All || defined Mav_Debug_Text
             Debug.print("Mavlink in #253 Statustext pushed onto MsgRingBuff: ");
             Debug.print("Queue length= "); Debug.print(MsgRingBuff.size());
-            Debug.print(" Msg lth="); Debug.print(len);
+            Debug.print(" msg lth="); Debug.print(len);
             Debug.print(" Severity="); Debug.print(ap_severity);
             Debug.print(" "); Debug.print(MavSeverity(ap_severity));
             Debug.print("  Text= ");  Debug.print(" |"); Debug.print(ap_text); Debug.print("| ");
@@ -1521,13 +2081,12 @@ void DecodeOneMavFrame() {
           #ifdef Mav_Debug_All
             Debug.print("Mavlink in: ");
             Debug.print("Unknown Message ID #");
-            Debug.print(msg.msgid);
+            Debug.print(R2Gmsg.msgid);
             Debug.println(" Ignored"); 
           #endif
 
           break;
       }
-    }
 }
 
 //***************************************************
@@ -1563,10 +2122,9 @@ void MarkHome()  {
   ap_sysid = 20;                        // ID 20 for this aircraft
   ap_compid = 1;                        //  autopilot1
 
-  mavlink_msg_param_request_read_pack(ap_sysid, ap_compid, &msg,
+  mavlink_msg_param_request_read_pack(ap_sysid, ap_compid, &G2Fmsg,
                    ap_targsys, ap_targcomp, ap_param_id, param_index);
-  len = mavlink_msg_to_send_buffer(buf, &msg);
-  mavSerial.write(buf, len);                 
+  Write_To_FC();             
  }
 
 //***************************************************
@@ -1575,10 +2133,9 @@ void MarkHome()  {
   ap_sysid = 20;                        // ID 20 for this aircraft
   ap_compid = 1;                        //  autopilot1
   
-  mavlink_msg_param_request_list_pack(ap_sysid,  ap_compid, &msg,
+  mavlink_msg_param_request_list_pack(ap_sysid,  ap_compid, &G2Fmsg,
                     ap_targsys,  ap_targcomp);
-  len = mavlink_msg_to_send_buffer(buf, &msg);
-  mavSerial.write(buf, len); 
+  Write_To_FC();
                     
  }
 //***************************************************
@@ -1590,11 +2147,9 @@ void RequestMission(uint16_t ms_seq) {    //  #40
   ap_targcomp = 1; 
   ap_mission_type = 0;   // Mav2  0 = Items are mission commands for main mission
   
-  mavlink_msg_mission_request_pack(ap_sysid, ap_compid, &msg,
+  mavlink_msg_mission_request_pack(ap_sysid, ap_compid, &G2Fmsg,
                                ap_targsys, ap_targcomp, ms_seq, ap_mission_type);
-
-  len = mavlink_msg_to_send_buffer(buf, &msg);
-  mavSerial.write(buf,len);
+  Write_To_FC();
   #if defined Mav_Debug_All || defined Mav_Debug_Mission
     Debug.print("Mavlink out #40 Request Mission:  ms_seq="); Debug.println(ms_seq);
   #endif  
@@ -1610,11 +2165,9 @@ void RequestMissionList() {   // #43   get back #44 Mission_Count
   ap_targcomp = 1; 
   ap_mission_type = 0;   // Mav2  0 = Items are mission commands for main mission
   
-  mavlink_msg_mission_request_list_pack(ap_sysid, ap_compid, &msg,
+  mavlink_msg_mission_request_list_pack(ap_sysid, ap_compid, &G2Fmsg,
                                ap_targsys, ap_targcomp, ap_mission_type);
-
-  len = mavlink_msg_to_send_buffer(buf, &msg);
-  mavSerial.write(buf,len);
+  Write_To_FC();
   #if defined Mav_Debug_All || defined Mav_Debug_Mission
     Debug.println("Mavlink out #43 Request Mission List (count)");
   #endif  
@@ -1655,8 +2208,8 @@ void RequestDataStreams() {    //  REQUEST_DATA_STREAM ( #66 ) DEPRECATED. USE S
     mavlink_msg_request_data_stream_pack(ap_sysid, ap_compid, &msg,
         ap_targsys, ap_targcomp, mavStreams[i], mavRates[i], 1);    // start_stop 1 to start sending, 0 to stop sending   
   
-    len = mavlink_msg_to_send_buffer(buf, &msg);
-    mavSerial.write(buf,len);
+    len = mavlink_msg_to_send_buffer(FCbuf, &msg);
+    mvSerialFC.write(FCbuf,len);
     delay(10);
     }
  // Debug.println("Mavlink out #66 Request Data Streams:");
@@ -1664,35 +2217,13 @@ void RequestDataStreams() {    //  REQUEST_DATA_STREAM ( #66 ) DEPRECATED. USE S
 #endif
 
 //***************************************************
-
-void Aux_ReceiveAndForward() {   // up to FC, optional
-  #if defined Aux_Port_Enabled && defined auxDuplex
-  mavlink_message_t msg; 
-  mavlink_status_t status;
-
-  while(auxSerial.available()) 
-                { 
-    uint8_t c = auxSerial.read();
-    if(mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status)) {
-      
-      #ifdef  Aux_Port_Debug
-      Debug.println("auxSerial passed up to FC:");
-      PrintMavBuffer(&msg);
-      #endif
-      
-      len = mavlink_msg_to_send_buffer(buf, &msg);
-      mavSerial.write(buf,len);
-    }
-   }
-#endif    
-}
-//***************************************************
 void ServiceStatusLeds() {
   ServiceMavStatusLed();
   ServiceBufStatusLed();
 }
 void ServiceMavStatusLed() {
   if (mavGood) {
+
       MavLedState = HIGH;
       digitalWrite(MavStatusLed, MavLedState); 
   }
@@ -1725,111 +2256,135 @@ void DisplayByte(byte b) {
 }
 //***************************************************
 
-void PrintMavBuffer (const void *object){
+void PrintMavBuffer(const void *object){
+bool      mav1;            
+bool      mav2;
+uint8_t   tl;
 
-byte      b; 
-uint16_t  lth;
-bool      mav1 = (msg.magic == MAVLINK_STX_MAVLINK1);
-bool      mav2 = !mav1;
-uint32_t  mav2_msgid;
+uint8_t mavNum;
 
-  const unsigned char * const bytes = static_cast<const unsigned char *>(object);
+//Mavlink 1 and 2
+uint8_t mav_magic;              ///< protocol magic marker
+uint8_t mav_len;                ///< Length of payload
 
-  /*
-  pSeq=b=bytes[4];
-  if (prevSeq==255) prevSeq= -1; // Cater for roll over
-  while (pSeq>(prevSeq+1)) {     // This should be next in sequence
-    Debug.print("Frame    ");
-    Debug.print(prevSeq+1);
-    Debug.print("   missing   ");
-    Debug.println("---------------------------------------------------");
-    prevSeq++;
-  }
-  prevSeq=pSeq; 
-  */
+uint8_t mav_incompat_flags;     ///< flags that must be understood
+uint8_t mav_compat_flags;       ///< flags that can be ignored if not understood
 
+uint8_t mav_seq;                ///< Sequence of packet
+uint8_t mav_sysid;              ///< ID of message sender system/aircraft
+uint8_t mav_compid;             ///< ID of the message sender component
+
+uint32_t mav_msgid;              
 /*
-    bytes[0]  // CRC1  
-    bytes[1]  // CRC2  
-    bytes[2] = msg.magic   
-    bytes[3] = msg.lth  
-    bytes[4] = msg.incompat_flags;          // mav2
-    bytes[5] = msg.compat_flags;            // mav2
-    bytes[6] = msg.seq;
-    bytes[7] = msg.sysid;
-    bytes[8] = msg.compid;
-    bytes[9] = msg.msgid & 0xFF;
-    bytes[10] = (msg.msgid >> 8) & 0xFF;    // mav2
-    bytes[11] = (msg.msgid >> 16) & 0xFF;   // mav2
- */
-  if (mav1) 
-    Debug.print("MAVLink 1: ");
-  else
-    Debug.print("MAVLink 2: ");
-    
-  Debug.print("//");     
-  Debug.print("CRC=");
-  DisplayByte(bytes[0]);
-  DisplayByte(bytes[1]);
-  Debug.print("//");
-  //     bytes[2] = msg.magic 
-  b= bytes[2];
-  Debug.print("magic=");
-  DisplayByte(b);
-  Debug.print("//");    
-  b= bytes[3];
-  lth=b + 2 + 10;                  // total length  = payload length + crc + header
-  Debug.print("lth=");             // payload lth
-  Debug.print(b);
-  Debug.print("//"); 
+uint8_t mav_msgid_b1;           ///< first 8 bits of the ID of the message 0:7; 
+uint8_t mav_msgid_b2;           ///< middle 8 bits of the ID of the message 8:15;  
+uint8_t mav_msgid_b3;           ///< last 8 bits of the ID of the message 16:23;
+uint8_t mav_payload[280];      ///< A maximum of 255 payload bytes
+uint16_t mav_checksum;          ///< X.25 CRC
+*/
+  const unsigned char * const bytes = static_cast<const unsigned char *>(object);
+  int j;
+  if ((bytes[0] == 0xFE) || (bytes[0] == 0xFD)) {
+    j = -2;   // relative position moved forward 2 places
+  } else {
+    j = 0;
+  }
+   
+  mav_magic = bytes[j+2];
+  if (mav_magic == 0xFE) {  // Magic / start signal
+    mavNum = 1;
+  } else {
+    mavNum = 2;
+  }
 
-  if (mav2) {
-    b= bytes[4];
-    Debug.print("incompat_flags=");
-    Debug.print(b);
+  
+  if (mavNum == 1) {
+    Debug.print("mav1: /");
+
+    if (j == 0) {
+      DisplayByte(bytes[0]);   // CRC1
+      DisplayByte(bytes[1]);   // CRC2
+      Debug.print("/");
+      }
+    mav_magic = bytes[j+2];   
+    mav_len = bytes[j+3];
+    mav_seq = bytes[j+4];
+    mav_sysid = bytes[j+5];
+    mav_compid = bytes[j+6];
+    mav_msgid = bytes[j+7];
+
+    //Debug.print(TimeString(millis()/1000)); Debug.print(": ");
+  
+    Debug.print("seq="); Debug.print(mav_seq); Debug.print("\t"); 
+    Debug.print("len="); Debug.print(mav_len); Debug.print("\t"); 
+    Debug.print("/");
+    for (int i = (j+2); i < (j+8); i++) {  // Print the header
+      DisplayByte(bytes[i]); 
+    }
+    
+    Debug.print("  ");
+    Debug.print("#");
+    Debug.print(mav_msgid);
+    if (mav_msgid < 100) Debug.print(" ");
+    if (mav_msgid < 10)  Debug.print(" ");
+    Debug.print("\t");
+    
+    tl = (mav_len+8);                // Total length: 6 bytes header + Payload + 2 bytes CRC
+    for (int i = (j+8); i < (j+tl); i++) {   
+     DisplayByte(bytes[i]);     
+    }
     Debug.print("//");
-    b= bytes[5];
-    Debug.print("compat_flags=");
-    Debug.print(b);
-    Debug.print("//");  
-  }
-
-  b= bytes[6];
-  Debug.print("seqs=");
-  Debug.print(b);
-  Debug.print("//");
-  b= bytes[7];
-  Debug.print("sysid=");
-  Debug.print(b);
-  Debug.print("//"); 
-  b= bytes[8];
-  Debug.print("compid=");
-  Debug.print(b);
-  Debug.print("//"); 
-
-  mav2_msgid = (bytes[11] << 16) | (bytes[10] << 8) | bytes[9];
-  Debug.print("msgid=#");
-  Debug.print(mav2_msgid);
-  Debug.print(" (0x");
-  b= bytes[9];
-  if (b<=0xf) Debug.print("0");
-  Debug.print(b,HEX);
-  b= bytes[10];
-  if (b<=0xf) Debug.print("0");
-  Debug.print(b,HEX);
-   b= bytes[11];
-  if (b<=0xf) Debug.print("0");
-  Debug.print(b,HEX);
-  Debug.print(")//");
-
-  Debug.println();   
+    if (j == -2) {
+      DisplayByte(bytes[mav_len + 6]); 
+      DisplayByte(bytes[mav_len + 7]); 
+      Debug.println("//");  
+    }
     
-  for ( int i = 2; i < lth; i++ ) {
-    DisplayByte(bytes[i]);
-    if(i==11) Debug.print("  ");      // Print space after header
+  } else {
+    Debug.print("mav2:  /");
+    if (j == 0) {
+      DisplayByte(bytes[0]);   // CRC1
+      DisplayByte(bytes[1]);   // CRC2 
+      Debug.print("/");
+    }
+    mav_magic = bytes[2]; 
+    mav_len = bytes[3];
+    mav_incompat_flags = bytes[4]; 
+    mav_compat_flags = bytes[5];
+    mav_seq = bytes[6];
+    mav_sysid = bytes[7];
+    mav_compid = bytes[8]; 
+    mav_msgid = (bytes[11] << 16) | (bytes[10] << 8) | bytes[9]; 
+
+    //Debug.print(TimeString(millis()/1000)); Debug.print(": ");
+
+    Debug.print("seq="); Debug.print(mav_seq); Debug.print("\t"); 
+    Debug.print("len="); Debug.print(mav_len); Debug.print("\t"); 
+    Debug.print("/");
+    for (int i = (j+2); i < (j+12); i++) {  // Print the header
+     DisplayByte(bytes[i]); 
+    }
+
+    Debug.print("  ");
+    Debug.print("#");
+    Debug.print(mav_msgid);
+    if (mav_msgid < 100) Debug.print(" ");
+    if (mav_msgid < 10)  Debug.print(" ");
+    Debug.print("\t");
+
+ //   tl = (mav_len+27);                // Total length: 10 bytes header + Payload + 2B CRC +15 bytes signature
+    tl = (mav_len+22);                  // This works, the above does not!
+    for (int i = (j+12); i < (tl+j); i++) {   
+       if (i == (mav_len + 12)) {
+        Debug.print("/");
+      }
+      if (i == (mav_len + 12 + 2+j)) {
+        Debug.print("/");
+      }
+      DisplayByte(bytes[i]); 
+    }
+    Debug.println();
   }
-  Debug.println("//");
-  Debug.println();
 }
 //***************************************************
 //***************************************************
@@ -1995,4 +2550,230 @@ void ShowPeriod() {
   Debug.print("\t");
   prev_millis=now_millis;
 }
+//***************************************************
+void OledDisplayln(String S) {
+#if (Target_Board == 3)
+  uint8_t i=0; 
+  row_hgt = (int)64 / max_row;
+  if (row>(max_row-1)) {  // last line    0 thru max_row-1  
+    display.clear();
+    for (i = 0; i < (max_row-1); i++) {     // leave space for new line at the bottom
+     // if (i > 1) {   // don't scroll the 2 heading lines   
+      if (i >= 0) {  
+        memset(OL[i].OLx, '\0', sizeof(OL[i].OLx));  // flush 
+        strncpy(OL[i].OLx, OL[i+1].OLx, max_col-1);       
+      }
+      display.drawString(0, (i*row_hgt),OL[i].OLx);
+    }
+    display.display();
+    row=max_row-1;
+  }
+  strncpy(OL[row].OLx, S.c_str(), max_col-1 );
+  display.drawString(0, (row * row_hgt), OL[row].OLx);
+  display.display();
+  row++;
+#endif  
+}
+//************************************************************
+ #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)) //  WiFi
+ 
+  void SetupWiFi() {
+
+    #if (WiFi_Mode == 1)   // AP
+      WiFi.softAP(APssid, APpw);
+      localIP = WiFi.softAPIP();
+      Debug.print("AP IP address: ");
+      Debug.println(localIP);
+      server.begin();
+      Debug.println("AP Server started");
+      OledDisplayln("WiFi AP SSID =");
+      OledDisplayln(String(APssid));
+      OledDisplayln(localIP.toString());   
+      wifiSuGood = true;
+      delay(5000);  // to debounce button press
+    #endif  
+    #if (WiFi_Mode == 2)  // STA
+      uint8_t retry = 0;
+      Debug.print("Trying to connecting to ");   
+      OledDisplayln("WiFi trying ..");
+      Debug.print(STAssid);
+      WiFi.begin(STAssid, STApw);
+      while ((WiFi.status() != WL_CONNECTED) && (retry < 10)){
+        retry++;
+        delay(500);
+        Serial.print(".");
+      }
+      if (WiFi.status() == WL_CONNECTED) {
+        localIP = WiFi.localIP();
+        Debug.println("");
+        Debug.println("WiFi connected!");
+        Debug.print("IP address: ");
+        Debug.println(localIP);
+        wifi_rssi = WiFi.RSSI();
+        Debug.print("WiFi RSSI:");
+        Debug.print(wifi_rssi);
+        Debug.println(" dBm");
+
+        OledDisplayln("Connected!");
+        OledDisplayln(localIP.toString());
+        
+        #if (WiFi_Protocol == 1)
+          server.begin();
+          Debug.println("Server started");
+          OledDisplayln("Server started");
+        #endif
+
+        #if (WiFi_Protocol == 2)
+          udp.begin(udp_localPort);
+          Debug.println("UDP started"); 
+          OledDisplayln("UDP started");                 
+        #endif
+        
+        wifiSuGood = true;
+        
+      } else {
+        Debug.println(" failed to connect");
+        OledDisplayln("Failed");
+      }
+    #endif
+  }
+  
+  #if (WiFi_Protocol == 2)  //  Display the remote UDP IP the first time we get it
+  void DisplayRemoteIP() {
+    if (remIpFt)  {
+      remIpFt = false;
+      Debug.print("Remote UDP IP: "); Debug.println(udp_remoteIP);
+      OledDisplayln("Remote UDP IP =");
+      OledDisplayln(udp_remoteIP.toString());
+     }
+  }
+  #endif
+ 
+ #endif 
+//***************************************************
+
+#if ((FC_Mavlink_IO == 3) || (defined GCS_Mavlink_SD))  // SD Card
+void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
+    Debug.printf("Listing directory: %s\n", dirname);
+
+    File root = fs.open(dirname);
+    if(!root){
+        Debug.println("Failed to open directory");
+        return;
+    }
+    if(!root.isDirectory()){
+        Debug.println("Not a directory");
+        return;
+    }
+    
+    File file = root.openNextFile();
+    while(file){
+      if(file.isDirectory()){    
+        Debug.print("  DIR : ");
+        Debug.println(file.name());
+        if(levels){
+          listDir(fs, file.name(), levels -1);
+          }
+      } else {         
+        Debug.print("  FILE: ");
+        Debug.print(file.name());
+        Debug.print("  SIZE: ");
+        Debug.println(file.size());
+        }
+      file = root.openNextFile();
+    }
+}
+
+void writeFile(fs::FS &fs, const char * path, const char * message){
+    Serial.printf("Writing file: %s\n", path);
+
+    File file = fs.open(path, FILE_WRITE);
+    if(!file){
+        Serial.println("Failed to open file for writing");
+        return;
+    }
+    if(file.print(message)){
+        Serial.println("File written");
+    } else {
+        Serial.println("Write failed");
+    }
+    file.close();
+}
+
+
+void appendFile2(fs::FS &fs, const char * path,  const void *object){
+
+  const unsigned char * const bytes = static_cast<const unsigned char *>(object);
+
+  int i = 0;
+  while ((bytes[i] != 0x00) && (i < 150)) {
+    i++;
+  }
+
+  uint8_t len = i;  
+  
+    Debug.printf("Appending to file: %s\n", path);
+
+    File file = fs.open(path, FILE_APPEND);
+    if(!file){
+        Debug.println("Failed to open file for appending");
+        return;
+    }
+    if(file.write(bytes, len)){   
+        Debug.println("Message appended");
+    } else {
+        Debug.println("Append failed");
+    }
+    file.close();
+}
+
+void appendFile(fs::FS &fs, const char * path,  const char * message){
+    Debug.printf("Appending to file: %s\n", path);
+
+    File file = fs.open(path, FILE_APPEND);
+    if(!file){
+        Debug.println("Failed to open file for appending");
+        return;
+    }
+    if(file.print(message)){
+        Debug.println("Message appended");
+    } else {
+        Debug.println("Append failed");
+    }
+    file.close();
+}
+
+void deleteFile(fs::FS &fs, const char * path){
+    Debug.printf("Deleting file: %s\n", path);
+    if(fs.remove(path)){
+        Debug.println("File deleted");
+    } else {
+        Debug.println("Delete failed");
+    }
+}
+//***************************************************
+
+bool isTlog(File fl) {
+  char * ext;
+  char str[40];
+  char *p, *q;
+  
+  uint8_t len = strlen(fl.name());
+  strncpy ( str, fl.name(), len);
+  str[len] = 0x00;
+  Debug.print("len="); Debug.println(len);
+  
+  p = strrchr(str,'/'); 
+  Debug.print("  p="); Debug.println(p+1);
+  q = strrchr(str,'.'); 
+  Debug.print("  q="); Debug.println(q+1);
+
+  ext = strtok ( str, " ." );
+  Debug.print("  ext="); Debug.println(ext+1);
+
+  ext = strtok (NULL, " .");
+  Debug.print("  ext="); Debug.println(ext);
+
+}
+#endif
 //***************************************************

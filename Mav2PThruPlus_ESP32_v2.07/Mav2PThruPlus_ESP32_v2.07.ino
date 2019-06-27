@@ -183,8 +183,8 @@ v2.07 2019-06-16 Initiate WiFi session with push button from GPIO15 momentary to
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic
 #define GCS_Mavlink_IO  2    // WiFi
 
-//#define WiFi_Mode   1  //AP
-#define WiFi_Mode   2  // STA
+#define WiFi_Mode   1  //AP
+//#define WiFi_Mode   2  // STA
 
 //#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both rx and tx lines must be connected      
 //#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
@@ -1251,7 +1251,7 @@ void From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
     
     client.write(GCSbuf,len);
 
-   #endif
+    #endif
  #endif 
 }
 
