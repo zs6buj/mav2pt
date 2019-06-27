@@ -154,7 +154,7 @@ v2.05 2019-06-09 Support 3 possible I/O channels on FC side, and 3 on GCS side. 
                  WiFi AP ssid = 'Mav2Passthru', pw = 'password' for now.  
 v2.06 2019-06-10 Support added for STA mode and AP mode. Tidied up some lose ends. 
 v2.07 2019-06-16 Initiate WiFi session with push button from GPIO15 momentary to ground. 
-v2.08 2019-06-27 Add SD/TF card support - wip!!  Added UTP protocol option                       
+v2.08 2019-06-16 Add SD/TF card support - wip!!  Added UTP protocol option                       
 */
 
 #include <CircularBuffer.h>
@@ -308,10 +308,8 @@ const uint16_t bat2_capacity = 0;
     #endif
     
     #if (WiFi_Mode == 2)  //  STA
-  //    const char *STAssid =     "TargetAPName";    // Target AP to connect to      <====
-   //   const char *STApw =       "targetPw";      // Change me!
-      const char *STAssid =     "OmegaOffice";    // Target AP to connect to      <====
-      const char *STApw =       "Navara@98";      // Change me!
+      const char *STAssid =     "TargetAPName";    // Target AP to connect to      <====
+      const char *STApw =       "targetPw";      // Change me!
 
     #endif   
     
