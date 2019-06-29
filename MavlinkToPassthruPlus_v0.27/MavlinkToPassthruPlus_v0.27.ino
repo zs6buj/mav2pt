@@ -856,9 +856,10 @@ void QueueAvailableMavFrames() {
   while(mavSerial.available())             { 
     uint8_t c = mavSerial.read();
     if(mavlink_parse_char(MAVLINK_COMM_0, c, &ring_msg, &status)) {
-      if (MavRingBuff.isFull()) 
+      if (MavRingBuff.isFull()) {
         BufLedState = HIGH;
         Debug.println("MavRingBuff is full. Dropping records!");
+      }
        else {
         BufLedState = LOW;
         MavRingBuff.push(ring_msg);
