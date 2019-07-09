@@ -158,7 +158,8 @@ v1.0.15 2019-06-05 Fix for PX4 flight stack. It uses GPS_Raw #24 rather than GPS
 v1.0.16 2019-06-14 Trial change for px4. #01 voltage_battery from uint16_t to int16_t for px4.  Also #181 bat2 and 
                    trap bad volts and mAs.
 v1.0.17 2019-07-08 Combine ULRS & QLRS in #define LRS_RSSI to use rssi from #35. Added athertop's code snippet 
-                   to display object binary path.                                                    
+                   to display object binary path.   
+v1.0.18 2019-07-09 For PX4 flight stack only, send HB to FC every 2 seconds                                                                 
 */
 
 #include <CircularBuffer.h>
@@ -286,6 +287,7 @@ bool      mavGood=false;
 bool      rssiGood=false;
 
 uint32_t  hb_millis=0;
+uint32_t  fchb_millis=0;
 uint32_t  rds_millis=0;
 uint32_t  acc_millis=0;
 uint32_t  em_millis=0;
@@ -366,6 +368,14 @@ uint8_t    ap_mavlink_version = 0;
 bool       px4_flight_stack = false;
 uint8_t    px4_main_mode = 0;
 uint8_t    px4_sub_mode = 0;
+
+// Message #0  Outgoing HEARTHBEAT 
+uint8_t    apo_sysid;
+uint8_t    apo_compid;
+uint8_t    apo_targcomp;
+uint8_t    apo_mission_type;              // Mav2
+uint8_t    apo_type = 0;
+uint8_t    apo_autopilot = 0;
 
 // Message # 1  SYS_STATUS 
 int16_t   ap_voltage_battery1= 0;    // 1000 = 1V
@@ -624,6 +634,7 @@ void setup()  {
   homGood = false;     
   hb_count = 0;
   hb_millis=millis();
+  fchb_millis=millis();
   acc_millis=millis();
   rds_millis=millis();
   em_millis=millis();
@@ -702,6 +713,16 @@ void loop()  {
     }
   }
 #endif 
+
+  if (px4_flight_stack) {
+    if(millis()- fchb_millis > 2000) {  // Heartbeat to FC every 2 seconds
+      fchb_millis=millis();
+      #if defined Mav_Debug_FC_Heartbeat
+        Debug.println("Sending hb to FC");  
+      #endif    
+      Send_FC_Heartbeat();   // must have Teensy Tx connected to Taranis/FC rx  
+    }
+  }
 
   if(mavGood && (millis() - hb_millis) > 6000)  {   // if no heartbeat from APM in 6s then assume mav not connected
     mavGood=false;
@@ -1339,6 +1360,20 @@ void MarkHome()  {
     Debug.print(" hom.hdg="); Debug.println(hom.hdg);                   
  #endif  
 }
+//***************************************************
+void Send_FC_Heartbeat() {
+  
+  apo_sysid = 20;                           // ID 20 for this aircraft
+  apo_compid = 1;                           //  autopilot1
+
+  apo_type = MAV_TYPE_GCS;                  // = 6 Pretend to be a GCS
+  apo_autopilot = MAV_AUTOPILOT_GENERIC;
+  
+  mavlink_msg_heartbeat_pack(apo_sysid, apo_compid, &msg, apo_type, apo_autopilot, 0, 0, 0);
+  len = mavlink_msg_to_send_buffer(buf, &msg);
+  mavSerial.write(buf, len);  
+}
+
 //***************************************************
  void Request_Param_Read(int16_t param_index) {
   system_id = 20;                          // ID 20 for this aircraft
