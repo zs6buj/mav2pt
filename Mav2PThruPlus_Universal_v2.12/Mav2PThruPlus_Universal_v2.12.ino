@@ -215,7 +215,7 @@ using namespace std;
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
 
-// Choose one only of these Flight Controller side I/O channels 
+// Choose one only of these Flight-Controller-side I/O channels 
 // How does Mavlink telemetry enter the converter?
 #define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
@@ -223,7 +223,7 @@ using namespace std;
 //#define FC_Mavlink_IO  3    // SD Card / TF - ESP32 only
 
 
-// Choose one only of these GCS side I/O channels
+// Choose one only of these GCS-side I/O channels
 // How does Mavlink telemetry leave the converter?
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  9    // NONE (default)
