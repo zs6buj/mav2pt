@@ -39,43 +39,49 @@
     https://github.com/yaapu/FrskyTelemetryScript 
     
     This firmware converts APM or PX4 Mavlink telemetry to FrSky SPort passthrough telemetry, 
-    and is designed to run on a Teensy 3.2, or cheap STM32F103 (with some small mods and a signal 
-    inverter). The Mavlink procol telemetry can still be fed on to Mission Planner or other GCSs.
+    and is designed to run on an ESP32,  Teensy 3.2, or cheap STM32F103 board (with a signal 
+    inverter). The ESP32 implementation supports Bluetooth, WiFI and SD card I/O into and out
+    of the converter, so for example, Mavlink telemetry can be fed directly into Mission
+    Planner or QGround Control.
 
-    For now the Teensy 3.2 is prefered to the STM32 because of it's small size. It fits snugly 
-    into the Orange LRS UHF rx/tx enclosure in the back bay of the Taranis, and requires no 
-    external inverter.
+    The performance of the converter on the ESP32 platform is superior to that of the other boards.
+    However, the Teensy is much smaller and fits neatly into the back bay of a Taranis or Horus
+    transmitter. The STM32F103C boards are the more affordable, but require expernal inverters/
+    converters for single wire S.Port connection.
 
    FrSky telemetry is unlike regular telemetry. It evolved from a simple system to poll sensors 
-   on a 'plane, and as the number of sensors grew over time so too did the temetry requirements.
-   Synchron  ous sensor polling is central to the telemetry, and timing is critical.
+   on a 'plane, and as the number of sensors grew over time so too did the telemetry requirements.
+   Synchronous sensor polling is central to the telemetry, and timing is critical.
 
    On the other hand, most flight control computers manage internal and external sensors so 
    that the polling is handled internally. Telemetry is organised into meaningful records or 
    frames and sent asynchronously (whenever you like).
 
-   Originally written for use with ULRS UHF, which delivers Mavlink to the back bay of the 
-   Taranis X9D Plus to provide Frsky Passthrough compatible telemetry to yaapu's outstanding 
-   LUA script.
+   The firmware was originally written for use with ULRS UHF, which delivers Mavlink to the 
+   back bay of the Taranis X9D Plus to provide Frsky Passthrough compatible telemetry to yaapu's 
+   outstanding LUA script.
 
    The converter can work in one of three modes: Ground_Mode, Air_Mode or Relay_Mode
 
    Ground_Mode
-   In ground mode, it is located in the back of the Taranis. Since there is no FrSky receiver to 
-   provide sensor polling, we create a routine in the firmware to emulate FrSky receiver sensor
-   polling. (It pretends to be a receiver for polling purposes). 
+   In ground mode, it is located in the back of the Taranis/Horus. Since there is no FrSky receiver
+   to provide sensor polling, a routine in the firmware emulates FrSky receiver sensor polling. (It
+   pretends to be a receiver for polling purposes). 
+   
    Un-comment this line       #define Ground_Mode      like this.
 
    Air_Mode
    In air mode, it is located on the aircraft between the FC and a Frsky receiver. It converts 
    Mavlink out of a Pixhawk and feeds passthru telemetry to the frsky receiver, which sends it 
-   to Taranis on the ground. In this situation it responds to the FrSky receiver's sensor polling. 
-   The APM firmware can deliver passthru telemetry, but the PX4 Pro firmware cannot. 
+   to the Taranis on the ground. In this situation it responds to the FrSky receiver's sensor 
+   polling. The APM firmware can deliver passthru telemetry directly without this converter, but as 
+   of July 2019 the PX4 Pro firmware cannot, and therefor requires the converter. 
+   
    Un-comment this line      #define Air_Mode    like this
    
    Relay_Mode
-   Consider the situation where an air-side LRS UHF tranceiver (trx) (like the Orange), 
-   communicates with a matching ground-side UHF trx located in a "relay" box using Mavlik 
+   Consider the situation where an air-side LRS UHF tranceiver (trx) (like the DragonLink or Orange), 
+   communicates with a matching ground-side UHF trx located in a "relay" box using Mavlink 
    telemetry. The UHF trx in the relay box feeds Mavlink telemtry into our passthru converter, and 
    the converter feeds FrSky passthru telemtry into the FrSky receiver (like an XSR), also 
    located in the relay box. The XSR receiver (actually a tranceiver - trx) then communicates on 
@@ -86,16 +92,14 @@
    box to the Taranis.  To enable Relay_Mode :
    Un-comment this line      #define Relay_Mode    like this
 
-   Select the target mpu by un-commenting either //#define Target_Teensy3x or //#define Target_Blue_Pill or //#define Target_Maple_Mini
+   From version 2.12 he target mpu is selected automatically
 
    Battery capacities in mAh can be 
    
    1 Requested from the flight controller via Mavlink
    2 Defined within this firmware  or 
-   3 Defined within the LUA script on the Taranis/Horus. This is the prefered method as the Orange's
-     rx (and Teensy tx) line is freed-up for use for BlueTooth or other Mavlink connections
+   3 Defined within the LUA script on the Taranis/Horus. This is the prefered method.
      
-   Please #define the appropriate Battery_mAh_Source in config section below
    
   ***************************************************************************************************************** 
   
@@ -195,8 +199,7 @@ using namespace std;
 // *****************************************************************************************************************
 // ******************************* Please select your options below before compiling *******************************
 
-// Do not exable for FlightDeck
-
+// Do not enable for FlightDeck
 #define PlusVersion  // Added support for 0x5009 Mission WPs, 0x50F1 Servo_Channels, 0x50F2 VFR_Hud
 
 // Choose one only of these three modes
