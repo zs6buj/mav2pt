@@ -175,7 +175,8 @@ v2.09 2019-06-30 WiFi activation push button momentary but one-time.
 v2.10 2019-07-09 For PX4 flight stack only, send HB to FC every 2 seconds  
       2019-07-10 Radical redesign of S.Port scheduling algorithm. Support SD and WiFi/BT I/O simultaneously 
 v2.11 2109-07-11 Auto determine target board. Publish "Universal" version 2.11. One source, four platforms / boards 
-v2.12 2019-07-12 Add #define PlusVersion, comment out for FlightDeck                  
+v2.12 2019-07-12 Add #define PlusVersion, comment out for FlightDeck   
+v2.13 2019-08-13 UDP now working in Access Point mode.               
 */
 
 #include <CircularBuffer.h>
@@ -230,19 +231,19 @@ using namespace std;
 //#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port        
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 only
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 only
 
 
 //#define GCS_Mavlink_SD      // SD Card  - for ESP32 only
 
 
 // Choose one - for ESP32 only
-#define WiFi_Protocol 1    // TCP/IP
-//#define WiFi_Protocol 2    // UDP     - not supported in AP mode - use for WiFiBroadcast
+//#define WiFi_Protocol 1    // TCP/IP
+#define WiFi_Protocol 2    // UDP     useful for Ez-WiFiBroadcast in STA mode
 
 
 // Choose one - AP means advertise as an access point (hotspot). STA means connect to a known host
-#define WiFi_Mode   1  //AP            - not allowed for UDP protocol
+#define WiFi_Mode   1  //AP            
 //#define WiFi_Mode   2  // STA
 
 
@@ -318,9 +319,6 @@ bool daylightSaving = false;
       #endif
     #endif
     
-    #if (Target_Board == 3)  && (WiFi_Protocol == 2) && (WiFi_Mode == 1)  // if UDP protocol and AP mode
-      #error Sorry - AP mode does not support UDP protocol
-    #endif
 
 //#define Request_Missions_From_FC    // Un-comment if you need mission waypoint from FC - NOT NECESSARY RIGHT NOW
 
@@ -363,13 +361,10 @@ bool daylightSaving = false;
 //********************************** WiFi ***********************************
   #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2))  // WiFi
   
-    #include <WiFi.h>
-    
-    #if (WiFi_Protocol == 1)
-      #include <WiFiClient.h>
-    #endif 
-    
-    #if (WiFi_Protocol == 2)
+    #include <WiFi.h>  
+    #include <WiFiClient.h>
+ 
+    #if (WiFi_Protocol == 2) 
       #include <WiFiUDP.h>
     #endif   
     
@@ -387,31 +382,33 @@ bool daylightSaving = false;
       const char *STApw =       "targetPw";      // Change me!
 
   //    const char *STAssid =     "EZ-WifiBroadcast";    // Target AP to connect to      <====
-  //    const char *STApw =       "wifibroadcast";      // Change me!      
+  //    const char *STApw =       "wifibroadcast";           
 
     #endif   
+
+    WiFiClient wifi;   
     
     #if (WiFi_Protocol == 1)
-      uint16_t tcp_remotePort = 5760;
-      WiFiClient tcp;    // Create tcp client object
-      WiFiServer server(tcp_remotePort);
+      uint16_t tcp_Port = 5760;  
+      WiFiServer server(tcp_Port);
     #endif 
     
     #if (WiFi_Protocol == 2)
-
-      
+   
       #if (FC_Mavlink_IO == 2)   // FC side
         uint16_t udp_localPort = 14550;
-        uint16_t udp_remotePort = 0;
+        uint16_t udp_remotePort = 14550;
         bool remIpFt = true;
         IPAddress udp_remoteIP =  (192, 168, 2, 1);    // Start with this, then target Udp.remoteIP() 
+        WiFiServer server(udp_localPort);     
       #endif
       
       #if (GCS_Mavlink_IO == 2)   // QGC side   
-        uint16_t udp_localPort = 22222;
+        uint16_t udp_localPort = 14550;
         uint16_t udp_remotePort = 14550;         
         bool remIpFt = true;
-        IPAddress udp_remoteIP =  (192, 168, 1, 255);    // Start with broadcast, then target Udp.remoteIP() 
+        IPAddress udp_remoteIP =  (192, 168, 4, 2); 
+        WiFiServer server(udp_localPort);     
       #endif  
       
       WiFiUDP udp;       // Create udp object      
@@ -1229,14 +1226,14 @@ void loop() {            // For WiFi only
 
   #if (WiFi_Protocol == 1)  // TCP  
     if (wifiSuGood) {
-      tcp = server.available();              // listen for incoming clients 
-      if(tcp) {
+      wifi = server.available();              // listen for incoming clients 
+      if(wifi) {
         Debug.println("New client connected"); 
         OledDisplayln("New client ok!");      
-        while (tcp.connected()) {            // loop while the client's connected
+        while (wifi.connected()) {            // loop while the client's connected
           main_loop(); 
         }
-      tcp.stop();
+      wifi.stop();
       Debug.println("Client disconnected");
       OledDisplayln("Client discnnct!");      
       } else {
@@ -1276,7 +1273,7 @@ void main_loop() {
   
   Write_To_FC();                            
   
-  if(mavGood && (millis() - hb_millis) > 6000)  {   // if no heartbeat from APM in 6s then assume mav not connected
+  if(mavGood && (millis() - hb_millis) > 8000)  {   // if no heartbeat from APM in 8s then assume mav not connected
     mavGood=false;
     Debug.println("Heartbeat timed out! Mavlink not connected"); 
     OledDisplayln("Mavlink lost!");       
@@ -1387,11 +1384,11 @@ bool FC_To_RingBuffer() {
     //Read Data from connected client (FC side)   
     #if (WiFi_Protocol == 1) //  TCP 
 
-    if (tcp.available()) {             // if there are bytes to read     
-      tcp.read(FCbuf, len);  
+    if (wifi.available()) {             // if there are bytes to read     
+      wifi.read(FCbuf, len);  
       memcpy(&F2Rmsg, FCbuf, len);  
       #ifdef  Debug_FC
-        Debug.println("TCP WiFi passed to RB from FC side:");
+        Debug.println("WiFi passed to RB from FC side:");
         PrintMavBuffer(&F2Rmsg);
       #endif                        
       MavToRingBuffer();        
@@ -1507,8 +1504,8 @@ void Read_From_GCS() {
 
   #if (GCS_Mavlink_IO == 2)  //  WiFi
       #if (WiFi_Protocol == 1) // TCP 
-      if (tcp.available()) {             // if there are bytes to read 
-        uint8_t c = tcp.read();
+      if (wifi.available()) {             // if there are bytes to read 
+        uint8_t c = wifi.read();
         if(mavlink_parse_char(MAVLINK_COMM_0, c, &G2Fmsg, &status)) {
           GCS_available = true;  // Record waiting 
           #ifdef  Debug_GCS_Up
@@ -1575,7 +1572,7 @@ void Write_To_FC() {
         #endif
         
         #if (WiFi_Protocol == 1) // TCP   
-          tcp.write(FCbuf,len);
+          wifi.write(FCbuf,len);
         #endif
         
         #if (WiFi_Protocol == 2) // UDP   
@@ -1644,7 +1641,7 @@ void From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
         #endif
         
         #if (WiFi_Protocol == 1) // TCP   
-          tcp.write(GCSbuf,len);
+          wifi.write(GCSbuf,len);
         #endif
         
         #if (WiFi_Protocol == 2) // UDP 
@@ -2863,10 +2860,19 @@ void OledDisplayln(String S) {
       Debug.print("AP IP address: ");
       Debug.println(localIP);
       server.begin();
-      Debug.println("AP Server started");
+      Debug.print("AP Server started. SSID = ");
+      Debug.println(String(APssid));
+      
       OledDisplayln("WiFi AP SSID =");
       OledDisplayln(String(APssid));
-      OledDisplayln(localIP.toString());   
+      OledDisplayln(localIP.toString());  
+      
+      #if (WiFi_Protocol == 2)  // UDP
+        udp.begin(udp_localPort);
+        Debug.printf("UDP started, listening on IP %s, UDP port %d\n", WiFi.softAPIP().toString().c_str(), udp_localPort);      
+        OledDisplayln("UDP ok port 14550");                 
+      #endif
+      
       wifiSuGood = true;
       delay(5000);  // to debounce button press
     #endif  
@@ -2904,6 +2910,7 @@ void OledDisplayln(String S) {
         #if (WiFi_Protocol == 2)  // UDP
           udp.begin(udp_localPort);
           Debug.println("UDP started"); 
+          Debug.printf("Now listening at IP %s, UDP port %d\n", WiFi.softAPIP().toString().c_str(), udp_localPort);      
           OledDisplayln("UDP started");                 
         #endif
         
