@@ -219,7 +219,7 @@ using namespace std;
 
 // Choose one only of these Flight-Controller-side I/O channels 
 // How does Mavlink telemetry enter the converter?
-#define FC_Mavlink_IO  0    // Serial Port (default)         
+//#define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define FC_Mavlink_IO  2    // WiFi - ESP32 only
 //#define FC_Mavlink_IO  3    // SD Card / TF - ESP32 only
@@ -399,7 +399,7 @@ bool daylightSaving = false;
         uint16_t udp_localPort = 14550;
         uint16_t udp_remotePort = 14550;
         bool remIpFt = true;
-        IPAddress udp_remoteIP =  (192, 168, 2, 1);    // Start with this, then target Udp.remoteIP() 
+        IPAddress remoteIP =  (192, 168, 2, 2);   // First guess for EZ-WFB in STA mode. Will adopt IP allocated
         WiFiServer server(udp_localPort);     
       #endif
       
@@ -407,7 +407,7 @@ bool daylightSaving = false;
         uint16_t udp_localPort = 14550;
         uint16_t udp_remotePort = 14550;         
         bool remIpFt = true;
-        IPAddress udp_remoteIP =  (192, 168, 4, 2); 
+        IPAddress remoteIP =  (192, 168, 4, 2); // We hand out this IP to the first client via DHCP
         WiFiServer server(udp_localPort);     
       #endif  
       
@@ -1401,7 +1401,7 @@ bool FC_To_RingBuffer() {
       len = udp.parsePacket();
       if (len) {             // if there is a packet to read
         udp.read(FCbuf, len); 
-        udp_remoteIP = udp.remoteIP();  // remember which remote client sent this packet so we can target it
+        remoteIP = udp.remoteIP();  // remember which remote client sent this packet so we can target it
         DisplayRemoteIP();
         for (int i = 0 ; i < len ; i++) {
           uint8_t c = FCbuf[i];
@@ -1520,7 +1520,7 @@ void Read_From_GCS() {
       len = udp.parsePacket();
       if (len) {             // if there is a packet to read
         udp.read(GCSbuf, len); 
-        udp_remoteIP = udp.remoteIP();  // remember which remote client sent this packet so we can target it
+        remoteIP = udp.remoteIP();  // remember which remote client sent this packet so we can target it
         DisplayRemoteIP();
         for (int i = 0 ; i < len ; i++) {
           uint8_t c = GCSbuf[i];
@@ -1576,7 +1576,7 @@ void Write_To_FC() {
         #endif
         
         #if (WiFi_Protocol == 2) // UDP   
-          udp.beginPacket(udp_remoteIP, udp_remotePort);
+          udp.beginPacket(remoteIP, udp_remotePort);
           udp.write(FCbuf,len);
           udp.endPacket();
         #endif 
@@ -1645,7 +1645,7 @@ void From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
         #endif
         
         #if (WiFi_Protocol == 2) // UDP 
-          udp.beginPacket(udp_remoteIP, udp_remotePort);
+          udp.beginPacket(remoteIP, udp_remotePort);
           udp.write(GCSbuf,len);
           udp.endPacket();         
         #endif 
@@ -2927,9 +2927,9 @@ void OledDisplayln(String S) {
   void DisplayRemoteIP() {
     if (remIpFt)  {
       remIpFt = false;
-      Debug.print("Remote UDP IP: "); Debug.println(udp_remoteIP);
+      Debug.print("Remote UDP IP: "); Debug.println(remoteIP);
       OledDisplayln("Remote UDP IP =");
-      OledDisplayln(udp_remoteIP.toString());
+      OledDisplayln(remoteIP.toString());
      }
   }
   #endif
