@@ -377,7 +377,7 @@ void SendLon800() {
   if (fr_gps_status < 3) return;
   if (px4_flight_stack) {
     fr_lon = Abs(ap_lon24) / 100 * 6;  // ap_lat * 60 / 1000
-    if (ap_lat24<0) 
+    if (ap_lon24<0) 
       ms2bits = 3;
     else ms2bits = 2;    
   } else {
