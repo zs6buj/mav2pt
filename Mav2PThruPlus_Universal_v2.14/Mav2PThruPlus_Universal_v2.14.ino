@@ -176,7 +176,8 @@ v2.10 2019-07-09 For PX4 flight stack only, send HB to FC every 2 seconds
       2019-07-10 Radical redesign of S.Port scheduling algorithm. Support SD and WiFi/BT I/O simultaneously 
 v2.11 2109-07-11 Auto determine target board. Publish "Universal" version 2.11. One source, four platforms / boards 
 v2.12 2019-07-12 Add #define PlusVersion, comment out for FlightDeck   
-v2.13 2019-08-13 UDP now working in Access Point mode               
+v2.13 2019-08-13 UDP now working in Access Point mode 
+v2.14 2019-07-17 PX4 flight stack only - fixed longitude typo    if (ap_lat24<0) should be if (ap_lon24<0)               
 */
 
 #include <CircularBuffer.h>
@@ -219,10 +220,10 @@ using namespace std;
 
 // Choose one only of these Flight-Controller-side I/O channels 
 // How does Mavlink telemetry enter the converter?
-//#define FC_Mavlink_IO  0    // Serial Port (default)         
+#define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define FC_Mavlink_IO  2    // WiFi - ESP32 only
-#define FC_Mavlink_IO  3    // SD Card / TF - ESP32 only
+//#define FC_Mavlink_IO  3    // SD Card / TF - ESP32 only
 
 
 // Choose one only of these GCS-side I/O channels
