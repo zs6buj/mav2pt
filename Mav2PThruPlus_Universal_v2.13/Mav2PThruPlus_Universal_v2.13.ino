@@ -219,7 +219,7 @@ using namespace std;
 
 // Choose one only of these Flight-Controller-side I/O channels 
 // How does Mavlink telemetry enter the converter?
-//#define FC_Mavlink_IO  0    // Serial Port (default)         
+#define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define FC_Mavlink_IO  2    // WiFi - ESP32 only
 //#define FC_Mavlink_IO  3    // SD Card / TF - ESP32 only
@@ -428,7 +428,7 @@ bool daylightSaving = false;
   #include "FS.h"
   #include "SD.h"
   #include "SPI.h"
-// Rememeber to change SPI frequency to 25E6 from 4E6, i.e 25MHz id SD.h otherwise MavRingBuff fills up 
+// Rememeber to change SPI frequency from 4E6 to 25E6, i.e 4MHz to 25MHz in SD.h otherwise MavRingBuff fills up 
 // C:\Users\Eric\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.2\libraries\SD\src  
 // bool begin(uint8_t ssPin=SS, SPIClass &spi=SPI, uint32_t frequency=25000000, const char * mountpoint="/sd", uint8_t max_files=5);  
 
