@@ -518,9 +518,9 @@ static DateTime_t dt_tm;
 //#define Mav_Debug_SysStatus
 //#define Debug_Batteries
 //#define Frs_Debug_Home
-#define Mav_Debug_GPS_Raw     // #24
-#define Mav_Debug_GPS_Int     // #33
-#define Frs_Debug_LatLon
+//#define Mav_Debug_GPS_Raw     // #24
+//#define Mav_Debug_GPS_Int     // #33
+//#define Frs_Debug_LatLon
 //#define Frs_Debug_YelYaw
 //#define Frs_Debug_GPS_Status
 //#define Mav_Debug_Raw_IMU
