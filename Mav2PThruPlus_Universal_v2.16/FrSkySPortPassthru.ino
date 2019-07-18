@@ -147,12 +147,15 @@ void FrSkySPort_Process() {
   uint32_t st_now = millis();
   int32_t st_age;
   int32_t st_burden_age;
-  int32_t st_max = 0;;   
-  uint8_t ptr = 0;   // row with oldest sensor data
+  int32_t st_max = 0;   
+  uint8_t ptr = 0;       // row with oldest sensor data
   
   // find the row with oldest sensor data = ptr 
+  inuse_count = 0;  // how many slots in-use
+  
   for (int i=0 ; i < st_rows ; i++) {
     if (st[i].inuse) {
+      inuse_count++;
       st_age = (st_now - st[i].millis); 
       st_burden_age = st_age - st[i].burden;  // so it seems less old
       if (st_burden_age >= st_max) {
@@ -163,16 +166,17 @@ void FrSkySPort_Process() {
   } 
     
         
-  // send apparent oldest packet when burden_age is positive- one only
+  // send apparent oldest packet when burden_age is positive - one only
   if (st[ptr].inuse == true)  {
 
      #ifdef Frs_Debug_Scheduler
-       Debug.print("Pop  row=");  Debug.print(ptr);
+       Debug.print(inuse_count); 
+       Debug.print("\tPop  row=");  Debug.print(ptr);
        Debug.print("  id=");  Debug.print(st[ptr].id, HEX);
        if (st[ptr].id < 0x1000) Debug.print(" ");
        Debug.print("  subid="); Debug.print(st[ptr].subid);      
-       Debug.print("  payload=");  Debug.print(st[ptr].payload);  
-       Debug.print("\t\t age=");  Debug.print(st_max);  Debug.println("mS");       
+       Debug.printf("  payload=%10d", st[ptr].payload );
+       Debug.print("\t age=");  Debug.print(st_max);  Debug.println("mS");       
      #endif  
       
     if (st[ptr].id == 0xF101) {
@@ -202,12 +206,14 @@ void PushToEmptyRow(st_t pter) {
     }
     j++;
   }
+  inuse_count++;
   #if defined Frs_Debug_Scheduler
-    Debug.print("Push row="); Debug.print(j);
+    Debug.print(inuse_count); 
+    Debug.print("\tPush row="); Debug.print(j);
     Debug.print("  id="); Debug.print(pter.id, HEX);
     if (pter.id < 0x1000) Debug.print(" ");
-    Debug.print("  subid="); Debug.print(pter.subid);    
-    Debug.print("  payload="); Debug.println(pter.payload);
+    Debug.print("  subid="); Debug.print(pter.subid);  
+    Debug.printf(  "payload= %10d \n", pter.payload );
   #endif
   pter.millis = millis();
   pter.inuse = true;

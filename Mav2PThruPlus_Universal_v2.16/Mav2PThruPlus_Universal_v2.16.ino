@@ -977,7 +977,7 @@ bool dmy_rssi_ft = true;
 #endif
 
   st_t sr, st[st_rows];
-
+  uint16_t inuse_count;  // how many slots in-use
      
 // OLED declarations *************************
 
