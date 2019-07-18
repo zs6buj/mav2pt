@@ -98,7 +98,6 @@ void ReadSPort(void) {
   #if (Target_Board == 0) // Teensy3x
     setSPortMode(rx);
   #endif  
-  // setSPortMode(rx);
   uint8_t Byt = 0;
   while ( frSerial.available())   {  
     Byt =  frSerial.read();
