@@ -179,8 +179,8 @@ v2.12 2019-07-12 Add #define PlusVersion, comment out for FlightDeck
 v2.13 2019-08-13 UDP now working in Access Point mode 
 v2.14 2019-07-17 PX4 flight stack only - fixed longitude typo    if (ap_lat24<0) should be if (ap_lon24<0)
 v2.15 2019-07-17 Switch to Adafruit_SSD1306 OLED library. 8 lines x 21 chars
-v2.16 2019-07-18 Increase time burden for each successive Status Text chunk by 5mS.
-               
+v2.16 2019-07-18 Increase time burden for each successive Status Text chunk by 5mS
+v2.17 2019-07-19 Auto detect serial telemetry and baud rate               
 */
 
 #include <CircularBuffer.h>
