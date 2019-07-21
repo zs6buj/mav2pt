@@ -578,15 +578,17 @@ void PackMultipleTextChunks_5000(uint16_t id) {
 
     sr.id = id;
     sr.subid = fr_chunk_num;
-    sr.burden = 2000 + (fr_chunk_num  * 60);  // Copy 1 - copies can have the same age
+    sr.burden = 2000 + (fr_chunk_num  * 60);  // Original copy 1 
     sr.payload = fr_payload;
     PushToEmptyRow(sr); 
-    
-    sr.burden = 20 + (fr_chunk_num * 60);  // Copy 2
-    PushToEmptyRow(sr); 
+
+    #if defined Send_Status_Text_3_Times  
+      sr.burden = 2000 + (fr_chunk_num * 60);  // Copy 2 - copies can have the same age
+      PushToEmptyRow(sr); 
  
-    sr.burden = 2000 + (fr_chunk_num * 60);   // Copy 3
-    PushToEmptyRow(sr);
+      sr.burden = 2000 + (fr_chunk_num * 60);   // Copy 3
+      PushToEmptyRow(sr);
+    #endif 
     
     fr_chunk_pntr +=4;
  }

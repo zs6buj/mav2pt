@@ -111,11 +111,11 @@
   ***************************************************************************************************************** 
 
   Connections to ESP32 Dev Board are: 
-   0) USB           UART0                   Flashing and serial monitor for debug
-   1) SPort S       UART1   <--rx1 pin 12   Already inverted, S.Port in from single-wire combiner from XSR or Taranis bay, bottom pin
-   2)               UART1   -->tx1 pin 14   Already inverted, S.Port out to single-wire combiner to XSR or Taranis bay, bottom pin             
-   3) Mavlink       UART2   <--rx2 pin 16   Mavlink source to ESP32
-   4)               UART2   -->tx2 pin 17   Mavlink source from ESP32 
+   0) USB           UART0                    Flashing and serial monitor for debug
+   1) SPort S       UART1   <--rx1 pin d12   Already inverted, S.Port in from single-wire combiner from XSR or Taranis bay, bottom pin
+   2)               UART1   -->tx1 pin d14   Already inverted, S.Port out to single-wire combiner to XSR or Taranis bay, bottom pin             
+   3) Mavlink       UART2   <--rx2 pin d9    Mavlink source to ESP32
+   4)               UART2   -->tx2 pin d10   Mavlink source from ESP32 
    5) Vcc 3.3V !
    6) GND
   
@@ -179,8 +179,8 @@ v2.12 2019-07-12 Add #define PlusVersion, comment out for FlightDeck
 v2.13 2019-08-13 UDP now working in Access Point mode 
 v2.14 2019-07-17 PX4 flight stack only - fixed longitude typo    if (ap_lat24<0) should be if (ap_lon24<0)
 v2.15 2019-07-17 Switch to Adafruit_SSD1306 OLED library. 8 lines x 21 chars
-v2.16 2019-07-18 Increase time burden for each successive Status Text chunk by 5mS
-v2.17 2019-07-19 Auto detect serial telemetry and baud rate               
+v2.16 2019-07-18 Increase time burden for each successive Status Text chunk by 5mS.
+               
 */
 
 #include <CircularBuffer.h>
@@ -192,22 +192,17 @@ using namespace std;
 //
 //                Don't change anything here
 //
-#if defined (__MK20DX256__) 
-  #define Target_Board   0      // Teensy 3.x    
-      
-#elif defined (__BluePill_F103C8__) ||  defined (MCU_STM32F103RB)
-  #define Target_Board   1      // Blue Pill STM32F103C  
-         
+#ifdef ESP32
+    #define Target_Board   3      // Espressif ESP32 Dev Module 
+#elif defined __BluePill_F103C8__
+    #define Target_Board   1      // Blue Pill STM32F103C    
+#elif defined __MK20DX256__  
+    #define Target_Board   0      // Teensy 3.x  
 #elif defined STM32_MEDIUM_DENSITY
-  #define Target_Board   2      // Maple_Mini STM32F103C  
-     
+     #define Target_Board   2      // Maple_Mini STM32F103C  
 #elif defined STM32_HIGH_DENSITY
   // LeafLabs high density
   #define Target_Board   2      // Maple_Mini 
-  
-#elif defined ESP32
-  #define Target_Board   3      // Espressif ESP32 Dev Module
-  
 #else
   #error "No board type defined!"
 #endif
@@ -263,7 +258,7 @@ const uint16_t bat2_capacity = 0;
 #define Battery_mAh_Source  3  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
 
 
-#define SPort_Serial   3            // The default is Serial 1, but 3 is possible 
+#define SPort_Serial   1            // The default is Serial 1, but 3 is possible 
 //#define LRS_RSSI     // Un-comment this line only if you are using a ULRS, QLRS or similar telemetry system
 
 // ****************************** Set your time zone here ******************************************
@@ -332,25 +327,21 @@ bool daylightSaving = false;
 //#define Request_Missions_From_FC    // Un-comment if you need mission waypoint from FC - NOT NECESSARY RIGHT NOW
 
 
-//********************************************* LEDS, OLED SSD1306, rx pin **************************************
+//********************************************* LEDS and OLED SSD1306 **************************************
 
   
-#if (Target_Board == 0)           // Teensy3x
+#if (Target_Board == 0)      // Teensy3x
   #define MavStatusLed  13
-  #define BufStatusLed  1
-  #define FC_Mav_rxPin  9  
-#elif (Target_Board == 1)         // Blue Pill
+  #define BufStatusLed  14 
+#elif (Target_Board == 1)    // Blue Pill
   #define MavStatusLed  PC13
-  #define BufStatusLed  PC14
-  #define FC_Mav_rxPin  PB10   
-#elif (Target_Board == 2)         // Maple Mini
+  #define BufStatusLed  PC14 
+#elif (Target_Board == 2)    //  Maple Mini
   #define MavStatusLed  33        // PB1
   #define BufStatusLed  34 
-  #define FC_Mav_rxPin  8         // PA3   
-#elif (Target_Board == 3)         // ESP32 Dev Module V2
+#elif (Target_Board == 3)   //  ESP32 Dev Module V2
   #define MavStatusLed  02        // Dev Module=02, TTGO OLED Battery board = 16 
-  #define BufStatusLed  13          
-  #define FC_Mav_rxPin  16            
+  #define BufStatusLed  13  
   #include <SPI.h>
   #include <Wire.h>
   #include <Adafruit_SSD1306.h>  //#define SSD1306_128_64 ///< DEPRECATED: old way to specify 128x64 screen
@@ -420,7 +411,7 @@ bool daylightSaving = false;
       #if (FC_Mavlink_IO == 2)   // FC side
         uint16_t udp_localPort = 14550;
         uint16_t udp_remotePort = 14550;
-        bool FtRemIP = true;
+        bool remIpFt = true;
         IPAddress remoteIP =  (192, 168, 2, 2);   // First guess for EZ-WFB in STA mode. Will adopt IP allocated
         WiFiServer server(udp_localPort);     
       #endif
@@ -428,7 +419,7 @@ bool daylightSaving = false;
       #if (GCS_Mavlink_IO == 2)   // QGC side   
         uint16_t udp_localPort = 14550;
         uint16_t udp_remotePort = 14550;         
-        bool FtRemIP = true;
+        bool remIpFt = true;
         IPAddress remoteIP =  (192, 168, 4, 2); // We hand out this IP to the first client via DHCP
         WiFiServer server(udp_localPort);     
       #endif  
@@ -481,7 +472,7 @@ static DateTime_t dt_tm;
 #define Debug               Serial         // USB 
 #define frBaud              57600          // Use 57600
 #define mvSerialFC          Serial2        
-uint16_t mvBaudFC     =     57600;   
+#define mvBaudFC            57600   
 
 #if (Target_Board == 0)      //  Teensy 3.1
  #if (SPort_Serial == 1) 
@@ -512,7 +503,7 @@ uint16_t mvBaudFC     =     57600;
 #define Frs_Dummy_rssi       // For testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
 //#define Data_Streams_Enabled // Rather set SRn in Mission Planner
 
-#define Max_Waypoints  256     // Note. This is a global RAM trade-off. If exceeded then Debug message and shut down
+#define Max_Waypoints  256     // Note. This is a RAM trade-off. If exceeded then Debug message and shut down
 
 // Debugging options below ***************************************************************************************
 //#define Mav_Debug_All
@@ -550,15 +541,14 @@ uint16_t mvBaudFC     =     57600;
 //#define Mav_Debug_Scaled_Pressure
 //#define Mav_Debug_Attitude
 //#define Frs_Debug_Attitude
-#define Mav_Debug_StatusText
-//#define Frs_Debug_Status_Text    
+//#define Mav_Debug_StatusText
+//#define Frs_Debug_Text    
 //#define Mav_Debug_Mission 
 //#define Frs_Debug_Mission   
 //#define Debug_SD    
 //#define Mav_Debug_System_Time   
-#define Frs_Debug_Scheduler 
-//#define Decode_Non_Essential_Mav 
-//#define Debug_Baud    
+//#define Frs_Debug_Scheduler 
+//#define Decode_Non_Essential_Mav     
 //*****************************************************************************************************************
 
 uint8_t   MavLedState = LOW; 
@@ -577,8 +567,6 @@ bool      mavGood = false;
 bool      rssiGood = false;
 bool      wifiSuGood = false;
 bool      timeGood = false;
-bool      ftGetBaud = true;
-
 uint8_t   sdStatus = 0; // 0=no reader, 1=reader found, 2=SD found, 3=open for append 4 = open for read, 9=failed
 
 uint32_t  hb_millis=0;
@@ -983,13 +971,12 @@ bool dmy_rssi_ft = true;
 
 // Give the ESP32 more space, because it has much more RAM
 #ifdef ESP32
-   const uint16_t st_rows = 300;  // possible unsent sensor ids at any moment - cater for 12 status text chunks x 3 + unsent
+   const uint8_t st_rows = 130;  // possible unsent sensor ids at any moment - cater for 12 status text chunks x 3 + unsent
 #else 
-   const uint16_t st_rows = 300;  
+   const uint8_t st_rows = 100;  
 #endif
 
   st_t sr, st[st_rows];
-  char safety_padding[10];
   uint16_t inuse_count;  // how many slots in-use
      
 // OLED declarations *************************
@@ -1135,7 +1122,6 @@ void setup()  {
   FrSkySPort_Init();
 
   #if (FC_Mavlink_IO == 0)    //  Serial
-    mvBaudFC = GetBaud(FC_Mav_rxPin);
     mvSerialFC.begin(mvBaudFC);
  //   mvSerialFC.begin(mvBaudFC, SERIAL_8N1, 9, 10);  //  rx=9   tx=10
   #endif
@@ -1304,7 +1290,7 @@ void main_loop() {
   
   Write_To_FC();                            
   
-  if(mavGood && (millis() - hb_millis) > 6000)  {   // if no heartbeat from APM in 6s then assume mav not connected
+  if(mavGood && (millis() - hb_millis) > 8000)  {   // if no heartbeat from APM in 8s then assume mav not connected
     mavGood=false;
     Debug.println("Heartbeat timed out! Mavlink not connected"); 
     OledDisplayln("Mavlink lost!");       
@@ -2369,7 +2355,7 @@ void DecodeOneMavFrame() {
             Debug.print("Mavlink in #253 Statustext pushed onto MsgRingBuff: ");
             Debug.print(" Severity="); Debug.print(ap_severity);
             Debug.print(" "); Debug.print(MavSeverity(ap_severity));
-            Debug.print("  Text= ");  Debug.print(" |"); Debug.print(ap_text); Debug.println("| ");
+            Debug.print("  Text= ");  Debug.print(" |"); Debug.println(ap_text); Debug.print("| ");
           #endif
 
           PackSensorTable(0x5000, 0);         // 0x5000 StatusText Message
@@ -2959,8 +2945,8 @@ void OledDisplayln(String S) {
   
   #if (WiFi_Protocol == 2)  //  Display the remote UDP IP the first time we get it
   void DisplayRemoteIP() {
-    if (FtRemIP)  {
-      FtRemIP = false;
+    if (remIpFt)  {
+      remIpFt = false;
       Debug.print("Remote UDP IP: "); Debug.println(remoteIP);
       OledDisplayln("Remote UDP IP =");
       OledDisplayln(remoteIP.toString());

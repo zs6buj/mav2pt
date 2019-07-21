@@ -102,7 +102,7 @@ void ReadSPort(void) {
   while ( frSerial.available())   {  
     Byt =  frSerial.read();
     #ifdef Frs_Debug_All
-      DisplayByte(Byt);
+    DisplayByte(Byt);
     #endif
 
     if ((prevByt == 0x7E) && (Byt == 0x1B)) { 
@@ -171,13 +171,12 @@ void FrSkySPort_Process() {
 
      #ifdef Frs_Debug_Scheduler
        Debug.print(inuse_count); 
-       Debug.printf("\tPop  row= %3d", ptr );
- //      Debug.print("\tPop  row=");  Debug.print(ptr);
+       Debug.print("\tPop  row=");  Debug.print(ptr);
        Debug.print("  id=");  Debug.print(st[ptr].id, HEX);
        if (st[ptr].id < 0x1000) Debug.print(" ");
-       Debug.printf("  subid= %2d ", st[ptr].subid);       
-       Debug.printf("  payload=%12d", st[ptr].payload );
-       Debug.printf("  age=%3d mS \n" , st_max );    
+       Debug.print("  subid="); Debug.print(st[ptr].subid);      
+       Debug.printf("  payload=%10d", st[ptr].payload );
+       Debug.print("\t age=");  Debug.print(st_max);  Debug.println("mS");       
      #endif  
       
     if (st[ptr].id == 0xF101) {
@@ -202,23 +201,20 @@ void PushToEmptyRow(st_t pter) {
   uint8_t j = 0;
   while (st[j].inuse) {
     if (j >= st_rows) {
-      Debug.println("Warning, sensor table exceeded. Push ignored.");
-      break;
+      Debug.println("Warning, sensor table exceeded");
+      j = st_rows-1;
     }
     j++;
   }
   inuse_count++;
   #if defined Frs_Debug_Scheduler
     Debug.print(inuse_count); 
-    Debug.printf("\tPush row= %3d", j );
+    Debug.print("\tPush row="); Debug.print(j);
     Debug.print("  id="); Debug.print(pter.id, HEX);
     if (pter.id < 0x1000) Debug.print(" ");
-    Debug.printf("  subid= %2d ", pter.subid);    
-    Debug.printf("  payload= %12d", pter.payload );
-    Debug.printf("\t\t  burden= %4d mS \n", pter.burden );
+    Debug.print("  subid="); Debug.print(pter.subid);  
+    Debug.printf(  "payload= %10d \n", pter.payload );
   #endif
-
-  // The push
   pter.millis = millis();
   pter.inuse = true;
   st[j] = pter;
@@ -516,7 +512,7 @@ void PackMultipleTextChunks_5000(uint16_t id) {
   memcpy(fr_text, ap_text, fr_txtlth+4);   // plus rest of last chunk at least
   fr_simple = ap_simple;
 
-  #if defined Frs_Debug_All || defined Frs_Debug_Status_Text
+  #if defined Frs_Debug_All || defined Frs_Debug_Text
     Debug.print("Frsky out AP_Status 0x5000: ");  
     Debug.print(" fr_severity="); Debug.print(fr_severity);
     Debug.print(" "); Debug.print(MavSeverity(fr_severity)); 
@@ -540,7 +536,7 @@ void PackMultipleTextChunks_5000(uint16_t id) {
     bit32Pack(fr_chunk[2], 8, 7);    
     bit32Pack(fr_chunk[3], 0, 7);  
     
-    #if defined Frs_Debug_All || defined Frs_Debug_Status_Text
+    #if defined Frs_Debug_All || defined Frs_Debug_Text
       Debug.print(" fr_chunk_num="); Debug.print(fr_chunk_num); 
       Debug.print(" fr_txtlth="); Debug.print(fr_txtlth); 
       Debug.print(" fr_chunk_pntr="); Debug.print(fr_chunk_pntr); 
@@ -560,7 +556,7 @@ void PackMultipleTextChunks_5000(uint16_t id) {
       bit32Pack(((fr_severity & 0x4) >> 2) , 23, 1);   // ms bit of severity                
       bit32Pack(0, 31, 1);     // filler
       
-      #if defined Frs_Debug_All || defined Frs_Debug_Status_Text
+      #if defined Frs_Debug_All || defined Frs_Debug_Text  
         Debug.print(" fr_chunk_num="); Debug.print(fr_chunk_num); 
         Debug.print(" fr_severity="); Debug.print(fr_severity);
         Debug.print(" "); Debug.print(MavSeverity(fr_severity)); 
@@ -578,14 +574,14 @@ void PackMultipleTextChunks_5000(uint16_t id) {
 
     sr.id = id;
     sr.subid = fr_chunk_num;
-    sr.burden = 2000 + (fr_chunk_num  * 60);  // Copy 1 - copies can have the same age
+    sr.burden = 2000 + (fr_chunk_num * 15);   // add increasing time burden to each successive chunk
     sr.payload = fr_payload;
     PushToEmptyRow(sr); 
     
-    sr.burden = 20 + (fr_chunk_num * 60);  // Copy 2
+    sr.burden = 2000 + (fr_chunk_num * 20); 
     PushToEmptyRow(sr); 
- 
-    sr.burden = 2000 + (fr_chunk_num * 60);   // Copy 3
+
+    sr.burden = 2000 + (fr_chunk_num * 25); 
     PushToEmptyRow(sr);
     
     fr_chunk_pntr +=4;

@@ -180,7 +180,8 @@ v2.13 2019-08-13 UDP now working in Access Point mode
 v2.14 2019-07-17 PX4 flight stack only - fixed longitude typo    if (ap_lat24<0) should be if (ap_lon24<0)
 v2.15 2019-07-17 Switch to Adafruit_SSD1306 OLED library. 8 lines x 21 chars
 v2.16 2019-07-18 Increase time burden for each successive Status Text chunk by 5mS
-v2.17 2019-07-19 Auto detect serial telemetry and baud rate               
+v2.17 2019-07-19 Auto detect serial telemetry and baud rate    
+v2.18 2019-07-21 Tune FrSky packet schduler. Add option. Default is 1x.  //#define Send_Status_Text_3_Times           
 */
 
 #include <CircularBuffer.h>
@@ -263,8 +264,14 @@ const uint16_t bat2_capacity = 0;
 #define Battery_mAh_Source  3  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
 
 
-#define SPort_Serial   3            // The default is Serial 1, but 3 is possible 
+#define SPort_Serial   1            // The default is Serial 1, but 3 is possible 
 //#define LRS_RSSI     // Un-comment this line only if you are using a ULRS, QLRS or similar telemetry system
+
+// Status_Text messages place a huge burden on the meagre 4 byte FrSky telemetry payload bandwith
+// The practice has been to send them 3 times to ensure that the arrive unscathed at the receiver
+//  but that makes the bandwidth limitation worse and may crowd out other message types. Try without
+//  sending 3 times, but if status_text gets distorted, un-comment this line
+//#define Send_Status_Text_3_Times
 
 // ****************************** Set your time zone here ******************************************
 // Date and time determines the TLog file name
@@ -550,13 +557,13 @@ uint16_t mvBaudFC     =     57600;
 //#define Mav_Debug_Scaled_Pressure
 //#define Mav_Debug_Attitude
 //#define Frs_Debug_Attitude
-#define Mav_Debug_StatusText
+//#define Mav_Debug_StatusText
 //#define Frs_Debug_Status_Text    
 //#define Mav_Debug_Mission 
 //#define Frs_Debug_Mission   
 //#define Debug_SD    
 //#define Mav_Debug_System_Time   
-#define Frs_Debug_Scheduler 
+//#define Frs_Debug_Scheduler 
 //#define Decode_Non_Essential_Mav 
 //#define Debug_Baud    
 //*****************************************************************************************************************
@@ -981,11 +988,11 @@ bool dmy_rssi_ft = true;
   bool       inuse;
   } st_t;
 
-// Give the ESP32 more space, because it has much more RAM
-#ifdef ESP32
-   const uint16_t st_rows = 300;  // possible unsent sensor ids at any moment - cater for 12 status text chunks x 3 + unsent
+// Give the sensor table more space when status_text messages ent three times
+#if defined Send_Status_Text_3_Times
+   const uint16_t st_rows = 300;  // possible unsent sensor ids at any moment 
 #else 
-   const uint16_t st_rows = 300;  
+   const uint16_t st_rows = 130;  
 #endif
 
   st_t sr, st[st_rows];

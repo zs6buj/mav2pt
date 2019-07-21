@@ -399,7 +399,6 @@ void SendLat800() {
           
   #if defined Frs_Debug_All || defined Frs_Debug_LatLon
     Debug.print("Frsky out LatLon 0x800: ");   
-    Debug.print(" ap_lat="); Debug.print(ap_lat); 
     Debug.print(" fr_lat="); Debug.print(fr_lat);  
     Debug.print(" fr_payload="); Debug.println(fr_payload);
   #endif
@@ -426,7 +425,6 @@ void SendLon800() {
           
   #if defined Frs_Debug_All || defined Frs_Debug_LatLon
     Debug.print("Frsky out LatLon 0x800: ");  
-    Debug.print(" ap_lon="); Debug.print(ap_lon); 
     Debug.print(" fr_lon="); Debug.print(fr_lon); 
     Debug.print(" fr_payload="); Debug.println(fr_payload);
   #endif

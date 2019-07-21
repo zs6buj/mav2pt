@@ -249,7 +249,7 @@ uint8_t BufLedState = LOW;
   #endif
 #endif
 
-//#define Frs_Dummy_rssi       // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
+#define Frs_Dummy_rssi       // For LRS testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
 //#define Data_Streams_Enabled // Rather set SRn in Mission Planner
 
 #define Max_Waypoints  256     // Note. This is a RAM trade-off. If exceeded then Debug message and shut down
@@ -267,7 +267,7 @@ uint8_t BufLedState = LOW;
 //#define Frs_Debug_Params
 //#define Mav_Debug_Servo
 //#define Frs_Debug_Servo
-//#define Mav_Debug_Rssi
+#define Mav_Debug_Rssi
 //#define Mav_Debug_RC
 //#define Frs_Debug_RC
 //#define Mav_Debug_Heartbeat
