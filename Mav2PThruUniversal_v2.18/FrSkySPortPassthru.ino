@@ -152,17 +152,25 @@ void FrSkySPort_Process() {
   
   // find the row with oldest sensor data = ptr 
   inuse_count = 0;  // how many slots in-use
-  
-  for (int i=0 ; i < st_rows ; i++) {
+
+  uint16_t i = 0;
+  while (i < st_rows) {  
+    
     if (st[i].inuse) {
       inuse_count++;
+      if (st[i].id == 0xF101) {
+        ptr = i;
+        break;
+      }
+      
       st_age = (st_now - st[i].millis); 
       st_burden_age = st_age - st[i].burden;  // so it seems less old
       if (st_burden_age >= st_max) {
         st_max = st_burden_age;
         ptr = i;
       }   
-    } 
+    }
+  i++;    
   } 
     
         
@@ -172,10 +180,9 @@ void FrSkySPort_Process() {
      #ifdef Frs_Debug_Scheduler
        Debug.print(inuse_count); 
        Debug.printf("\tPop  row= %3d", ptr );
- //      Debug.print("\tPop  row=");  Debug.print(ptr);
        Debug.print("  id=");  Debug.print(st[ptr].id, HEX);
        if (st[ptr].id < 0x1000) Debug.print(" ");
-       Debug.printf("  subid= %2d ", st[ptr].subid);       
+       Debug.printf("  subid= %2d", st[ptr].subid);       
        Debug.printf("  payload=%12d", st[ptr].payload );
        Debug.printf("  age=%3d mS \n" , st_max );    
      #endif  
@@ -199,21 +206,22 @@ void FrSkySPort_Process() {
 void PushToEmptyRow(st_t pter) {
   
   // find empty sensor row
-  uint8_t j = 0;
+  uint16_t j = 0;
   while (st[j].inuse) {
-    if (j >= st_rows) {
-      Debug.println("Warning, sensor table exceeded. Push ignored.");
-      break;
-    }
     j++;
   }
+  if (j >= st_rows-1) {
+    Debug.println("Warning, sensor table exceeded. Push ignored.");
+    return;
+  }
+  
   inuse_count++;
   #if defined Frs_Debug_Scheduler
     Debug.print(inuse_count); 
     Debug.printf("\tPush row= %3d", j );
     Debug.print("  id="); Debug.print(pter.id, HEX);
     if (pter.id < 0x1000) Debug.print(" ");
-    Debug.printf("  subid= %2d ", pter.subid);    
+    Debug.printf("  subid= %2d", pter.subid);    
     Debug.printf("  payload= %12d", pter.payload );
     Debug.printf("\t\t  burden= %4d mS \n", pter.burden );
   #endif

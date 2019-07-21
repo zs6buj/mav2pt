@@ -563,7 +563,7 @@ uint16_t mvBaudFC     =     57600;
 //#define Frs_Debug_Mission   
 //#define Debug_SD    
 //#define Mav_Debug_System_Time   
-//#define Frs_Debug_Scheduler 
+#define Frs_Debug_Scheduler 
 //#define Decode_Non_Essential_Mav 
 //#define Debug_Baud    
 //*****************************************************************************************************************
@@ -990,7 +990,7 @@ bool dmy_rssi_ft = true;
 
 // Give the sensor table more space when status_text messages ent three times
 #if defined Send_Status_Text_3_Times
-   const uint16_t st_rows = 300;  // possible unsent sensor ids at any moment 
+   const uint16_t st_rows = 600;  // possible unsent sensor ids at any moment 
 #else 
    const uint16_t st_rows = 130;  
 #endif
