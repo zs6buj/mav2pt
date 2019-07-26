@@ -22,6 +22,7 @@ uint32_t Get_Current_Average1(uint16_t dA)  {   // in 10*milliamperes (1 = 10 mi
   return bat1.avg_dA;
   }
 
+void Accum_Volts1(uint32_t mVlt) {    //  mV   milli-Volts
   bat1.tot_volts += (mVlt / 1000);    // Volts
   bat1.samples++;
 }

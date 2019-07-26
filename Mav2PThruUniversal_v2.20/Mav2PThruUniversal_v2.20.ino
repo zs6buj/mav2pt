@@ -183,11 +183,12 @@ v2.17 2019-07-19 Auto detect serial telemetry and baud rate
 v2.18 2019-07-21 Tune FrSky packet schduler. Add option. Default is 1x.  //Send_Status_Text_3_Times
 v2.19 2019-07-22 Implement 2 tier scheduling. Tier1 gets priority, tier2 (0x5000) only when tier1 empty 
 v2.20 2019-07-26 Release candidate. Send HB back to FC for APM also, not just PX4. Streamline library #includes.
-                 #undef troublesome F function.          
+                 #undef troublesome F function.             
 */
 
 #undef F                         // F defined in c_library_v2\mavlink_sha256.h AND teensy3/WString.h
 #include <CircularBuffer.h>
+
 #include <mavlink_types.h>
 #include <common/mavlink.h>
 #include <ardupilotmega\ardupilotmega.h>
@@ -1333,7 +1334,7 @@ void main_loop() {
   }
   #endif 
 
-  if (px4_flight_stack) {
+//  if (px4_flight_stack) {
     if(millis()- fchb_millis > 2000) {  // Heartbeat to FC every 2 seconds
       fchb_millis=millis();
       #if defined Mav_Debug_FC_Heartbeat
@@ -1341,7 +1342,7 @@ void main_loop() {
       #endif    
       Send_FC_Heartbeat();   // must have Teensy Tx connected to Taranis/FC rx  
     }
-  }
+//  }
   
   #if defined Request_Missions_From_FC || defined Request_Mission_Count_From_FC
   if (mavGood) {
@@ -1528,10 +1529,10 @@ void Read_From_GCS() {
     #endif     
     }
   } 
-  #endif 
+ #endif 
 
  #if (GCS_Mavlink_IO == 1) // Bluetooth
-
+  mavlink_status_t status;
   while(SerialBT.available()) { 
     uint8_t c = SerialBT.read();
     if(mavlink_parse_char(MAVLINK_COMM_0, c, &G2Fmsg, &status)) {
@@ -1543,10 +1544,12 @@ void Read_From_GCS() {
     }
   }  
 
-  #endif    
+ #endif    
 
-  #if (GCS_Mavlink_IO == 2)  //  WiFi
-      #if (WiFi_Protocol == 1) // TCP 
+ #if (GCS_Mavlink_IO == 2)  //  WiFi
+    mavlink_status_t status;
+    
+    #if (WiFi_Protocol == 1) // TCP 
       if (wifi.available()) {             // if there are bytes to read 
         uint8_t c = wifi.read();
         if(mavlink_parse_char(MAVLINK_COMM_0, c, &G2Fmsg, &status)) {
@@ -1557,7 +1560,7 @@ void Read_From_GCS() {
           #endif 
           }                                   
       }
-      #endif
+    #endif
       
       #if (WiFi_Protocol == 2) // UDP from GCS
       len = udp.parsePacket();
@@ -1576,8 +1579,8 @@ void Read_From_GCS() {
             }                                     
           }                        
       }
-      #endif 
-  #endif 
+    #endif 
+ #endif 
 }
 //********************************************************************************
 

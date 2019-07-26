@@ -186,8 +186,10 @@ v2.19 2019-07-22 Implement 2 tier scheduling. Tier1 gets priority, tier2 (0x5000
 */
 
 #include <CircularBuffer.h>
-#include <..\c_library_v2\ardupilotmega\mavlink.h>
-
+//#include <..\c_library_v2\ardupilotmega\mavlink.h>
+#include <mavlink_types.h>
+#include <common/mavlink.h>
+#include <ardupilotmega\ardupilotmega.h>
 using namespace std;
 
 // ******************************************* Auto Determine Target Board *****************************************
@@ -240,7 +242,7 @@ using namespace std;
 // How does Mavlink telemetry leave the converter?
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  9    // NONE (default)
-//#define GCS_Mavlink_IO  0    // Serial Port        
+#define GCS_Mavlink_IO  0    // Serial Port        
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define GCS_Mavlink_IO  2    // WiFi - ESP32 only
 
