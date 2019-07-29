@@ -239,7 +239,7 @@ using namespace std;
 // How does Mavlink telemetry leave the converter?
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  9    // NONE (default)
-//#define GCS_Mavlink_IO  0    // Serial Port        
+#define GCS_Mavlink_IO  0    // Serial Port        
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define GCS_Mavlink_IO  2    // WiFi - ESP32 only
 

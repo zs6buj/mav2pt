@@ -1,4 +1,3 @@
-  
 /*  *****************************************************************************
 
     Mav2Passthru 
@@ -111,11 +110,11 @@
   ***************************************************************************************************************** 
 
   Connections to ESP32 Dev Board are: 
-   0) USB           UART0                    Flashing and serial monitor for debug
-   1) SPort S       UART1   <--rx1 pin d12   Already inverted, S.Port in from single-wire combiner from XSR or Taranis bay, bottom pin
-   2)               UART1   -->tx1 pin d14   Already inverted, S.Port out to single-wire combiner to XSR or Taranis bay, bottom pin             
-   3) Mavlink       UART2   <--rx2 pin d9    Mavlink source to ESP32
-   4)               UART2   -->tx2 pin d10   Mavlink source from ESP32 
+   0) USB           UART0                   Flashing and serial monitor for debug
+   1) SPort S       UART1   <--rx1 pin 12   Already inverted, S.Port in from single-wire combiner from XSR or Taranis bay, bottom pin
+   2)               UART1   -->tx1 pin 14   Already inverted, S.Port out to single-wire combiner to XSR or Taranis bay, bottom pin             
+   3) Mavlink       UART2   <--rx2 pin 16   Mavlink source to ESP32
+   4)               UART2   -->tx2 pin 17   Mavlink source from ESP32 
    5) Vcc 3.3V !
    6) GND
   
@@ -179,12 +178,22 @@ v2.12 2019-07-12 Add #define PlusVersion, comment out for FlightDeck
 v2.13 2019-08-13 UDP now working in Access Point mode 
 v2.14 2019-07-17 PX4 flight stack only - fixed longitude typo    if (ap_lat24<0) should be if (ap_lon24<0)
 v2.15 2019-07-17 Switch to Adafruit_SSD1306 OLED library. 8 lines x 21 chars
-v2.16 2019-07-18 Increase time burden for each successive Status Text chunk by 5mS.
-               
+v2.16 2019-07-18 Increase time burden for each successive Status Text chunk by 5mS
+v2.17 2019-07-19 Auto detect serial telemetry and baud rate    
+v2.18 2019-07-21 Tune FrSky packet schduler. Add option. Default is 1x.  //Send_Status_Text_3_Times
+v2.19 2019-07-22 Implement 2 tier scheduling. Tier1 gets priority, tier2 (0x5000) only when tier1 empty 
+v2.20 2019-07-26 Release candidate. Send HB back to FC for APM also, not just PX4. Streamline library #includes.
+                 #undef troublesome F function.  
+v2.21 2019-07-26 Trap attempt to do GCS I/O on ESP32 or Blue Pill - no Serial3 UART.
+      2019-07-29 Implement system health status-text messages as per Alex's request.     
 */
 
+#undef F                         // F defined in c_library_v2\mavlink_sha256.h AND teensy3/WString.h
 #include <CircularBuffer.h>
-#include <..\c_library_v2\ardupilotmega\mavlink.h>
+
+#include <mavlink_types.h>
+#include <common/mavlink.h>
+#include <ardupilotmega/ardupilotmega.h>
 
 using namespace std;
 
@@ -192,17 +201,22 @@ using namespace std;
 //
 //                Don't change anything here
 //
-#ifdef ESP32
-    #define Target_Board   3      // Espressif ESP32 Dev Module 
-#elif defined __BluePill_F103C8__
-    #define Target_Board   1      // Blue Pill STM32F103C    
-#elif defined __MK20DX256__  
-    #define Target_Board   0      // Teensy 3.x  
+#if defined (__MK20DX256__) 
+  #define Target_Board   0      // Teensy 3.1 and 3.2    
+      
+#elif defined (__BluePill_F103C8__) ||  defined (MCU_STM32F103RB)
+  #define Target_Board   1      // Blue Pill STM32F103C  
+         
 #elif defined STM32_MEDIUM_DENSITY
-     #define Target_Board   2      // Maple_Mini STM32F103C  
+  #define Target_Board   2      // Maple_Mini STM32F103C  
+     
 #elif defined STM32_HIGH_DENSITY
   // LeafLabs high density
   #define Target_Board   2      // Maple_Mini 
+  
+#elif defined ESP32
+  #define Target_Board   3      // Espressif ESP32 Dev Module
+  
 #else
   #error "No board type defined!"
 #endif
@@ -233,7 +247,7 @@ using namespace std;
 // How does Mavlink telemetry leave the converter?
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  9    // NONE (default)
-#define GCS_Mavlink_IO  0    // Serial Port        
+//#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define GCS_Mavlink_IO  2    // WiFi - ESP32 only
 
@@ -258,8 +272,14 @@ const uint16_t bat2_capacity = 0;
 #define Battery_mAh_Source  3  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
 
 
-#define SPort_Serial   1            // The default is Serial 1, but 3 is possible 
+#define SPort_Serial   1         // The default is Serial 1, but 3 is possible 
 //#define LRS_RSSI     // Un-comment this line only if you are using a ULRS, QLRS or similar telemetry system
+
+// Status_Text messages place a huge burden on the meagre 4 byte FrSky telemetry payload bandwith
+// The practice has been to send them 3 times to ensure that the arrive unscathed at the receiver
+//  but that makes the bandwidth limitation worse and may crowd out other message types. Try without
+//  sending 3 times, but if status_text gets distorted, un-comment this line
+#define Send_Status_Text_3_Times
 
 // ****************************** Set your time zone here ******************************************
 // Date and time determines the TLog file name
@@ -287,7 +307,7 @@ bool daylightSaving = false;
     #error Please choose at least one target board
   #endif
 
-  #if (Target_Board == 1) || (Target_Board == 3) // Blue Pill or ESP32
+  #if (Target_Board == 1) || (Target_Board == 3) // Blue Pill or ESP32 (UART0, UART1, and UART2)
     #if (SPort_Serial  == 3)    
       #error Board does not have Serial3. This configuration is not possible.
     #endif
@@ -327,21 +347,25 @@ bool daylightSaving = false;
 //#define Request_Missions_From_FC    // Un-comment if you need mission waypoint from FC - NOT NECESSARY RIGHT NOW
 
 
-//********************************************* LEDS and OLED SSD1306 **************************************
+//********************************************* LEDS, OLED SSD1306, rx pin **************************************
 
   
-#if (Target_Board == 0)      // Teensy3x
+#if (Target_Board == 0)           // Teensy3x
   #define MavStatusLed  13
-  #define BufStatusLed  14 
-#elif (Target_Board == 1)    // Blue Pill
+  #define BufStatusLed  1
+  #define FC_Mav_rxPin  9  
+#elif (Target_Board == 1)         // Blue Pill
   #define MavStatusLed  PC13
-  #define BufStatusLed  PC14 
-#elif (Target_Board == 2)    //  Maple Mini
+  #define BufStatusLed  PC14
+  #define FC_Mav_rxPin  PB10   
+#elif (Target_Board == 2)         // Maple Mini
   #define MavStatusLed  33        // PB1
   #define BufStatusLed  34 
-#elif (Target_Board == 3)   //  ESP32 Dev Module V2
+  #define FC_Mav_rxPin  8         // PA3   
+#elif (Target_Board == 3)         // ESP32 Dev Module V2
   #define MavStatusLed  02        // Dev Module=02, TTGO OLED Battery board = 16 
-  #define BufStatusLed  13  
+  #define BufStatusLed  13          
+  #define FC_Mav_rxPin  16            
   #include <SPI.h>
   #include <Wire.h>
   #include <Adafruit_SSD1306.h>  //#define SSD1306_128_64 ///< DEPRECATED: old way to specify 128x64 screen
@@ -411,7 +435,7 @@ bool daylightSaving = false;
       #if (FC_Mavlink_IO == 2)   // FC side
         uint16_t udp_localPort = 14550;
         uint16_t udp_remotePort = 14550;
-        bool remIpFt = true;
+        bool FtRemIP = true;
         IPAddress remoteIP =  (192, 168, 2, 2);   // First guess for EZ-WFB in STA mode. Will adopt IP allocated
         WiFiServer server(udp_localPort);     
       #endif
@@ -419,7 +443,7 @@ bool daylightSaving = false;
       #if (GCS_Mavlink_IO == 2)   // QGC side   
         uint16_t udp_localPort = 14550;
         uint16_t udp_remotePort = 14550;         
-        bool remIpFt = true;
+        bool FtRemIP = true;
         IPAddress remoteIP =  (192, 168, 4, 2); // We hand out this IP to the first client via DHCP
         WiFiServer server(udp_localPort);     
       #endif  
@@ -472,7 +496,7 @@ static DateTime_t dt_tm;
 #define Debug               Serial         // USB 
 #define frBaud              57600          // Use 57600
 #define mvSerialFC          Serial2        
-#define mvBaudFC            57600   
+uint16_t mvBaudFC     =     57600;   
 
 #if (Target_Board == 0)      //  Teensy 3.1
  #if (SPort_Serial == 1) 
@@ -489,12 +513,16 @@ static DateTime_t dt_tm;
 #endif 
 
 #if (GCS_Mavlink_IO == 0) // Mavlink_GCS optional feature available for Teensy 3.1/2 and Maple Mini
-  Debug.Print("GCS_Mavlink_IO ="); Debug.println(GCS_Mavlink_IO);
+
   #if (SPort_Serial == 3) 
    #error Mavlink_GCS and SPort both configured for Serial3. Please correct.
-  #else 
+  #endif 
+  
+  #if (Target_Board == 0) || (Target_Board == 2) // Teensy 3.x or Maple Mini
     #define mvSerialGCS             Serial3 
     #define mvBaudGCS               57600        // Use 57600
+  #else
+    #error Mavlink_GCS Serial not avaiable for ESP32 or Blue Pill - no Serial3. Please correct.
   #endif
 #endif
 
@@ -503,7 +531,7 @@ static DateTime_t dt_tm;
 #define Frs_Dummy_rssi       // For testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
 //#define Data_Streams_Enabled // Rather set SRn in Mission Planner
 
-#define Max_Waypoints  256     // Note. This is a RAM trade-off. If exceeded then Debug message and shut down
+#define Max_Waypoints  256     // Note. This is a global RAM trade-off. If exceeded then Debug message and shut down
 
 // Debugging options below ***************************************************************************************
 //#define Mav_Debug_All
@@ -542,13 +570,14 @@ static DateTime_t dt_tm;
 //#define Mav_Debug_Attitude
 //#define Frs_Debug_Attitude
 //#define Mav_Debug_StatusText
-//#define Frs_Debug_Text    
+//#define Frs_Debug_Status_Text    
 //#define Mav_Debug_Mission 
 //#define Frs_Debug_Mission   
 //#define Debug_SD    
 //#define Mav_Debug_System_Time   
-//#define Frs_Debug_Scheduler 
-//#define Decode_Non_Essential_Mav     
+//#define Frs_Debug_Scheduler - this debugger detrimentally affects the performance of the scheduler
+//#define Decode_Non_Essential_Mav 
+//#define Debug_Baud    
 //*****************************************************************************************************************
 
 uint8_t   MavLedState = LOW; 
@@ -567,6 +596,8 @@ bool      mavGood = false;
 bool      rssiGood = false;
 bool      wifiSuGood = false;
 bool      timeGood = false;
+bool      ftGetBaud = true;
+
 uint8_t   sdStatus = 0; // 0=no reader, 1=reader found, 2=SD found, 3=open for append 4 = open for read, 9=failed
 
 uint32_t  hb_millis=0;
@@ -577,6 +608,7 @@ uint32_t  acc_millis=0;
 uint32_t  em_millis=0;
 uint32_t  sp_millis=0;
 uint32_t  mav_led_millis=0;
+uint32_t  health_millis = 0;
 
 uint32_t  now_millis = 0;
 uint32_t  prev_millis = 0;
@@ -664,8 +696,9 @@ uint8_t    apo_type = 0;
 uint8_t    apo_autopilot = 0;
 
 // Message # 1  SYS_STATUS 
-uint16_t   ap_voltage_battery1= 0;    // 1000 = 1V
-int16_t    ap_current_battery1= 0;    //  10 = 1A
+uint32_t   ap_onboard_control_sensors_health;  //Bitmap  0: error. Value of 0: error. Value of 1: healthy.
+uint16_t   ap_voltage_battery1 = 0;    // 1000 = 1V
+int16_t    ap_current_battery1 = 0;    //  10 = 1A
 uint8_t    ap_ccell_count1= 0;
 
 // Message # 2  SYS_STATUS 
@@ -964,20 +997,20 @@ bool dmy_rssi_ft = true;
   uint16_t   id;
   uint8_t    subid;
   uint32_t   millis; // mS since boot
-  uint16_t   burden;
   uint32_t   payload;
   bool       inuse;
   } st_t;
 
-// Give the ESP32 more space, because it has much more RAM
-#ifdef ESP32
-   const uint8_t st_rows = 130;  // possible unsent sensor ids at any moment - cater for 12 status text chunks x 3 + unsent
+// Give the sensor table more space when status_text messages sent three times
+#if defined Send_Status_Text_3_Times
+   const uint16_t st_rows = 300;  // possible unsent sensor ids at any moment 
 #else 
-   const uint8_t st_rows = 100;  
+   const uint16_t st_rows = 130;  
 #endif
 
   st_t sr, st[st_rows];
-  uint16_t inuse_count;  // how many slots in-use
+  char safety_padding[10];
+  uint16_t sport_unsent;  // how many rows in-use
      
 // OLED declarations *************************
 
@@ -1122,6 +1155,7 @@ void setup()  {
   FrSkySPort_Init();
 
   #if (FC_Mavlink_IO == 0)    //  Serial
+    mvBaudFC = GetBaud(FC_Mav_rxPin);
     mvSerialFC.begin(mvBaudFC);
  //   mvSerialFC.begin(mvBaudFC, SERIAL_8N1, 9, 10);  //  rx=9   tx=10
   #endif
@@ -1225,6 +1259,7 @@ void setup()  {
   acc_millis=millis();
   rds_millis=millis();
   em_millis=millis();
+  health_millis = millis();
   
    pinMode(MavStatusLed, OUTPUT); 
    pinMode(BufStatusLed, OUTPUT); 
@@ -1290,7 +1325,7 @@ void main_loop() {
   
   Write_To_FC();                            
   
-  if(mavGood && (millis() - hb_millis) > 8000)  {   // if no heartbeat from APM in 8s then assume mav not connected
+  if(mavGood && (millis() - hb_millis) > 6000)  {   // if no heartbeat from APM in 6s then assume mav not connected
     mavGood=false;
     Debug.println("Heartbeat timed out! Mavlink not connected"); 
     OledDisplayln("Mavlink lost!");       
@@ -1308,7 +1343,7 @@ void main_loop() {
   }
   #endif 
 
-  if (px4_flight_stack) {
+//  if (px4_flight_stack) {
     if(millis()- fchb_millis > 2000) {  // Heartbeat to FC every 2 seconds
       fchb_millis=millis();
       #if defined Mav_Debug_FC_Heartbeat
@@ -1316,7 +1351,7 @@ void main_loop() {
       #endif    
       Send_FC_Heartbeat();   // must have Teensy Tx connected to Taranis/FC rx  
     }
-  }
+//  }
   
   #if defined Request_Missions_From_FC || defined Request_Mission_Count_From_FC
   if (mavGood) {
@@ -1474,14 +1509,14 @@ void RB_To_Decode_To_SPort_and_GCS() {
   }
                               //*** Decoded Mavlink to S.Port  ****
   #ifdef Ground_Mode
-  if(mavGood && ((millis() - em_millis) > 10)) {   
+  if(mavGood  && ((millis() - em_millis) > 10)) {   
      Emulate_ReadSPort();                // Emulate the sensor IDs received from XRS receiver on SPort
      em_millis=millis();
     }
   #endif
      
   #if defined Air_Mode || defined Relay_Mode
-  if(mavGood && ((millis() - sp_millis) > 1)) {   // zero does not work for Teensy 3.2, down to zero for Blue Pill
+  if(mavGood && ((millis() - sp_millis) > 2)) {   // zero does not work for Teensy 3.2, down to zero for Blue Pill
      ReadSPort();                       // Receive sensor IDs from XRS receiver, slot in ours, and send 
      sp_millis=millis();
     }
@@ -1503,10 +1538,10 @@ void Read_From_GCS() {
     #endif     
     }
   } 
-  #endif 
+ #endif 
 
  #if (GCS_Mavlink_IO == 1) // Bluetooth
-
+  mavlink_status_t status;
   while(SerialBT.available()) { 
     uint8_t c = SerialBT.read();
     if(mavlink_parse_char(MAVLINK_COMM_0, c, &G2Fmsg, &status)) {
@@ -1518,10 +1553,12 @@ void Read_From_GCS() {
     }
   }  
 
-  #endif    
+ #endif    
 
-  #if (GCS_Mavlink_IO == 2)  //  WiFi
-      #if (WiFi_Protocol == 1) // TCP 
+ #if (GCS_Mavlink_IO == 2)  //  WiFi
+    mavlink_status_t status;
+    
+    #if (WiFi_Protocol == 1) // TCP 
       if (wifi.available()) {             // if there are bytes to read 
         uint8_t c = wifi.read();
         if(mavlink_parse_char(MAVLINK_COMM_0, c, &G2Fmsg, &status)) {
@@ -1532,7 +1569,7 @@ void Read_From_GCS() {
           #endif 
           }                                   
       }
-      #endif
+    #endif
       
       #if (WiFi_Protocol == 2) // UDP from GCS
       len = udp.parsePacket();
@@ -1551,8 +1588,8 @@ void Read_From_GCS() {
             }                                     
           }                        
       }
-      #endif 
-  #endif 
+    #endif 
+ #endif 
 }
 //********************************************************************************
 
@@ -1763,6 +1800,8 @@ void DecodeOneMavFrame() {
           break;
         case MAVLINK_MSG_ID_SYS_STATUS:   // #1
           if (!mavGood) break;
+
+          ap_onboard_control_sensors_health = mavlink_msg_sys_status_get_onboard_control_sensors_health(&R2Gmsg);
           ap_voltage_battery1= Get_Volt_Average1(mavlink_msg_sys_status_get_voltage_battery(&R2Gmsg));        // 1000 = 1V  i.e mV
           ap_current_battery1= Get_Current_Average1(mavlink_msg_sys_status_get_current_battery(&R2Gmsg));     //  100 = 1A, i.e dA
           if(ap_voltage_battery1> 21000) ap_ccell_count1= 6;
@@ -1773,7 +1812,9 @@ void DecodeOneMavFrame() {
             else ap_ccell_count1= 0;
           
           #if defined Mav_Debug_All || defined Mav_Debug_SysStatus || defined Debug_Batteries
-            Debug.print("Mavlink in #1 Sys_Status: ");        
+            Debug.print("Mavlink in #1 Sys_Status: ");     
+            Debug.print(" Sensor health=");
+            Debug.print(ap_onboard_control_sensors_health);   // 32b bitwise 0: error, 1: healthy.
             Debug.print(" Bat volts=");
             Debug.print((float)ap_voltage_battery1/ 1000, 3);   // now V
             Debug.print("  Bat amps=");
@@ -1785,7 +1826,82 @@ void DecodeOneMavFrame() {
             Debug.print("  Bat1 cell count= "); 
             Debug.println(ap_ccell_count1);
           #endif
+          
+          if ((millis() - health_millis) > 5000) {
+            health_millis = millis();
+            if ( bit32Extract(ap_onboard_control_sensors_health, 5, 1) ) {
+              ap_severity = MAV_SEVERITY_CRITICAL;  // severity = 2
+              strcpy(ap_text, "Bad GPS Health");
+              PackMultipleTextChunks_5000(0x5000);
+            } else
+          
+            if ( bit32Extract(ap_onboard_control_sensors_health, 0, 1) ) {
+              ap_severity = MAV_SEVERITY_CRITICAL;  
+              strcpy(ap_text, "Bad Gyro Health");
+              PackMultipleTextChunks_5000(0x5000);
+            } else 
+                 
+            if ( bit32Extract(ap_onboard_control_sensors_health, 1, 1) ) {
+              ap_severity = MAV_SEVERITY_CRITICAL;  
+              strcpy(ap_text, "Bad Accel Health");
+              PackMultipleTextChunks_5000(0x5000);
+            } else
+          
+            if ( bit32Extract(ap_onboard_control_sensors_health, 2, 1) ) {
+              ap_severity = MAV_SEVERITY_CRITICAL;  
+              strcpy(ap_text, "Bad Compass Health");
+              PackMultipleTextChunks_5000(0x5000);
+            } else
+            
+            if ( bit32Extract(ap_onboard_control_sensors_health, 3, 1) ) {
+              ap_severity = MAV_SEVERITY_CRITICAL;  // severity = 2
+              strcpy(ap_text, "Bad Baro Health");
+              PackMultipleTextChunks_5000(0x5000);
+            } else
+          
+            if ( bit32Extract(ap_onboard_control_sensors_health, 8, 1) ) {
+              ap_severity = MAV_SEVERITY_CRITICAL;  
+              strcpy(ap_text, "Bad LiDAR Health");
+              PackMultipleTextChunks_5000(0x5000);
+            } else 
+                 
+            if ( bit32Extract(ap_onboard_control_sensors_health, 6, 1) ) {
+              ap_severity = MAV_SEVERITY_CRITICAL;  
+              strcpy(ap_text, "Bad OptFlow Health");
+              PackMultipleTextChunks_5000(0x5000);
+            } else
+          
+            if ( bit32Extract(ap_onboard_control_sensors_health, 22, 1) ) {
+             ap_severity = MAV_SEVERITY_CRITICAL;  
+              strcpy(ap_text, "Bad or No Terrain Data");
+              PackMultipleTextChunks_5000(0x5000);
+            } else
 
+            if ( bit32Extract(ap_onboard_control_sensors_health, 20, 1) ) {
+             ap_severity = MAV_SEVERITY_CRITICAL;  
+             strcpy(ap_text, "Geofence Breach");
+             PackMultipleTextChunks_5000(0x5000);
+           } else  
+                 
+            if ( bit32Extract(ap_onboard_control_sensors_health, 21, 1) ) {
+              ap_severity = MAV_SEVERITY_CRITICAL;  
+              strcpy(ap_text, "Bad AHRS");
+              PackMultipleTextChunks_5000(0x5000);
+            } else
+          
+           if ( bit32Extract(ap_onboard_control_sensors_health, 16, 1) ) {
+             ap_severity = MAV_SEVERITY_CRITICAL;  
+             strcpy(ap_text, "No RC Receiver");
+             PackMultipleTextChunks_5000(0x5000);
+           } else  
+
+           if ( bit32Extract(ap_onboard_control_sensors_health, 24, 1) ) {
+             ap_severity = MAV_SEVERITY_CRITICAL;  
+             strcpy(ap_text, "Bad Logging");
+             PackMultipleTextChunks_5000(0x5000);
+           } 
+         }                  
+          
           PackSensorTable(0x5003, 0);
           PackSensorTable(0x5007, 0);
           
@@ -2355,7 +2471,7 @@ void DecodeOneMavFrame() {
             Debug.print("Mavlink in #253 Statustext pushed onto MsgRingBuff: ");
             Debug.print(" Severity="); Debug.print(ap_severity);
             Debug.print(" "); Debug.print(MavSeverity(ap_severity));
-            Debug.print("  Text= ");  Debug.print(" |"); Debug.println(ap_text); Debug.print("| ");
+            Debug.print("  Text= ");  Debug.print(" |"); Debug.print(ap_text); Debug.println("| ");
           #endif
 
           PackSensorTable(0x5000, 0);         // 0x5000 StatusText Message
@@ -2945,8 +3061,8 @@ void OledDisplayln(String S) {
   
   #if (WiFi_Protocol == 2)  //  Display the remote UDP IP the first time we get it
   void DisplayRemoteIP() {
-    if (remIpFt)  {
-      remIpFt = false;
+    if (FtRemIP)  {
+      FtRemIP = false;
       Debug.print("Remote UDP IP: "); Debug.println(remoteIP);
       OledDisplayln("Remote UDP IP =");
       OledDisplayln(remoteIP.toString());

@@ -186,7 +186,7 @@ v2.20 2019-07-26 Release candidate. Send HB back to FC for APM also, not just PX
                  #undef troublesome F function.             
 */
 
-#undef F                         // F defined in c_library_v2\mavlink_sha256.h AND teensy3/WString.h
+//#undef F                         // F defined in c_library_v2\mavlink_sha256.h AND teensy3/WString.h
 #include <CircularBuffer.h>
 
 #include <mavlink_types.h>
@@ -245,7 +245,7 @@ using namespace std;
 // How does Mavlink telemetry leave the converter?
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  9    // NONE (default)
-//#define GCS_Mavlink_IO  0    // Serial Port        
+#define GCS_Mavlink_IO  0    // Serial Port        
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define GCS_Mavlink_IO  2    // WiFi - ESP32 only
 
@@ -511,13 +511,11 @@ uint16_t mvBaudFC     =     57600;
 #endif 
 
 #if (GCS_Mavlink_IO == 0) // Mavlink_GCS optional feature available for Teensy 3.1/2 and Maple Mini
-  Debug.Print("GCS_Mavlink_IO ="); Debug.println(GCS_Mavlink_IO);
-  #if (SPort_Serial == 3) 
-   #error Mavlink_GCS and SPort both configured for Serial3. Please correct.
-  #else 
+
+
     #define mvSerialGCS             Serial3 
     #define mvBaudGCS               57600        // Use 57600
-  #endif
+
 #endif
 
 //************************************************************************** 

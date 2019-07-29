@@ -193,7 +193,7 @@ using namespace std;
 //                Don't change anything here
 //
 #if defined (__MK20DX256__) 
-  #define Target_Board   0      // Teensy 3.x    
+  #define Target_Board   0      // Teensy 3.1 and 3.2    
       
 #elif defined (__BluePill_F103C8__) ||  defined (MCU_STM32F103RB)
   #define Target_Board   1      // Blue Pill STM32F103C  
@@ -238,7 +238,7 @@ using namespace std;
 // How does Mavlink telemetry leave the converter?
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  9    // NONE (default)
-//#define GCS_Mavlink_IO  0    // Serial Port        
+#define GCS_Mavlink_IO  0    // Serial Port        
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define GCS_Mavlink_IO  2    // WiFi - ESP32 only
 
@@ -263,7 +263,7 @@ const uint16_t bat2_capacity = 0;
 #define Battery_mAh_Source  3  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
 
 
-#define SPort_Serial   3            // The default is Serial 1, but 3 is possible 
+#define SPort_Serial   1            // The default is Serial 1, but 3 is possible 
 //#define LRS_RSSI     // Un-comment this line only if you are using a ULRS, QLRS or similar telemetry system
 
 // ****************************** Set your time zone here ******************************************
