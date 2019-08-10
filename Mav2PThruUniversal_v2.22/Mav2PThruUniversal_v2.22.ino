@@ -1904,10 +1904,10 @@ void DecodeOneMavFrame() {
              PackMultipleTextChunks_5000(0x5000);
            } 
          }                  
-          
+         #endif     
+             
          PackSensorTable(0x5003, 0);
          PackSensorTable(0x5007, 0);
-         #endif
          
          break;
         case MAVLINK_MSG_ID_SYSTEM_TIME:   // #2
