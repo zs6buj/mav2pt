@@ -1,4 +1,4 @@
-/*  *****************************************************************************
+  /*  *****************************************************************************
 
     Mav2Passthru 
  
@@ -103,8 +103,7 @@
       *The dreaded "Telemetry Lost" enunciation!*
 
     The popular LUA telemetry scripts use RSSI to determine that a telemetry connection has been successfully established 
-    between the 'craft and the Taranis/Horus. Be sure to set-up RSSI properly before testing the system, or un-comment  
-    #define Frs_Dummy_rssi temporarily while testing.
+    between the 'craft and the Taranis/Horus. Be sure to set-up RSSI properly before testing the system.
 
 
   ***************************************************************************************************************** 
@@ -186,7 +185,8 @@ v2.20 2019-07-26 Release candidate. Send HB back to FC for APM also, not just PX
                  #undef troublesome F function.  
 v2.21 2019-07-26 Trap attempt to do GCS I/O on ESP32 or Blue Pill - no Serial3 UART.
       2019-07-29 Implement system health status-text messages as per Alex's request.  
-v2.22 2019-08-10 Make sensor health messages optional for now. Fix end-of-sensor message text detection.         
+v2.22 2019-08-10 Make sensor health messages optional for now. Fix end-of-sensor message text detection.
+v2.23 2019-08-21 Add support for RFD900x long-range telemetry modems, specifically RSSI             
 */
 
 #undef F                         // F defined in c_library_v2\mavlink_sha256.h AND teensy3/WString.h
@@ -250,7 +250,7 @@ using namespace std;
 //#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 only
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 only
 
 
 //#define GCS_Mavlink_SD      // SD Card  - for ESP32 only
@@ -272,12 +272,15 @@ const uint16_t bat1_capacity = 5200;
 const uint16_t bat2_capacity = 0;
 #define Battery_mAh_Source  3  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
 
+#define SPort_Serial        1         // The default is Serial 1, but 3 is possible 
 
-#define SPort_Serial   1         // The default is Serial 1, but 3 is possible 
-#define LRS_RSSI     // Un-comment this line only if you are using a ULRS, QLRS or similar telemetry system
+//#define RSSI_Source         0         // default FrSky receiver
+//#define RSSI_Source         1         // designated RC PWM channel - ULRS, QLRS....
+#define RSSI_Source         2         // frame #109 injected by SiK radio firmware into Mavlink stream - RFD900
+//#define RSSI_Source         3         // Dummy RSSI - fixed at 70%
 
 // Status_Text messages place a huge burden on the meagre 4 byte FrSky telemetry payload bandwith
-// The practice has been to send them 3 times to ensure that the arrive unscathed at the receiver
+// The practice has been to send them 3 times to ensure that they arrive unscathed at the receiver
 //  but that makes the bandwidth limitation worse and may crowd out other message types. Try without
 //  sending 3 times, but if status_text gets distorted, un-comment this line
 #define Send_Status_Text_3_Times
@@ -309,6 +312,10 @@ bool daylightSaving = false;
     #error Please choose at least one target board
   #endif
 
+    #ifndef RSSI_Source
+    #error Please choose a RSSI_Source
+  #endif
+  
   #if (Target_Board == 1) || (Target_Board == 3) // Blue Pill or ESP32 (UART0, UART1, and UART2)
     #if (SPort_Serial  == 3)    
       #error Board does not have Serial3. This configuration is not possible.
@@ -530,9 +537,8 @@ uint16_t mvBaudFC     =     57600;
 
 //************************************************************************** 
 //******************************** Other ***********************************  
-#define Frs_Dummy_rssi       // For testing only - force valid rssi. NOTE: If no rssi FlightDeck or other script won't connect!
-//#define Data_Streams_Enabled // Rather set SRn in Mission Planner
 
+//#define Data_Streams_Enabled // Rather set SRn in Mission Planner
 #define Max_Waypoints  256     // Note. This is a global RAM trade-off. If exceeded then Debug message and shut down
 
 // Debugging options below ***************************************************************************************
@@ -550,7 +556,7 @@ uint16_t mvBaudFC     =     57600;
 //#define Mav_Debug_Params
 //#define Mav_Debug_Servo
 //#define Frs_Debug_Servo
-#define Debug_Rssi
+//#define Debug_Rssi
 //#define Mav_Debug_RC
 //#define Frs_Debug_RC
 //#define Mav_Debug_Heartbeat
@@ -579,7 +585,8 @@ uint16_t mvBaudFC     =     57600;
 //#define Mav_Debug_System_Time   
 //#define Frs_Debug_Scheduler - this debugger detrimentally affects the performance of the scheduler
 //#define Decode_Non_Essential_Mav 
-//#define Debug_Baud    
+//#define Debug_Baud 
+//#define Debug_Radio_Status   
 //*****************************************************************************************************************
 
 uint8_t   MavLedState = LOW; 
@@ -611,6 +618,7 @@ uint32_t  em_millis=0;
 uint32_t  sp_millis=0;
 uint32_t  mav_led_millis=0;
 uint32_t  health_millis = 0;
+uint32_t  rssi_millis = 0;
 
 uint32_t  now_millis = 0;
 uint32_t  prev_millis = 0;
@@ -837,6 +845,15 @@ uint16_t ap_hud_throt;
 float    ap_hud_bar_alt;   
 float    ap_hud_climb;        
 
+// Message #109 RADIO_STATUS (Sik radio firmware)
+uint8_t ap_rssi;                // local signal strength
+uint8_t ap_remrssi;             // remote signal strength
+uint8_t ap_txbuf;               // how full the tx buffer is as a percentage
+uint8_t ap_noise;               // background noise level
+uint8_t ap_remnoise;            // remote background noise level
+uint16_t ap_rxerrors;           // receive errors
+uint16_t ap_fixed;              // count of error corrected packets
+
 // Message  #125 POWER_STATUS 
 uint16_t  ap_Vcc;                 // 5V rail voltage in millivolts
 uint16_t  ap_Vservo;              // servo rail voltage in millivolts
@@ -865,17 +882,11 @@ int8_t       ap_battery_remaining;  // (0%: 0, 100%: 100)
 int32_t      ap_time_remaining;     // in seconds
 uint8_t      ap_charge_state;     
 
+// Message #166 RADIO see #109
+
+
 // Message #173 RANGEFINDER 
 float ap_range; // m
-
-// Message #166 RADIO
-uint8_t ap_rssi;                // local signal strength
-uint8_t ap_remrssi;             // remote signal strength
-uint8_t ap_txbuf;               // how full the tx buffer is as a percentage
-uint8_t ap_noise;               // background noise level
-uint8_t ap_remnoise;            // remote background noise level
-uint16_t ap_rxerrors;           // receive errors
-uint16_t ap_fixed;              // count of error corrected packets
 
 // Message #181 BATTERY2 
 uint16_t   ap_voltage_battery2 = 0;    // 1000 = 1V
@@ -983,7 +994,6 @@ int8_t    fr_ms_offset;             // Next WP bearing offset from COG
 
 //0xF103
 uint32_t fr_rssi;
-bool dmy_rssi_ft = true;
 
 //**************************** Ring and Sensor Buffers *************************
 
@@ -1109,9 +1119,18 @@ void setup()  {
     OledDisplayln("S.PORT is Serial3");       
   #endif  
 
-  #if defined LRS_RSSI 
-    Debug.println("LRS_RSSI variant of Mavlink");
-    OledDisplayln("LRS_RSSI variant!");        
+  #if (RSSI_Source == 0)
+    Debug.println("Default RSSI_Source");
+    OledDisplayln("default RSSI_Source"); 
+  #elif (RSSI_Source == 1)
+    Debug.println("RSSI from PWM channel");
+    OledDisplayln("RSSI frm PWM channel");  
+  #elif (RSSI_Source == 2)
+    Debug.println("RSSI from SiK/Mavlink");
+    OledDisplayln("RSSI frm SiK/Mavlink");     
+  #elif (RSSI_Source == 3)
+    Debug.println("Dummy RSSI = 70%");
+    OledDisplayln("Dummy RSSI = 70%");    // for debugging only         
   #endif
 
   #if (FC_Mavlink_IO == 0)  // Serial
@@ -1318,6 +1337,15 @@ void main_loop() {
       sdStatus = 0;  // closed after reading   
     }
   }
+  
+  if ((rssiGood) && (millis() - rssi_millis > 800)) {
+    #if defined Ground_Mode || defined Relay_Mode      // In Air_Mode the FrSky receiver provides rssi
+      PackSensorTable(0xF101, 0);   // 0xF101 RSSI 
+      rssi_millis = millis(); 
+    #endif 
+
+  }
+ 
   if (millis() - sport_millis > 1) {   // main timing loop for S.Port
     RB_To_Decode_To_SPort_and_GCS();
   }
@@ -1345,15 +1373,14 @@ void main_loop() {
   }
   #endif 
 
-//  if (px4_flight_stack) {
-    if(millis()- fchb_millis > 2000) {  // Heartbeat to FC every 2 seconds
-      fchb_millis=millis();
-      #if defined Mav_Debug_FC_Heartbeat
-        Debug.println("Sending hb to FC");  
-      #endif    
-      Send_FC_Heartbeat();   // must have Teensy Tx connected to Taranis/FC rx  
-    }
-//  }
+  if(millis()- fchb_millis > 2000) {  // Heartbeat to FC every 2 seconds
+    fchb_millis=millis();
+    #if defined Mav_Debug_FC_Heartbeat
+      Debug.println("Sending hb to FC");  
+    #endif    
+    Send_FC_Heartbeat();   // must have Teensy Tx connected to Taranis/FC rx  
+  }
+
   
   #if defined Request_Missions_From_FC || defined Request_Mission_Count_From_FC
   if (mavGood) {
@@ -1591,6 +1618,26 @@ void Read_From_GCS() {
           }                        
       }
     #endif 
+    
+   //  Decode Mavlink to FC
+
+   switch(G2Fmsg.msgid) {
+       case MAVLINK_MSG_ID_HEARTBEAT:    // #0   
+         //   Debug.println("Mavlink up #0 Heartbeat ");           
+          break;
+
+        default:
+          if (!mavGood) break;
+          #ifdef Degug_All  
+            Debug.print("Mavlink up to FC: ");
+            Debug.print("Unknown Message ID #");
+            Debug.print(G2Fmsg.msgid);
+            Debug.println(" Ignored"); 
+          #endif
+
+          break;
+   }  
+   
  #endif 
 }
 //********************************************************************************
@@ -1742,7 +1789,7 @@ void From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
 //*******************************************
 void DecodeOneMavFrame() { 
 
-    // Debug.print(" msgid="); Debug.println(msg.msgid); 
+     //Debug.print(" msgid="); Debug.println(R2Gmsg.msgid); 
 
    switch(R2Gmsg.msgid) {
     
@@ -2116,18 +2163,15 @@ void DecodeOneMavFrame() {
           break;  
         case MAVLINK_MSG_ID_RC_CHANNELS_RAW:         // #35
           if (!mavGood) break;   
-          #if defined LRS_RSSI
+          #if (RSSI_Source == 1)
+            ap_rssi = mavlink_msg_rc_channels_raw_get_rssi(&R2Gmsg);      
             rssiGood=true;            //  We have received at least one rssi packet from air mavlink
-            ap_rssi = mavlink_msg_rc_channels_raw_get_rssi(&R2Gmsg);
-            ap_rc_flag = true;
-            #if defined Ground_Mode || defined Relay_Mode      // In Air_Mode the FrSky receiver provides rssi
-              PackSensorTable(0xF101, 0);   // 0xF101 RSSI 
-            #endif           
-          #endif  
-          #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
-            Debug.print("Mavlink in #35 RC_Channels_Raw: ");                        
-            Debug.print("  Receive RSSI=");  Debug.println(ap_rssi/ 2.54); 
-          #endif         
+         
+            #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
+              Debug.print("Mavlink in #35 RC_Channels_Raw: ");                        
+              Debug.print("  Receive RSSI=");  Debug.println(ap_rssi/ 2.54); 
+            #endif  
+          #endif            
           break;  
         case MAVLINK_MSG_ID_SERVO_OUTPUT_RAW :          // #36
           if (!mavGood) break; 
@@ -2271,47 +2315,43 @@ void DecodeOneMavFrame() {
           break;     
         case MAVLINK_MSG_ID_RC_CHANNELS:             // #65
           if (!mavGood) break; 
-          ap_chcnt = mavlink_msg_rc_channels_get_chancount(&R2Gmsg);
-          ap_chan_raw[0] = mavlink_msg_rc_channels_get_chan1_raw(&R2Gmsg);   
-          ap_chan_raw[1] = mavlink_msg_rc_channels_get_chan2_raw(&R2Gmsg);
-          ap_chan_raw[2] = mavlink_msg_rc_channels_get_chan3_raw(&R2Gmsg);   
-          ap_chan_raw[3] = mavlink_msg_rc_channels_get_chan4_raw(&R2Gmsg);  
-          ap_chan_raw[4] = mavlink_msg_rc_channels_get_chan5_raw(&R2Gmsg);   
-          ap_chan_raw[5] = mavlink_msg_rc_channels_get_chan6_raw(&R2Gmsg);
-          ap_chan_raw[6] = mavlink_msg_rc_channels_get_chan7_raw(&R2Gmsg);   
-          ap_chan_raw[7] = mavlink_msg_rc_channels_get_chan8_raw(&R2Gmsg);  
-          ap_chan_raw[8] = mavlink_msg_rc_channels_get_chan9_raw(&R2Gmsg);   
-          ap_chan_raw[9] = mavlink_msg_rc_channels_get_chan10_raw(&R2Gmsg);
-          ap_chan_raw[10] = mavlink_msg_rc_channels_get_chan11_raw(&R2Gmsg);   
-          ap_chan_raw[11] = mavlink_msg_rc_channels_get_chan12_raw(&R2Gmsg); 
-          ap_chan_raw[12] = mavlink_msg_rc_channels_get_chan13_raw(&R2Gmsg);   
-          ap_chan_raw[13] = mavlink_msg_rc_channels_get_chan14_raw(&R2Gmsg);
-          ap_chan_raw[14] = mavlink_msg_rc_channels_get_chan15_raw(&R2Gmsg);   
-          ap_chan_raw[15] = mavlink_msg_rc_channels_get_chan16_raw(&R2Gmsg);
-          ap_chan_raw[16] = mavlink_msg_rc_channels_get_chan17_raw(&R2Gmsg);   
-          ap_chan_raw[17] = mavlink_msg_rc_channels_get_chan18_raw(&R2Gmsg);
-          
-          #ifndef LRS_RSSI
-            ap_rssi = mavlink_msg_rc_channels_get_rssi(&R2Gmsg);   // Receive RSSI 0: 0%, 254: 100%, 255: invalid/unknown
-            ap_rc_flag = true;                                     // tell fr routine we have an rc records
-            rssiGood=true;                                         //  We have received at least one rssi packet from air mavlink
-            #if defined Ground_Mode || defined Relay_Mode          // In Air_Mode the FrSky receiver provides rssi
-              PackSensorTable(0xF101, 0);   // 0xF101 RSSI 
-            #endif 
-          #endif  
+          #if (RSSI_Source == 0)  // default
+            ap_chcnt = mavlink_msg_rc_channels_get_chancount(&R2Gmsg);
+            ap_chan_raw[0] = mavlink_msg_rc_channels_get_chan1_raw(&R2Gmsg);   
+            ap_chan_raw[1] = mavlink_msg_rc_channels_get_chan2_raw(&R2Gmsg);
+            ap_chan_raw[2] = mavlink_msg_rc_channels_get_chan3_raw(&R2Gmsg);   
+            ap_chan_raw[3] = mavlink_msg_rc_channels_get_chan4_raw(&R2Gmsg);  
+            ap_chan_raw[4] = mavlink_msg_rc_channels_get_chan5_raw(&R2Gmsg);   
+            ap_chan_raw[5] = mavlink_msg_rc_channels_get_chan6_raw(&R2Gmsg);
+            ap_chan_raw[6] = mavlink_msg_rc_channels_get_chan7_raw(&R2Gmsg);   
+            ap_chan_raw[7] = mavlink_msg_rc_channels_get_chan8_raw(&R2Gmsg);  
+            ap_chan_raw[8] = mavlink_msg_rc_channels_get_chan9_raw(&R2Gmsg);   
+            ap_chan_raw[9] = mavlink_msg_rc_channels_get_chan10_raw(&R2Gmsg);
+            ap_chan_raw[10] = mavlink_msg_rc_channels_get_chan11_raw(&R2Gmsg);   
+            ap_chan_raw[11] = mavlink_msg_rc_channels_get_chan12_raw(&R2Gmsg); 
+            ap_chan_raw[12] = mavlink_msg_rc_channels_get_chan13_raw(&R2Gmsg);   
+            ap_chan_raw[13] = mavlink_msg_rc_channels_get_chan14_raw(&R2Gmsg);
+            ap_chan_raw[14] = mavlink_msg_rc_channels_get_chan15_raw(&R2Gmsg);   
+            ap_chan_raw[15] = mavlink_msg_rc_channels_get_chan16_raw(&R2Gmsg);
+            ap_chan_raw[16] = mavlink_msg_rc_channels_get_chan17_raw(&R2Gmsg);   
+            ap_chan_raw[17] = mavlink_msg_rc_channels_get_chan18_raw(&R2Gmsg);
+            ap_rssi = mavlink_msg_rc_channels_get_rssi(&R2Gmsg);   // Receive RSSI 0: 0%, 254: 100%, 255: invalid/unknown     
+         
+            rssiGood=true;      //  We have received at least one rssi packet from air mavlink
 
-          #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
-            Debug.print("Mavlink in #65 RC_Channels: ");
-            Debug.print("ap_chcnt="); Debug.print(ap_chcnt); 
-            Debug.print(" PWM: ");
-            for (int i=0 ; i < ap_chcnt ; i++) {
-              Debug.print(" "); 
-              Debug.print(i+1);
-              Debug.print("=");  
-              Debug.print(ap_chan_raw[i]);   
-            }                         
-            Debug.print("  Receive RSSI=");  Debug.println(ap_rssi/ 2.54);        
-          #endif             
+            #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
+              Debug.print("Mavlink in #65 RC_Channels: ");
+              Debug.print("ap_chcnt="); Debug.print(ap_chcnt); 
+              Debug.print(" PWM: ");
+              for (int i=0 ; i < ap_chcnt ; i++) {
+                Debug.print(" "); 
+                Debug.print(i+1);
+                Debug.print("=");  
+                Debug.print(ap_chan_raw[i]);   
+              }                         
+              Debug.print("  Receive RSSI=");  Debug.println(ap_rssi/ 2.54);        
+            #endif  
+          #endif               
           break;      
         case MAVLINK_MSG_ID_REQUEST_DATA_STREAM:     // #66 - OUTGOING TO UAV
           if (!mavGood) break;       
@@ -2344,24 +2384,51 @@ void DecodeOneMavFrame() {
           #endif
             
           break; 
+        case MAVLINK_MSG_ID_RADIO_STATUS:         // #109
+          if (!mavGood) break;
+          #if (RSSI_Source == 2)  // #109 embedded in Mavlink for SiK firmware
+            ap_rssi = mavlink_msg_radio_status_get_rssi(&R2Gmsg);            // air signal strength
+            ap_remrssi = mavlink_msg_radio_status_get_remrssi(&R2Gmsg);      // remote signal strength
+            ap_txbuf = mavlink_msg_radio_status_get_txbuf(&R2Gmsg);          // how full the tx buffer is as a percentage
+            ap_noise = mavlink_msg_radio_status_get_noise(&R2Gmsg);          // remote background noise level
+            ap_remnoise = mavlink_msg_radio_status_get_remnoise(&R2Gmsg);    // receive errors
+            ap_rxerrors = mavlink_msg_radio_status_get_rxerrors(&R2Gmsg);    // count of error corrected packets
+            ap_fixed = mavlink_msg_radio_status_get_fixed(&R2Gmsg);   
+
+            rssiGood=true;                                         //  We have received at least one rssi packet from air mavlink
+        
+            #if defined Mav_Debug_All || defined Debug_Radio_Status || defined Debug_Rssi
+              Debug.print("Mavlink in #109 Radio: "); 
+              Debug.print("rssi="); Debug.print(ap_rssi);
+              Debug.print("  remrssi="); Debug.print(ap_remrssi);
+              Debug.print("  txbuf="); Debug.print(ap_txbuf);
+              Debug.print("  noise="); Debug.print(ap_noise); 
+              Debug.print("  remnoise="); Debug.print(ap_remnoise);
+              Debug.print("  rxerrors="); Debug.print(ap_rxerrors);
+              Debug.print("  fixed="); Debug.println(ap_fixed);                                
+            #endif 
+          #endif
+          break;     
+           
         case MAVLINK_MSG_ID_SCALED_IMU2:       // #116   https://mavlink.io/en/messages/common.html
           if (!mavGood) break;       
-          break; 
+          break;
+           
         case MAVLINK_MSG_ID_POWER_STATUS:      // #125   https://mavlink.io/en/messages/common.html
-        #if defined Decode_Non_Essential_Mav
-          if (!mavGood) break;  
-          ap_Vcc = mavlink_msg_power_status_get_Vcc(&R2Gmsg);         // 5V rail voltage in millivolts
-          ap_Vservo = mavlink_msg_power_status_get_Vservo(&R2Gmsg);   // servo rail voltage in millivolts
-          ap_flags = mavlink_msg_power_status_get_flags(&R2Gmsg);     // power supply status flags (see MAV_POWER_STATUS enum)
-          #ifdef Mav_Debug_All
-            Debug.print("Mavlink in #125 Power Status: ");
-            Debug.print("Vcc= "); Debug.print(ap_Vcc); 
-            Debug.print("  Vservo= ");  Debug.print(ap_Vservo);       
-            Debug.print("  flags= ");  Debug.println(ap_flags);       
-          #endif  
-        #endif              
-          break; 
-        case MAVLINK_MSG_ID_BATTERY_STATUS:      // #147   https://mavlink.io/en/messages/common.html
+          #if defined Decode_Non_Essential_Mav
+            if (!mavGood) break;  
+            ap_Vcc = mavlink_msg_power_status_get_Vcc(&R2Gmsg);         // 5V rail voltage in millivolts
+            ap_Vservo = mavlink_msg_power_status_get_Vservo(&R2Gmsg);   // servo rail voltage in millivolts
+            ap_flags = mavlink_msg_power_status_get_flags(&R2Gmsg);     // power supply status flags (see MAV_POWER_STATUS enum)
+            #ifdef Mav_Debug_All
+              Debug.print("Mavlink in #125 Power Status: ");
+              Debug.print("Vcc= "); Debug.print(ap_Vcc); 
+              Debug.print("  Vservo= ");  Debug.print(ap_Vservo);       
+              Debug.print("  flags= ");  Debug.println(ap_flags);       
+            #endif  
+          #endif              
+            break; 
+         case MAVLINK_MSG_ID_BATTERY_STATUS:      // #147   https://mavlink.io/en/messages/common.html
           if (!mavGood) break;       
           ap_battery_id = mavlink_msg_battery_status_get_id(&R2Gmsg);  
           ap_current_battery = mavlink_msg_battery_status_get_current_battery(&R2Gmsg);      // in 10*milliamperes (1 = 10 milliampere)
@@ -2397,27 +2464,8 @@ void DecodeOneMavFrame() {
         case MAVLINK_MSG_ID_MEMINFO:           // #152   https://mavlink.io/en/messages/ardupilotmega.html
           if (!mavGood) break;        
           break;   
-        case MAVLINK_MSG_ID_RADIO:             // #166   https://mavlink.io/en/messages/ardupilotmega.html
-        #if defined Decode_Non_Essential_Mav
-          if (!mavGood) break;
-          ap_rssi = mavlink_msg_radio_get_rssi(&R2Gmsg);            // local signal strength
-          ap_remrssi = mavlink_msg_radio_get_remrssi(&R2Gmsg);      // remote signal strength
-          ap_txbuf = mavlink_msg_radio_get_txbuf(&R2Gmsg);          // how full the tx buffer is as a percentage
-          ap_noise = mavlink_msg_radio_get_noise(&R2Gmsg);          // remote background noise level
-          ap_remnoise = mavlink_msg_radio_get_remnoise(&R2Gmsg);    // receive errors
-          ap_rxerrors = mavlink_msg_radio_get_rxerrors(&R2Gmsg);    // count of error corrected packets
-          ap_fixed = mavlink_msg_radio_get_fixed(&R2Gmsg);    
-         #ifdef Mav_Debug_All
-            Debug.print("Mavlink in #166 Radio: "); 
-            Debug.print("rssi="); Debug.print(ap_rssi);
-            Debug.print("remrssi="); Debug.print(ap_remrssi);
-            Debug.print("txbuf="); Debug.print(ap_txbuf);
-            Debug.print("noise="); Debug.print(ap_noise); 
-            Debug.print("remnoise="); Debug.print(ap_remnoise);
-            Debug.print("rxerrors="); Debug.print(ap_rxerrors);
-            Debug.print("fixed="); Debug.println(ap_fixed);                                
-         #endif 
-        #endif                 
+        case MAVLINK_MSG_ID_RADIO:             // #166   See #109 RADIO_STATUS
+        
           break; 
         case MAVLINK_MSG_ID_RANGEFINDER:       // #173   https://mavlink.io/en/messages/ardupilotmega.html
           if (!mavGood) break;       
