@@ -186,7 +186,9 @@ v2.20 2019-07-26 Release candidate. Send HB back to FC for APM also, not just PX
 v2.21 2019-07-26 Trap attempt to do GCS I/O on ESP32 or Blue Pill - no Serial3 UART.
       2019-07-29 Implement system health status-text messages as per Alex's request.  
 v2.22 2019-08-10 Make sensor health messages optional for now. Fix end-of-sensor message text detection.
-v2.23 2019-08-21 Add support for RFD900x long-range telemetry modems, specifically RSSI             
+v2.23 2019-08-21 Add support for RFD900x long-range telemetry modems, specifically RSSI  
+v2.24 2019-08023 Workaround for Esp32 library "wifi: Set status to INIT" bug
+                 Improve responsiveness to baud detect with no telemetry present.           
 */
 
 #undef F                         // F defined in c_library_v2\mavlink_sha256.h AND teensy3/WString.h
@@ -260,7 +262,6 @@ using namespace std;
 //#define WiFi_Protocol 1    // TCP/IP
 #define WiFi_Protocol 2    // UDP     useful for Ez-WiFiBroadcast in STA mode
 
-
 // Choose one - AP means advertise as an access point (hotspot). STA means connect to a known host
 #define WiFi_Mode   1  //AP            
 //#define WiFi_Mode   2  // STA
@@ -293,9 +294,9 @@ const float Time_Zone = 2.0;    // Jo'burg
 bool daylightSaving = false;
 
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-//*****************************************************************************************************************
-//*****************************************************************************************************************
-//*****************************************************************************************************************
+//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 // Check #defines options logic  
 
@@ -390,7 +391,7 @@ bool daylightSaving = false;
   
 #endif
 
-///************************************************************************** 
+//************************************************************************** 
 //******************************** Bluetooth  *******************************
   #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1)  // Bluetooth
     #if (Target_Board == 3) // ESP32
@@ -416,6 +417,7 @@ bool daylightSaving = false;
     
     int16_t wifi_rssi;    
     uint8_t activateWiFiPin = 15;    // D15
+    uint8_t WiFiPinState = 0;
     
     #if (WiFi_Mode == 1)  // AP
       #include <WiFiAP.h>  
@@ -606,7 +608,6 @@ bool      rssiGood = false;
 bool      wifiSuGood = false;
 bool      timeGood = false;
 bool      ftGetBaud = true;
-
 uint8_t   sdStatus = 0; // 0=no reader, 1=reader found, 2=SD found, 3=open for append 4 = open for read, 9=failed
 
 uint32_t  hb_millis=0;
@@ -1048,7 +1049,7 @@ void setup()  {
  
   Debug.begin(115200);
   delay(2500);
-  Debug.print("Starting .... ");
+  Debug.print("Starting .... ");    
   
   String sketch_path = __FILE__;
   String ino_name = sketch_path.substring(sketch_path.lastIndexOf('/')+1);
@@ -1172,29 +1173,24 @@ void setup()  {
     Debug.println("Mavlink SD Out");
     OledDisplayln("Mavlink SD Out");
  #endif
-// ************************ Setup Serial ******************************
-  FrSkySPort_Init();
 
-  #if (FC_Mavlink_IO == 0)    //  Serial
-    mvBaudFC = GetBaud(FC_Mav_rxPin);
-    mvSerialFC.begin(mvBaudFC);
- //   mvSerialFC.begin(mvBaudFC, SERIAL_8N1, 9, 10);  //  rx=9   tx=10
-  #endif
-  
-  #if (GCS_Mavlink_IO == 0)   //  Serial
-    mvSerialGCS.begin(mvBaudGCS);
-  #endif 
-  
+ Debug.println("Waiting for telemetry"); 
+ OledDisplayln("Waiting for telem");
+
 // ************************ Setup Bluetooth ***************************  
   #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1) // Bluetooth 
     SerialBT.begin("ESP32");
   #endif  
-  
+
   // ************************* Setup WiFi ****************************  
   #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)) //  WiFi
-    pinMode(activateWiFiPin, INPUT_PULLUP); 
+
+    pinMode(activateWiFiPin, INPUT_PULLUP);
+
+
+
   #endif 
-  
+
  // ************************* Setup SD Card ************************** 
   #if ((FC_Mavlink_IO == 3) || defined GCS_Mavlink_SD)  // SD Card
     if(!SD.begin()){   
@@ -1240,7 +1236,7 @@ void setup()  {
            istringstream myInt(S); 
            myInt >> i;
            Debug.print(i); Debug.print(" ");
-/*
+      /*
            for (int j= 0 ; fnCnt > j ; j++)  {
       //     cout << i << fnPath[j] << "\n";
              Debug.print(j); Debug.print(" "); Debug.println(fnPath[j].c_str());
@@ -1269,6 +1265,19 @@ void setup()  {
      }  
    }
   #endif
+  
+// ************************ Setup Serial ******************************
+  FrSkySPort_Init();
+
+  #if (FC_Mavlink_IO == 0)    //  Serial
+    mvBaudFC = GetBaud(FC_Mav_rxPin);
+    mvSerialFC.begin(mvBaudFC);
+ //   mvSerialFC.begin(mvBaudFC, SERIAL_8N1, 9, 10);  //  rx=9   tx=10
+  #endif
+  
+  #if (GCS_Mavlink_IO == 0)   //  Serial
+    mvSerialGCS.begin(mvBaudGCS);
+  #endif 
 
 // *********************************************************************
   mavGood = false;
@@ -1282,11 +1291,10 @@ void setup()  {
   em_millis=millis();
   health_millis = millis();
   
-   pinMode(MavStatusLed, OUTPUT); 
-   pinMode(BufStatusLed, OUTPUT); 
-}
+  pinMode(MavStatusLed, OUTPUT); 
+  pinMode(BufStatusLed, OUTPUT); 
 
-// *******************************************************************************************
+}
 
 void loop() {            // For WiFi only
   
@@ -1329,7 +1337,9 @@ void loop() {            // For WiFi only
 // *******************************************************************************************
 //********************************************************************************************
 void main_loop() {
- 
+  
+  SenseWiFiPin();
+  
   if (!FC_To_RingBuffer()) {  //  check for SD eof
     if (sdStatus == 5) {
       Debug.println("End of SD file");
@@ -1478,12 +1488,13 @@ bool FC_To_RingBuffer() {
     #endif
     
     #if (WiFi_Protocol == 2) //  UDP from FC
-
       len = udp.parsePacket();
       if (len) {             // if there is a packet to read
         udp.read(FCbuf, len); 
         remoteIP = udp.remoteIP();  // remember which remote client sent this packet so we can target it
-        DisplayRemoteIP();
+        #if (WiFi_Mode == 1) 
+          DisplayRemoteIP();   // AP
+        #endif  
         for (int i = 0 ; i < len ; i++) {
           uint8_t c = FCbuf[i];
           if(mavlink_parse_char(MAVLINK_COMM_0, c, &F2Rmsg, &status)) {
@@ -3066,9 +3077,15 @@ void OledDisplayln(String S) {
     #endif  
     #if (WiFi_Mode == 2)  // STA
       uint8_t retry = 0;
-      Debug.print("Trying to connecting to ");   
+      Debug.print("Trying to connect to ");  
+      Debug.print(STAssid); 
       OledDisplayln("WiFi trying ..");
-      Debug.print(STAssid);
+
+      WiFi.disconnect(true);   // To circumvent "wifi: Set status to INIT" error bug
+      delay(500);
+      WiFi.mode(WIFI_STA);
+      delay(500);
+      
       WiFi.begin(STAssid, STApw);
       while ((WiFi.status() != WL_CONNECTED) && (retry < 10)){
         retry++;
@@ -3098,7 +3115,7 @@ void OledDisplayln(String S) {
         #if (WiFi_Protocol == 2)  // UDP
           udp.begin(udp_localPort);
           Debug.println("UDP started"); 
-          Debug.printf("Now listening at IP %s, UDP port %d\n", WiFi.softAPIP().toString().c_str(), udp_localPort);      
+          Debug.printf("Remote IP %s, UDP port %d\n", WiFi.softAPIP().toString().c_str(), udp_localPort);      
           OledDisplayln("UDP started");                 
         #endif
         
@@ -3115,7 +3132,8 @@ void OledDisplayln(String S) {
   void DisplayRemoteIP() {
     if (FtRemIP)  {
       FtRemIP = false;
-      Debug.print("Remote UDP IP: "); Debug.println(remoteIP);
+      Debug.print("Client connected: Remote UDP IP: "); Debug.println(remoteIP);
+      OledDisplayln("Client connected");
       OledDisplayln("Remote UDP IP =");
       OledDisplayln(remoteIP.toString());
      }
@@ -3305,3 +3323,12 @@ void OpenSDForWrite() {
     sdStatus = 3;      
 }
 #endif
+
+void SenseWiFiPin() {
+ #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)) //  WiFi
+  WiFiPinState = digitalRead(activateWiFiPin);
+  if ((WiFiPinState == 0) && (!wifiSuGood)) {
+    SetupWiFi();
+    }
+ #endif   
+}
