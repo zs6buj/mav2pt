@@ -108,16 +108,18 @@
 
   ***************************************************************************************************************** 
 
+
   Connections to ESP32 Dev Board are: 
    0) USB           UART0                   Flashing and serial monitor for debug
-   1) SPort S       UART1   <--rx1 pin 12   Already inverted, S.Port in from single-wire combiner from XSR or Taranis bay, bottom pin
-   2)               UART1   -->tx1 pin 14   Already inverted, S.Port out to single-wire combiner to XSR or Taranis bay, bottom pin             
-   3) Mavlink       UART2   <--rx2 pin 16   Mavlink source to ESP32 - FC_Mav_rxPin
-   4)               UART2   -->tx2 pin 17   Mavlink source from ESP32 
-   5) MavStatusLed                 pin 02   BoardLed   
-   6) BufStatusLed                 pin 13   Buffer oversflow indication       
-   7) SDA                          pin 21   For optional OLED Display 
-   8) SCL                          pin 22   For optional OLED Display 
+   1) SPort S       UART1   <--rx1 Pin 12   Already inverted, S.Port in from single-wire combiner from XSR or Taranis bay, bottom pin
+   2)               UART1   -->tx1 Pin 14   Already inverted, S.Port out to single-wire combiner to XSR or Taranis bay, bottom pin             
+   3) Mavlink       UART2   <--rx2 Pin 16   Mavlink source to ESP32 - FC_Mav_rxPin
+   4)               UART2   -->tx2 Pin 17   Mavlink source from ESP32 
+   5) MavStatusLed                 Pin 02   BoardLed   
+   6) BufStatusLed                 Pin 13   Buffer oversflow indication       
+   7) SDA                          Pin 21   For optional OLED Display 
+   7) startWiFiPin                 Pin 15   Optional - Ground to start WiFi of see #defined option
+   8) SCL                          Pin 22   For optional OLED Display 
   10) GND
   
     
@@ -156,7 +158,7 @@
     5) MavStatusLed       Pin B1    33     
     6) BufStatusLed       Pin       34 
     7) Vcc 3.3V !
-    8) GND  
+    8) GND   
     
    
  *****************************************************************************************************************  
@@ -195,8 +197,9 @@ v2.21 2019-07-26 Trap attempt to do GCS I/O on ESP32 or Blue Pill - no Serial3 U
       2019-07-29 Implement system health status-text messages as per Alex's request.  
 v2.22 2019-08-10 Make sensor health messages optional for now. Fix end-of-sensor message text detection.
 v2.23 2019-08-21 Add support for RFD900x long-range telemetry modems, specifically RSSI  
-v2.24 2019-08023 Workaround for Esp32 library "wifi: Set status to INIT" bug
-                 Improve responsiveness to baud detect with no telemetry present.           
+v2.24 2019-08-23 Workaround for Esp32 library "wifi: Set status to INIT" bug
+                 Improve responsiveness to baud detect with no telemetry present.    
+v2.25 2019-08-28 Version for RFD900x. Bug fixes on rssi.     
 */
 
 #undef F                         // F defined in c_library_v2\mavlink_sha256.h AND teensy3/WString.h
@@ -260,10 +263,13 @@ using namespace std;
 //#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-//#define GCS_Mavlink_IO  2    // WiFi - ESP32 only
+#define GCS_Mavlink_IO  2    // WiFi - ESP32 only
 
 
 //#define GCS_Mavlink_SD      // SD Card  - for ESP32 only
+
+
+#define WiFi_Start         // Start WiFi  at startup regardless of startWiFi Pin
 
 
 // Choose one - for ESP32 only
@@ -292,8 +298,9 @@ const uint16_t bat2_capacity = 0;
 // The practice has been to send them 3 times to ensure that they arrive unscathed at the receiver
 //  but that makes the bandwidth limitation worse and may crowd out other message types. Try without
 //  sending 3 times, but if status_text gets distorted, un-comment this line
-#define Send_Status_Text_3_Times
+//#define Send_Status_Text_3_Times
 //#define Send_Sensor_Health_Messages
+
 
 // ****************************** Set your time zone here ******************************************
 // Date and time determines the TLog file name
@@ -424,7 +431,7 @@ bool daylightSaving = false;
     #endif   
     
     int16_t wifi_rssi;    
-    uint8_t activateWiFiPin = 15;    // D15
+    uint8_t startWiFiPin = 15;    // D15
     uint8_t WiFiPinState = 0;
     
     #if (WiFi_Mode == 1)  // AP
@@ -434,11 +441,14 @@ bool daylightSaving = false;
     #endif
     
     #if (WiFi_Mode == 2)  //  STA
-      const char *STAssid =     "TargetAPName";    // Target AP to connect to      <====
-      const char *STApw =       "targetPw";      // Change me!
+  //    const char *STAssid =     "TargetAPName";    // Target AP to connect to      <====
+  //    const char *STApw =       "targetPw";      // Change me!
 
   //    const char *STAssid =     "EZ-WifiBroadcast";    // Target AP to connect to      <====
-  //    const char *STApw =       "wifibroadcast";           
+  //    const char *STApw =       "wifibroadcast";         
+
+      const char *STAssid =     "TXMOD-54-DD-FE";    // Target AP to connect to      <====
+      const char *STApw =       "txmod123";    
 
     #endif   
 
@@ -566,12 +576,13 @@ uint16_t mvBaudFC     =     57600;
 //#define Mav_Debug_Params
 //#define Mav_Debug_Servo
 //#define Frs_Debug_Servo
-//#define Debug_Rssi
+#define Debug_Rssi
 //#define Mav_Debug_RC
 //#define Frs_Debug_RC
-//#define Mav_Debug_Heartbeat
-//#define Frs_Debug_Params
 //#define Mav_Debug_FC_Heartbeat
+//#define Mav_Debug_GCS_Heartbeat
+#define Mav_Debug_Mav2PT_Heartbeat
+//#define Frs_Debug_Params
 //#define Frs_Debug_APStatus
 //#define Mav_Debug_SysStatus
 //#define Debug_Batteries
@@ -695,7 +706,7 @@ uint8_t    ap_mission_type;              // Mav2
 uint8_t    mvType;
 
 // Message #0  HEARTHBEAT 
-uint8_t    ap_type_tmp = 0;              // hold the type until we know HB not from GCS or Tracket
+uint8_t    ap_type_tmp = 0;              // hold the type until we know HB not from GCS or Tracker
 uint8_t    ap_type = 0;
 uint8_t    ap_autopilot = 0;
 uint8_t    ap_base_mode = 0;
@@ -706,6 +717,15 @@ bool       px4_flight_stack = false;
 uint8_t    px4_main_mode = 0;
 uint8_t    px4_sub_mode = 0;
 
+// Message #0  GCS HEARTHBEAT 
+
+uint8_t    gcs_type = 0;
+uint8_t    gcs_autopilot = 0;
+uint8_t    gcs_base_mode = 0;
+uint32_t   gcs_custom_mode = 0;
+uint8_t    gcs_system_status = 0;
+uint8_t    gcs_mavlink_version = 0;
+
 // Message #0  Outgoing HEARTHBEAT 
 uint8_t    apo_sysid;
 uint8_t    apo_compid;
@@ -713,6 +733,9 @@ uint8_t    apo_targcomp;
 uint8_t    apo_mission_type;              // Mav2
 uint8_t    apo_type = 0;
 uint8_t    apo_autopilot = 0;
+uint8_t    apo_base_mode = 0;
+uint32_t   apo_custom_mode = 0;
+uint8_t    apo_system_status = 0;
 
 // Message # 1  SYS_STATUS 
 uint32_t   ap_onboard_control_sensors_health;  //Bitmap  0: error. Value of 0: error. Value of 1: healthy.
@@ -792,6 +815,10 @@ int16_t ap_vy;             // Ground Y Speed (Longitude, positive east), express
 int16_t ap_vz;             // Ground Z Speed (Altitude, positive down), expressed as m/s * 100
 uint16_t ap_gps_hdg;           // Vehicle heading (yaw angle) in degrees * 100, 0.0..359.99 degrees
 
+// Message #35 RC_CHANNELS_RAW
+uint8_t ap_rssi;
+uint8_t ap_rssi35;
+
 // Message #36 Servo_Output
 bool      ap_servo_flag = false;  // true when servo_output record received
 uint8_t   ap_port; 
@@ -844,7 +871,7 @@ uint8_t   ap_chcnt;
 uint16_t  ap_chan_raw[18];       // 16 + 2 channels, [0] thru [17] 
 
 //uint16_t ap_chan16_raw;        // Used for RSSI uS 1000=0%  2000=100%
-uint8_t  rssi;                   // Receive signal strength indicator, 0: 0%, 100: 100%, 255: invalid/unknown
+uint8_t  ap_rssi65;              // Receive signal strength indicator, 0: 0%, 100: 100%, 255: invalid/unknown
 
 // Message #74 VFR_HUD  
 float    ap_hud_air_spd;
@@ -855,7 +882,7 @@ float    ap_hud_bar_alt;
 float    ap_hud_climb;        
 
 // Message #109 RADIO_STATUS (Sik radio firmware)
-uint8_t ap_rssi;                // local signal strength
+uint8_t ap_rssi109;             // local signal strength
 uint8_t ap_remrssi;             // remote signal strength
 uint8_t ap_txbuf;               // how full the tx buffer is as a percentage
 uint8_t ap_noise;               // background noise level
@@ -1193,7 +1220,7 @@ void setup()  {
   // ************************* Setup WiFi ****************************  
   #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)) //  WiFi
 
-    pinMode(activateWiFiPin, INPUT_PULLUP);
+    pinMode(startWiFiPin, INPUT_PULLUP);
 
 
 
@@ -1303,12 +1330,12 @@ void setup()  {
   pinMode(BufStatusLed, OUTPUT); 
 
 }
-
+// *********************************************************************
 void loop() {            // For WiFi only
   
 #if (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)
 
-  uint8_t WiFiPinState = digitalRead(activateWiFiPin);
+  uint8_t WiFiPinState = digitalRead(startWiFiPin);
   if ((WiFiPinState == 0) && (!wifiSuGood)) {
     SetupWiFi();
     }
@@ -1356,7 +1383,7 @@ void main_loop() {
     }
   }
   
-  if ((rssiGood) && (millis() - rssi_millis > 800)) {
+  if (((rssiGood) || (RSSI_Source == 3)) && (millis() - rssi_millis > 800)) {
     #if defined Ground_Mode || defined Relay_Mode      // In Air_Mode the FrSky receiver provides rssi
       PackSensorTable(0xF101, 0);   // 0xF101 RSSI 
       rssi_millis = millis(); 
@@ -1391,12 +1418,12 @@ void main_loop() {
   }
   #endif 
 
-  if(millis()- fchb_millis > 2000) {  // Heartbeat to FC every 2 seconds
+  if(millis()- fchb_millis > 2000) {  // Mav2PT heartbeat to FC every 2 seconds
     fchb_millis=millis();
-    #if defined Mav_Debug_FC_Heartbeat
-      Debug.println("Sending hb to FC");  
+    #if defined Mav_Debug_Mav2PT_Heartbeat
+      Debug.println("Sending mav2pt hb to FC");  
     #endif    
-    Send_FC_Heartbeat();   // must have Teensy Tx connected to Taranis/FC rx  
+    Send_FC_Heartbeat();   // must have Mav2PT tx pin connected to Telem radio rx pin  
   }
 
   
@@ -1642,7 +1669,24 @@ void Read_From_GCS() {
 
    switch(G2Fmsg.msgid) {
        case MAVLINK_MSG_ID_HEARTBEAT:    // #0   
-         //   Debug.println("Mavlink up #0 Heartbeat ");           
+          gcs_type = mavlink_msg_heartbeat_get_type(&G2Fmsg); 
+          gcs_autopilot = mavlink_msg_heartbeat_get_autopilot(&G2Fmsg);
+          gcs_base_mode = mavlink_msg_heartbeat_get_base_mode(&G2Fmsg);
+          gcs_custom_mode = mavlink_msg_heartbeat_get_custom_mode(&G2Fmsg);
+          gcs_system_status = mavlink_msg_heartbeat_get_system_status(&G2Fmsg);
+          gcs_mavlink_version = mavlink_msg_heartbeat_get_mavlink_version(&G2Fmsg);
+  
+          #if defined Mav_Debug_All || defined Mav_Debug_GCS_Heartbeat
+            Debug.print("Mavlink up to FC: #0 Heartbeat: ");           
+            Debug.print("gcs_type="); Debug.print(ap_type);   
+            Debug.print("  gcs_autopilot="); Debug.print(ap_autopilot); 
+            Debug.print("  gcs_base_mode="); Debug.print(ap_base_mode); 
+            Debug.print(" gcs_custom_mode="); Debug.print(ap_custom_mode);
+            Debug.print("  gcs_system_status="); Debug.print(ap_system_status); 
+            Debug.print("  gcs_mavlink_version="); Debug.print(ap_mavlink_version);      
+            Debug.println();
+          #endif
+              
           break;
 
         default:
@@ -1832,7 +1876,7 @@ void DecodeOneMavFrame() {
           if ((ap_base_mode >> 7) && (!homGood)) 
             MarkHome();  // If motors armed for the first time, then mark this spot as home
                 
-          #if defined Mav_Debug_All || defined Mav_Debug_Heartbeat
+          #if defined Mav_Debug_All || defined Mav_Debug_FC_Heartbeat
             Debug.print("Mavlink in #0 Heartbeat: ");           
             Debug.print("ap_type="); Debug.print(ap_type);   
             Debug.print("  ap_autopilot="); Debug.print(ap_autopilot); 
@@ -2181,16 +2225,17 @@ void DecodeOneMavFrame() {
                 
           break;  
         case MAVLINK_MSG_ID_RC_CHANNELS_RAW:         // #35
-          if (!mavGood) break;   
+          if (!mavGood) break; 
+          ap_rssi35 = mavlink_msg_rc_channels_raw_get_rssi(&R2Gmsg);   
           #if (RSSI_Source == 1)
-            ap_rssi = mavlink_msg_rc_channels_raw_get_rssi(&R2Gmsg);      
             rssiGood=true;            //  We have received at least one rssi packet from air mavlink
-         
-            #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
-              Debug.print("Mavlink in #35 RC_Channels_Raw: ");                        
-              Debug.print("  Receive RSSI=");  Debug.println(ap_rssi/ 2.54); 
-            #endif  
-          #endif            
+            ap_rssi = ap_rssi35;
+          #endif  
+          #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
+            Debug.print("Mavlink in #35 RC_Channels_Raw: ");                        
+            Debug.print("  ap_rssi35=");  Debug.print(ap_rssi35/ 2.54); 
+            Debug.print("  rssiGood=");  Debug.println(rssiGood); 
+          #endif                    
           break;  
         case MAVLINK_MSG_ID_SERVO_OUTPUT_RAW :          // #36
           if (!mavGood) break; 
@@ -2334,7 +2379,7 @@ void DecodeOneMavFrame() {
           break;     
         case MAVLINK_MSG_ID_RC_CHANNELS:             // #65
           if (!mavGood) break; 
-          #if (RSSI_Source == 0)  // default
+
             ap_chcnt = mavlink_msg_rc_channels_get_chancount(&R2Gmsg);
             ap_chan_raw[0] = mavlink_msg_rc_channels_get_chan1_raw(&R2Gmsg);   
             ap_chan_raw[1] = mavlink_msg_rc_channels_get_chan2_raw(&R2Gmsg);
@@ -2354,10 +2399,12 @@ void DecodeOneMavFrame() {
             ap_chan_raw[15] = mavlink_msg_rc_channels_get_chan16_raw(&R2Gmsg);
             ap_chan_raw[16] = mavlink_msg_rc_channels_get_chan17_raw(&R2Gmsg);   
             ap_chan_raw[17] = mavlink_msg_rc_channels_get_chan18_raw(&R2Gmsg);
-            ap_rssi = mavlink_msg_rc_channels_get_rssi(&R2Gmsg);   // Receive RSSI 0: 0%, 254: 100%, 255: invalid/unknown     
-         
-            rssiGood=true;      //  We have received at least one rssi packet from air mavlink
-
+            ap_rssi65 = mavlink_msg_rc_channels_get_rssi(&R2Gmsg);   // Receive RSSI 0: 0%, 254: 100%, 255: invalid/unknown     
+            #if (RSSI_Source == 0)  // default 
+              ap_rssi = ap_rssi65;   
+              rssiGood=true;      //  We have received at least one rssi packet from air mavlink
+            #endif 
+             
             #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
               Debug.print("Mavlink in #65 RC_Channels: ");
               Debug.print("ap_chcnt="); Debug.print(ap_chcnt); 
@@ -2368,9 +2415,9 @@ void DecodeOneMavFrame() {
                 Debug.print("=");  
                 Debug.print(ap_chan_raw[i]);   
               }                         
-              Debug.print("  Receive RSSI=");  Debug.println(ap_rssi/ 2.54);        
-            #endif  
-          #endif               
+              Debug.print("  ap_rssi65=");  Debug.print(ap_rssi65/ 2.54);
+              Debug.print("  rssiGood=");  Debug.println(rssiGood);         
+            #endif             
           break;      
         case MAVLINK_MSG_ID_REQUEST_DATA_STREAM:     // #66 - OUTGOING TO UAV
           if (!mavGood) break;       
@@ -2405,28 +2452,31 @@ void DecodeOneMavFrame() {
           break; 
         case MAVLINK_MSG_ID_RADIO_STATUS:         // #109
           if (!mavGood) break;
-          #if (RSSI_Source == 2)  // #109 embedded in Mavlink for SiK firmware
-            ap_rssi = mavlink_msg_radio_status_get_rssi(&R2Gmsg);            // air signal strength
+
+            ap_rssi109 = mavlink_msg_radio_status_get_rssi(&R2Gmsg);            // air signal strength
             ap_remrssi = mavlink_msg_radio_status_get_remrssi(&R2Gmsg);      // remote signal strength
             ap_txbuf = mavlink_msg_radio_status_get_txbuf(&R2Gmsg);          // how full the tx buffer is as a percentage
             ap_noise = mavlink_msg_radio_status_get_noise(&R2Gmsg);          // remote background noise level
             ap_remnoise = mavlink_msg_radio_status_get_remnoise(&R2Gmsg);    // receive errors
             ap_rxerrors = mavlink_msg_radio_status_get_rxerrors(&R2Gmsg);    // count of error corrected packets
             ap_fixed = mavlink_msg_radio_status_get_fixed(&R2Gmsg);   
-
-            rssiGood=true;                                         //  We have received at least one rssi packet from air mavlink
-        
+            #if (RSSI_Source == 2)  // #109 embedded in Mavlink for SiK firmware
+              ap_rssi = ap_rssi109;
+              rssiGood=true;                                         //  We have received at least one rssi packet from air mavlink
+            #endif  
+            
             #if defined Mav_Debug_All || defined Debug_Radio_Status || defined Debug_Rssi
               Debug.print("Mavlink in #109 Radio: "); 
-              Debug.print("rssi="); Debug.print(ap_rssi);
+              Debug.print("ap_rssi109="); Debug.print(ap_rssi109);
               Debug.print("  remrssi="); Debug.print(ap_remrssi);
               Debug.print("  txbuf="); Debug.print(ap_txbuf);
               Debug.print("  noise="); Debug.print(ap_noise); 
               Debug.print("  remnoise="); Debug.print(ap_remnoise);
               Debug.print("  rxerrors="); Debug.print(ap_rxerrors);
-              Debug.print("  fixed="); Debug.println(ap_fixed);                                
+              Debug.print("  fixed="); Debug.print(ap_fixed);  
+              Debug.print("  rssiGood=");  Debug.println(rssiGood);                                
             #endif 
-          #endif
+
           break;     
            
         case MAVLINK_MSG_ID_SCALED_IMU2:       // #116   https://mavlink.io/en/messages/common.html
@@ -2581,13 +2631,16 @@ void MarkHome()  {
 //***************************************************
 void Send_FC_Heartbeat() {
   
-  apo_sysid = 20;                           // ID 20 for this aircraft
-  apo_compid = 1;                           //  autopilot1
+  apo_sysid = 20;                                // ID 20 for this aircraft
+  apo_compid = 1;                                //  autopilot1
 
-  apo_type = MAV_TYPE_GCS;                  // = 6 Pretend to be a GCS
-  apo_autopilot = MAV_AUTOPILOT_GENERIC;
-  
-  mavlink_msg_heartbeat_pack(apo_sysid, apo_compid, &G2Fmsg, apo_type, apo_autopilot, 0, 0, 0);
+  apo_type = MAV_TYPE_GCS;                       // 6 Pretend to be a GCS
+  apo_autopilot = MAV_AUTOPILOT_ARDUPILOTMEGA;   // 3 AP Mega
+  apo_base_mode = 0;
+  apo_system_status = MAV_STATE_ACTIVE;         // 4
+   
+  mavlink_msg_heartbeat_pack(apo_sysid, apo_compid, &G2Fmsg, apo_type, apo_autopilot, apo_base_mode, apo_system_status, 0);
+  GCS_available = true;  
   Write_To_FC(); 
 }
 //***************************************************
@@ -2597,6 +2650,7 @@ void Send_FC_Heartbeat() {
 
   mavlink_msg_param_request_read_pack(ap_sysid, ap_compid, &G2Fmsg,
                    ap_targsys, ap_targcomp, ap_param_id, param_index);
+  GCS_available = true;                  
   Write_To_FC();             
  }
 
@@ -2608,6 +2662,7 @@ void Send_FC_Heartbeat() {
   
   mavlink_msg_param_request_list_pack(ap_sysid,  ap_compid, &G2Fmsg,
                     ap_targsys,  ap_targcomp);
+  GCS_available = true;                
   Write_To_FC();
                     
  }
@@ -2622,6 +2677,7 @@ void RequestMission(uint16_t ms_seq) {    //  #40
   
   mavlink_msg_mission_request_pack(ap_sysid, ap_compid, &G2Fmsg,
                                ap_targsys, ap_targcomp, ms_seq, ap_mission_type);
+  GCS_available = true;
   Write_To_FC();
   #if defined Mav_Debug_All || defined Mav_Debug_Mission
     Debug.print("Mavlink out #40 Request Mission:  ms_seq="); Debug.println(ms_seq);
@@ -2640,6 +2696,7 @@ void RequestMissionList() {   // #43   get back #44 Mission_Count
   
   mavlink_msg_mission_request_list_pack(ap_sysid, ap_compid, &G2Fmsg,
                                ap_targsys, ap_targcomp, ap_mission_type);
+  GCS_available = true;                              
   Write_To_FC();
   #if defined Mav_Debug_All || defined Mav_Debug_Mission
     Debug.println("Mavlink out #43 Request Mission List (count)");
@@ -2681,9 +2738,8 @@ void RequestDataStreams() {    //  REQUEST_DATA_STREAM ( #66 ) DEPRECATED. USE S
     mavlink_msg_request_data_stream_pack(ap_sysid, ap_compid, &msg,
         ap_targsys, ap_targcomp, mavStreams[i], mavRates[i], 1);    // start_stop 1 to start sending, 0 to stop sending   
   
-    len = mavlink_msg_to_send_buffer(FCbuf, &msg);
-    mvSerialFC.write(FCbuf,len);
-    delay(10);
+  GCS_available = true;                              
+  Write_To_FC();
     }
  // Debug.println("Mavlink out #66 Request Data Streams:");
 }
@@ -3331,10 +3387,17 @@ void OpenSDForWrite() {
     sdStatus = 3;      
 }
 #endif
-
+// *********************************************************************
 void SenseWiFiPin() {
  #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)) //  WiFi
-  WiFiPinState = digitalRead(activateWiFiPin);
+   #if defined WiFi_Start
+    if (!wifiSuGood) {
+      SetupWiFi();
+    }
+
+    return;
+  #endif
+  WiFiPinState = digitalRead(startWiFiPin);
   if ((WiFiPinState == 0) && (!wifiSuGood)) {
     SetupWiFi();
     }
