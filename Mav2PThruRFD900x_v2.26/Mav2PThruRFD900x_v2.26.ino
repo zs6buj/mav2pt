@@ -109,7 +109,7 @@
   ***************************************************************************************************************** 
 
 
-  Connections to ESP32 Dev Board are: 
+Connections to ESP32 Dev Board are: 
    0) USB           UART0                   Flashing and serial monitor for debug
    1) SPort S       UART1   <--rx1 Pin 12   Already inverted, S.Port in from single-wire combiner from XSR or Taranis bay, bottom pin
    2)               UART1   -->tx1 Pin 14   Already inverted, S.Port out to single-wire combiner to XSR or Taranis bay, bottom pin             
@@ -118,9 +118,17 @@
    5) MavStatusLed                 Pin 02   BoardLed   
    6) BufStatusLed                 Pin 13   Buffer overflow indication 
    7) startWiFiPin                 Pin 15   Optional - Ground to start WiFi of see #defined option      
-   8) SDA                          Pin 21   For optional OLED Display 
-   9) SCL                          Pin 22   For optional OLED Display 
-  10) GND
+   
+   8) I2C/SDA                      Pin 21   For optional OLED Display 
+   9) I2C/SCL                      Pin 22   For optional OLED Display 
+   
+  10) SPI/CS                       Pin 05   For optional TF/SD Card Adapter
+  11) SPI/MOSI                     Pin 23   For optional TF/SD Card Adapter
+  12) SPI/MISO                     Pin 19   For optional TF/SD Card Adapter
+  13) SPI/SCK                      Pin 18   For optional TF/SD Card Adapter  
+  
+  14) Vcc 3.3V !
+  15) GND
   
     
    Connections to Teensy3.2 are:
