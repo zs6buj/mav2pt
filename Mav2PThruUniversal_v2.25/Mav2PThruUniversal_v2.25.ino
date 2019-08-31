@@ -116,10 +116,10 @@
    3) Mavlink       UART2   <--rx2 Pin 16   Mavlink source to ESP32 - FC_Mav_rxPin
    4)               UART2   -->tx2 Pin 17   Mavlink source from ESP32 
    5) MavStatusLed                 Pin 02   BoardLed   
-   6) BufStatusLed                 Pin 13   Buffer oversflow indication       
-   7) SDA                          Pin 21   For optional OLED Display 
-   7) startWiFiPin                 Pin 15   Optional - Ground to start WiFi of see #defined option
-   8) SCL                          Pin 22   For optional OLED Display 
+   6) BufStatusLed                 Pin 13   Buffer overflow indication 
+   7) startWiFiPin                 Pin 15   Optional - Ground to start WiFi of see #defined option      
+   8) SDA                          Pin 21   For optional OLED Display 
+   9) SCL                          Pin 22   For optional OLED Display 
   10) GND
   
     
@@ -301,7 +301,7 @@ const uint16_t bat2_capacity = 0;
 //  sending 3 times, but if status_text gets distorted, un-comment this line
 //#define Send_Status_Text_3_Times
 //#define Send_Sensor_Health_Messages
-
+//#define AutoBaud                    // Auto detect telemetry baud - takes a few seconds
 
 // ****************************** Set your time zone here ******************************************
 // Date and time determines the TLog file name
@@ -1306,7 +1306,9 @@ void setup()  {
   FrSkySPort_Init();
 
   #if (FC_Mavlink_IO == 0)    //  Serial
-    mvBaudFC = GetBaud(FC_Mav_rxPin);
+    #if defined AutoBaud
+      mvBaudFC = GetBaud(FC_Mav_rxPin);
+    #endif  
     mvSerialFC.begin(mvBaudFC);
  //   mvSerialFC.begin(mvBaudFC, SERIAL_8N1, 9, 10);  //  rx=9   tx=10
   #endif
@@ -1397,7 +1399,7 @@ void main_loop() {
   }
 
   
-  Read_From_GCS();
+  Read_From_GCS_and_Decode();
   
   Write_To_FC();                            
   
@@ -1599,7 +1601,7 @@ void RB_To_Decode_To_SPort_and_GCS() {
   #endif   
 }  
 //********************************************************************************
-void Read_From_GCS() {
+void Read_From_GCS_and_Decode() {
  #if (GCS_Mavlink_IO == 0) // Serial 
  
   mavlink_status_t status;
@@ -1692,7 +1694,7 @@ void Read_From_GCS() {
 
         default:
           if (!mavGood) break;
-          #ifdef Degug_All  
+          #if defined Debug_All || Debug_GCS_Up
             Debug.print("Mavlink up to FC: ");
             Debug.print("Unknown Message ID #");
             Debug.print(G2Fmsg.msgid);

@@ -116,10 +116,10 @@
    3) Mavlink       UART2   <--rx2 Pin 16   Mavlink source to ESP32 - FC_Mav_rxPin
    4)               UART2   -->tx2 Pin 17   Mavlink source from ESP32 
    5) MavStatusLed                 Pin 02   BoardLed   
-   6) BufStatusLed                 Pin 13   Buffer oversflow indication       
-   7) SDA                          Pin 21   For optional OLED Display 
-   7) startWiFiPin                 Pin 15   Optional - Ground to start WiFi of see #defined option
-   8) SCL                          Pin 22   For optional OLED Display 
+   6) BufStatusLed                 Pin 13   Buffer overflow indication 
+   7) startWiFiPin                 Pin 15   Optional - Ground to start WiFi of see #defined option      
+   8) SDA                          Pin 21   For optional OLED Display 
+   9) SCL                          Pin 22   For optional OLED Display 
   10) GND
   
     
@@ -199,7 +199,9 @@ v2.22 2019-08-10 Make sensor health messages optional for now. Fix end-of-sensor
 v2.23 2019-08-21 Add support for RFD900x long-range telemetry modems, specifically RSSI  
 v2.24 2019-08-23 Workaround for Esp32 library "wifi: Set status to INIT" bug
                  Improve responsiveness to baud detect with no telemetry present.    
-v2.25 2019-08-28 Version for RFD900x. Bug fixes on rssi.     
+v2.25 2019-08-28 Version for RFD900x. Bug fixes on rssi. Include #define StartWiFi option to 
+                 override startWiFi Pin.  
+v2.26 2019-08-31 Improved GCS to FC debugging. Make baud rate sensing optional. 
 */
 
 #undef F                         // F defined in c_library_v2\mavlink_sha256.h AND teensy3/WString.h
@@ -211,6 +213,56 @@ v2.25 2019-08-28 Version for RFD900x. Bug fixes on rssi.
 
 using namespace std;
 
+// Debugging options below ***************************************************************************************
+//#define Mav_Debug_All
+//#define Frs_Debug_All
+//#define Frs_Debug_Period
+//#define Frs_Debug_Payload
+//#define Mav_Debug_RingBuff
+//#define Debug_Air_Mode
+//#define Mav_List_Params
+//#define Debug_BT
+//#define Debug_FC             // traffic down from FC to Ring Buffer
+//#define Debug_GCS_Down       // traffic from RB to GCS
+//#define Debug_GCS_Up         // traffic up from GCS to FC
+//#define Mav_Debug_Params
+//#define Mav_Debug_Servo
+//#define Frs_Debug_Servo
+//#define Debug_Rssi
+//#define Mav_Debug_RC
+//#define Frs_Debug_RC
+//#define Mav_Debug_FC_Heartbeat
+//#define Mav_Debug_GCS_Heartbeat
+//#define Mav_Debug_Mav2PT_Heartbeat
+//#define Frs_Debug_Params
+//#define Frs_Debug_APStatus
+//#define Mav_Debug_SysStatus
+//#define Debug_Batteries
+//#define Frs_Debug_Home
+//#define Mav_Debug_GPS_Raw     // #24
+//#define Mav_Debug_GPS_Int     // #33
+//#define Frs_Debug_LatLon
+//#define Frs_Debug_YelYaw
+//#define Frs_Debug_GPS_Status
+//#define Mav_Debug_Raw_IMU
+//#define Mav_Debug_Hud
+//#define Frs_Debug_Hud
+//#define Mav_Debug_Scaled_Pressure
+//#define Mav_Debug_Attitude
+//#define Frs_Debug_Attitude
+//#define Mav_Debug_StatusText
+//#define Frs_Debug_Status_Text    
+///#define Mav_Debug_Mission 
+//#define Frs_Debug_Mission   
+//#define Debug_SD    
+//#define Mav_Debug_System_Time   
+//#define Frs_Debug_Scheduler - this debugger affects the performance of the scheduler when activated
+//#define Decode_Non_Essential_Mav 
+//#define Debug_Baud 
+//#define Debug_Radio_Status  
+//#define Debug_Mission_Request_Int 
+//#define Debug_GCS_Unknown
+//*****************************************************************************************************************
 // ******************************************* Auto Determine Target Board *****************************************
 //
 //                Don't change anything here
@@ -263,20 +315,20 @@ using namespace std;
 //#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 only
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 only
 
 
 //#define GCS_Mavlink_SD      // SD Card  - for ESP32 only
 
 
-#define WiFi_Start         // Start WiFi  at startup regardless of startWiFi Pin
+//#define Start_WiFi         // Start WiFi at startup, override startWiFi Pin
 
 
-// Choose one - for ESP32 only
+// Choose one protocol - for ESP32 only
 //#define WiFi_Protocol 1    // TCP/IP
 #define WiFi_Protocol 2    // UDP     useful for Ez-WiFiBroadcast in STA mode
 
-// Choose one - AP means advertise as an access point (hotspot). STA means connect to a known host
+// Choose one mode - AP means advertise as an access point (hotspot). STA means connect to a known host
 #define WiFi_Mode   1  //AP            
 //#define WiFi_Mode   2  // STA
 
@@ -289,9 +341,9 @@ const uint16_t bat2_capacity = 0;
 
 #define SPort_Serial        1         // The default is Serial 1, but 3 is possible 
 
-//#define RSSI_Source         0         // default FrSky receiver
+#define RSSI_Source         0         // default FrSky receiver
 //#define RSSI_Source         1         // designated RC PWM channel - ULRS, QLRS....
-#define RSSI_Source         2         // frame #109 injected by SiK radio firmware into Mavlink stream - RFD900
+//#define RSSI_Source         2         // frame #109 injected by SiK radio firmware into Mavlink stream - RFD900
 //#define RSSI_Source         3         // Dummy RSSI - fixed at 70%
 
 // Status_Text messages place a huge burden on the meagre 4 byte FrSky telemetry payload bandwith
@@ -300,7 +352,7 @@ const uint16_t bat2_capacity = 0;
 //  sending 3 times, but if status_text gets distorted, un-comment this line
 //#define Send_Status_Text_3_Times
 //#define Send_Sensor_Health_Messages
-
+//#define AutoBaud                    // Auto detect telemetry baud - takes a few seconds
 
 // ****************************** Set your time zone here ******************************************
 // Date and time determines the TLog file name
@@ -524,7 +576,7 @@ static DateTime_t dt_tm;
 #define Debug               Serial         // USB 
 #define frBaud              57600          // Use 57600
 #define mvSerialFC          Serial2        
-uint16_t mvBaudFC     =     57600;   
+uint16_t mvBaudFC     =     57600;         // Default    
 
 #if (Target_Board == 0)      //  Teensy 3.1
  #if (SPort_Serial == 1) 
@@ -560,54 +612,7 @@ uint16_t mvBaudFC     =     57600;
 //#define Data_Streams_Enabled // Rather set SRn in Mission Planner
 #define Max_Waypoints  256     // Note. This is a global RAM trade-off. If exceeded then Debug message and shut down
 
-// Debugging options below ***************************************************************************************
-//#define Mav_Debug_All
-//#define Frs_Debug_All
-//#define Frs_Debug_Period
-//#define Frs_Debug_Payload
-//#define Mav_Debug_RingBuff
-//#define Debug_Air_Mode
-//#define Mav_List_Params
-//#define Debug_BT
-//#define Debug_FC             // traffic down from FC to Ring Buffer
-//#define Debug_GCS_Down       // traffic from RB to GCS
-//#define Debug_GCS_Up         // traffic up from GCS to FC
-//#define Mav_Debug_Params
-//#define Mav_Debug_Servo
-//#define Frs_Debug_Servo
-//#define Debug_Rssi
-//#define Mav_Debug_RC
-//#define Frs_Debug_RC
-//#define Mav_Debug_FC_Heartbeat
-//#define Mav_Debug_GCS_Heartbeat
-//#define Mav_Debug_Mav2PT_Heartbeat
-//#define Frs_Debug_Params
-//#define Frs_Debug_APStatus
-//#define Mav_Debug_SysStatus
-//#define Debug_Batteries
-//#define Frs_Debug_Home
-//#define Mav_Debug_GPS_Raw     // #24
-//#define Mav_Debug_GPS_Int     // #33
-//#define Frs_Debug_LatLon
-//#define Frs_Debug_YelYaw
-//#define Frs_Debug_GPS_Status
-//#define Mav_Debug_Raw_IMU
-//#define Mav_Debug_Hud
-//#define Frs_Debug_Hud
-//#define Mav_Debug_Scaled_Pressure
-//#define Mav_Debug_Attitude
-//#define Frs_Debug_Attitude
-//#define Mav_Debug_StatusText
-//#define Frs_Debug_Status_Text    
-//#define Mav_Debug_Mission 
-//#define Frs_Debug_Mission   
-//#define Debug_SD    
-//#define Mav_Debug_System_Time   
-//#define Frs_Debug_Scheduler - this debugger detrimentally affects the performance of the scheduler
-//#define Decode_Non_Essential_Mav 
-//#define Debug_Baud 
-//#define Debug_Radio_Status   
-//*****************************************************************************************************************
+
 
 uint8_t   MavLedState = LOW; 
 uint8_t   BufLedState = LOW; 
@@ -689,8 +694,8 @@ struct Battery bat2     = {
 mavlink_message_t   F2Rmsg, R2Gmsg, G2Fmsg;
 
 
-uint8_t             FCbuf [MAVLINK_MAX_PACKET_LEN+18];
-uint8_t             GCSbuf[MAVLINK_MAX_PACKET_LEN+18];  // 8 plus some head room
+uint8_t             FCbuf[MAVLINK_MAX_PACKET_LEN];
+uint8_t             GCSbuf[MAVLINK_MAX_PACKET_LEN]; 
 
 bool                GCS_available = false;
 uint16_t            len;
@@ -701,7 +706,7 @@ uint16_t            len;
 uint8_t    ap_sysid;
 uint8_t    ap_compid;
 uint8_t    ap_targcomp;
-uint8_t    ap_mission_type;              // Mav2
+
 uint8_t    mvType;
 
 // Message #0  HEARTHBEAT 
@@ -837,9 +842,11 @@ float     ap_ms_param4;         // PARAM4, see MAV_CMD enum
 float     ap_ms_x;              // PARAM5 / local: X coordinate, global: latitude
 float     ap_ms_y;              // PARAM6 / local: Y coordinate, global: longitude
 float     ap_ms_z;              // PARAM7 / local: Z coordinate, global: altitude (relative or absolute, depending on frame).
+uint8_t   ap_mission_type;      // MAV_MISSION_TYPE - Mavlink 2
 
 // Message #40 Mission_Request
 //  Generic Mavlink Header defined above
+//uint8_t   ap_mission_type;  
 
 // Message #42 Mission_Current
 //  Generic Mavlink Header defined above
@@ -853,6 +860,13 @@ bool ap_ms_list_req = false;
 //  Generic Mavlink Header defined above
 uint8_t   ap_mission_count = 0;
 bool      ap_ms_count_ft = true;
+
+// Message #51 Mission_Request_Int    From GCS to FC - Request info on mission seq #
+
+uint8_t    gcs_target_system;    // System ID
+uint8_t    gcs_target_component; // Component ID
+uint16_t   gcs_seq;              // Sequence #
+uint8_t    gcs_mission_type;      
 
 // Message #62 Nav_Controller_Output
 float     ap_nav_roll;           // Current desired roll
@@ -1304,9 +1318,11 @@ void setup()  {
   FrSkySPort_Init();
 
   #if (FC_Mavlink_IO == 0)    //  Serial
-    mvBaudFC = GetBaud(FC_Mav_rxPin);
+    #if defined AutoBaud
+      mvBaudFC = GetBaud(FC_Mav_rxPin);
+    #endif  
     mvSerialFC.begin(mvBaudFC);
- //   mvSerialFC.begin(mvBaudFC, SERIAL_8N1, 9, 10);  //  rx=9   tx=10
+  //  mvSerialFC.begin(mvBaudFC, SERIAL_8N1, 16, 17, 35, 32); //  rx=16   tx=17  cts  rts
   #endif
   
   #if (GCS_Mavlink_IO == 0)   //  Serial
@@ -1395,7 +1411,7 @@ void main_loop() {
   }
 
   
-  Read_From_GCS();
+  Read_From_GCS_and_Decode();
   
   Write_To_FC();                            
   
@@ -1597,7 +1613,7 @@ void RB_To_Decode_To_SPort_and_GCS() {
   #endif   
 }  
 //********************************************************************************
-void Read_From_GCS() {
+void Read_From_GCS_and_Decode() {
  #if (GCS_Mavlink_IO == 0) // Serial 
  
   mavlink_status_t status;
@@ -1656,7 +1672,8 @@ void Read_From_GCS() {
           if(mavlink_parse_char(MAVLINK_COMM_0, c, &G2Fmsg, &status)) {
             GCS_available = true;  // Record waiting 
             #ifdef  Debug_GCS_Up
-              Debug.println("Passed up from GCS UDP WiFi to G2Fmsg:");
+            Debug.print(len);
+              Debug.println(" bytes passed up from GCS UDP WiFi to G2Fmsg:");
               PrintMavBuffer(&G2Fmsg);
             #endif 
             }                                     
@@ -1668,14 +1685,15 @@ void Read_From_GCS() {
 
    switch(G2Fmsg.msgid) {
        case MAVLINK_MSG_ID_HEARTBEAT:    // #0   
-          gcs_type = mavlink_msg_heartbeat_get_type(&G2Fmsg); 
-          gcs_autopilot = mavlink_msg_heartbeat_get_autopilot(&G2Fmsg);
-          gcs_base_mode = mavlink_msg_heartbeat_get_base_mode(&G2Fmsg);
-          gcs_custom_mode = mavlink_msg_heartbeat_get_custom_mode(&G2Fmsg);
-          gcs_system_status = mavlink_msg_heartbeat_get_system_status(&G2Fmsg);
-          gcs_mavlink_version = mavlink_msg_heartbeat_get_mavlink_version(&G2Fmsg);
+          #if defined Mav_Debug_All || defined Debug_GCS_Up || defined Mav_Debug_GCS_Heartbeat
+            gcs_type = mavlink_msg_heartbeat_get_type(&G2Fmsg); 
+            gcs_autopilot = mavlink_msg_heartbeat_get_autopilot(&G2Fmsg);
+            gcs_base_mode = mavlink_msg_heartbeat_get_base_mode(&G2Fmsg);
+            gcs_custom_mode = mavlink_msg_heartbeat_get_custom_mode(&G2Fmsg);
+            gcs_system_status = mavlink_msg_heartbeat_get_system_status(&G2Fmsg);
+            gcs_mavlink_version = mavlink_msg_heartbeat_get_mavlink_version(&G2Fmsg);
   
-          #if defined Mav_Debug_All || defined Mav_Debug_GCS_Heartbeat
+
             Debug.print("Mavlink up to FC: #0 Heartbeat: ");           
             Debug.print("gcs_type="); Debug.print(ap_type);   
             Debug.print("  gcs_autopilot="); Debug.print(ap_autopilot); 
@@ -1687,10 +1705,24 @@ void Read_From_GCS() {
           #endif
               
           break;
+        case MAVLINK_MSG_ID_MISSION_REQUEST_INT:  // #51 
+          #if defined Mav_Debug_All || defined Debug_GCS_Up || defined Debug_Mission_Request_Int 
+            gcs_target_system = mavlink_msg_mission_request_int_get_target_system(&G2Fmsg);
+            gcs_target_component = mavlink_msg_mission_request_int_get_target_component(&G2Fmsg);
+            gcs_seq = mavlink_msg_mission_request_int_get_seq(&G2Fmsg); 
+            gcs_mission_type = mavlink_msg_mission_request_int_get_seq(&G2Fmsg);                     
 
+            Debug.print("Mavlink up to FC: #51 Mission_Request_Int: ");           
+            Debug.print("gcs_target_system="); Debug.print(gcs_target_system);   
+            Debug.print("  gcs_target_component="); Debug.print(gcs_target_component);          
+            Debug.print("  gcs_seq="); Debug.print(gcs_seq);    
+            Debug.print("  gcs_mission_type="); Debug.print(gcs_mission_type);    // Mav2
+            Debug.println();
+          #endif
+          break;
         default:
           if (!mavGood) break;
-          #ifdef Degug_All  
+          #ifdef Debug_All || Debug_GCS_Up || Debug_GCS_Unknown
             Debug.print("Mavlink up to FC: ");
             Debug.print("Unknown Message ID #");
             Debug.print(G2Fmsg.msgid);
@@ -2292,6 +2324,7 @@ void DecodeOneMavFrame() {
             ap_ms_x = mavlink_msg_mission_item_get_x(&R2Gmsg);                        // PARAM5 / local: X coordinate, global: latitude
             ap_ms_y = mavlink_msg_mission_item_get_y(&R2Gmsg);                        // PARAM6 / local: Y coordinate, global: longitude
             ap_ms_z = mavlink_msg_mission_item_get_z(&R2Gmsg);                        // PARAM7 / local: Z coordinate, global: altitude (relative or absolute, depending on frame).
+            ap_mission_type = mavlink_msg_mission_item_get_z(&R2Gmsg);                // MAV_MISSION_TYPE
                      
             #if defined Mav_Debug_All || defined Mav_Debug_Mission
               Debug.print("Mavlink in #39 Mission Item: ");
@@ -2307,6 +2340,7 @@ void DecodeOneMavFrame() {
               Debug.print(" ap_ms_x="); Debug.print(ap_ms_x, 7);   
               Debug.print(" ap_ms_y="); Debug.print(ap_ms_y, 7);   
               Debug.print(" ap_ms_z="); Debug.print(ap_ms_z,0); 
+              Debug.print(" ap_mission_type="); Debug.print(ap_mission_type); 
               Debug.println();    
             #endif
             
@@ -3389,7 +3423,7 @@ void OpenSDForWrite() {
 // *********************************************************************
 void SenseWiFiPin() {
  #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)) //  WiFi
-   #if defined WiFi_Start
+   #if defined Start_WiFi
     if (!wifiSuGood) {
       SetupWiFi();
     }
