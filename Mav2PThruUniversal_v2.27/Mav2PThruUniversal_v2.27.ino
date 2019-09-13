@@ -1,6 +1,6 @@
   /*  *****************************************************************************
 
-    Mav2Passthru 
+    Mav2Passthru (Mav2PT)
  
     This application is free software. You may redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -12,10 +12,11 @@
     
     *****************************************************************************
 
-    Inspired by original S.Port firmware by Rolf Blomgren
-
     Author: Eric Stockenstrom
-
+    
+        
+    Inspired by original S.Port firmware by Rolf Blomgren
+    
     Acknowledgements and thanks to Craft and Theory (http://www.craftandtheoryllc.com/) for
     the Mavlink / Frsky Passthru protocol
 
@@ -109,12 +110,12 @@
   ***************************************************************************************************************** 
 
 
-Connections to ESP32 Dev Board are: 
+  Connections to ESP32 Dev Board are: 
    0) USB           UART0                   Flashing and serial monitor for debug
    1) SPort S       UART1   <--rx1 Pin 12   Already inverted, S.Port in from single-wire combiner from XSR or Taranis bay, bottom pin
    2)               UART1   -->tx1 Pin 14   Already inverted, S.Port out to single-wire combiner to XSR or Taranis bay, bottom pin             
-   3) Mavlink       UART2   <--rx2 Pin 16   Mavlink source to ESP32 - FC_Mav_rxPin
-   4)               UART2   -->tx2 Pin 17   Mavlink source from ESP32 
+   3) Mavlink       UART2   <--rx2 Pin 16   Mavlink source to ESP32 - FC_Mav_rxPin     // Mini32 = 26
+   4)               UART2   -->tx2 Pin 17   Mavlink source from ESP32                  // Mini32 = 27
    5) MavStatusLed                 Pin 02   BoardLed   
    6) BufStatusLed                 Pin 13   Buffer overflow indication 
    7) startWiFiPin                 Pin 15   Optional - Ground to start WiFi of see #defined option      
@@ -208,8 +209,9 @@ v2.23 2019-08-21 Add support for RFD900x long-range telemetry modems, specifical
 v2.24 2019-08-23 Workaround for Esp32 library "wifi: Set status to INIT" bug
                  Improve responsiveness to baud detect with no telemetry present.    
 v2.25 2019-08-28 Version for RFD900x. Bug fixes on rssi. Include #define StartWiFi option to 
-                 override startWiFi Pin.     
-v2.26 2019-08-31 Improved GCS to FC debugging. Make baud rate sensing optional.
+                 override startWiFi Pin.  
+v2.26 2019-08-31 Improved GCS to FC debugging. Make baud rate sensing optional. 
+v2.27 2019-09-13 Small additions to test LILYGO®_TTGO_MINI32_ESP32-WROVER_B
 */
 
 #undef F                         // F defined in c_library_v2\mavlink_sha256.h AND teensy3/WString.h
@@ -228,8 +230,8 @@ using namespace std;
 //#define Frs_Debug_Payload
 //#define Mav_Debug_RingBuff
 //#define Debug_Air_Mode
-//#define Mav_List_Params
-//#define Debug_BT
+//#define Mav_List_Params      // Use this to test uplink to Flight Controller 
+//#define Debug_BT    
 //#define Debug_FC             // traffic down from FC to Ring Buffer
 //#define Debug_GCS_Down       // traffic from RB to GCS
 //#define Debug_GCS_Up         // traffic up from GCS to FC
@@ -323,20 +325,20 @@ using namespace std;
 //#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 only
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 only
 
 
 //#define GCS_Mavlink_SD      // SD Card  - for ESP32 only
 
 
-#define Start_WiFi         // Start WiFi at startup, override startWiFi Pin
+//#define Start_WiFi         // Start WiFi at startup, override startWiFi Pin
 
 
-// Choose one - for ESP32 only
+// Choose one protocol - for ESP32 only
 //#define WiFi_Protocol 1    // TCP/IP
 #define WiFi_Protocol 2    // UDP     useful for Ez-WiFiBroadcast in STA mode
 
-// Choose one - AP means advertise as an access point (hotspot). STA means connect to a known host
+// Choose one mode - AP means advertise as an access point (hotspot). STA means connect to a known host
 #define WiFi_Mode   1  //AP            
 //#define WiFi_Mode   2  // STA
 
@@ -349,9 +351,9 @@ const uint16_t bat2_capacity = 0;
 
 #define SPort_Serial        1         // The default is Serial 1, but 3 is possible 
 
-//#define RSSI_Source         0         // default FrSky receiver
+#define RSSI_Source         0         // default FrSky receiver
 //#define RSSI_Source         1         // designated RC PWM channel - ULRS, QLRS....
-#define RSSI_Source         2         // frame #109 injected by SiK radio firmware into Mavlink stream - RFD900
+//#define RSSI_Source         2         // frame #109 injected by SiK radio firmware into Mavlink stream - RFD900
 //#define RSSI_Source         3         // Dummy RSSI - fixed at 70%
 
 // Status_Text messages place a huge burden on the meagre 4 byte FrSky telemetry payload bandwith
@@ -360,7 +362,7 @@ const uint16_t bat2_capacity = 0;
 //  sending 3 times, but if status_text gets distorted, un-comment this line
 //#define Send_Status_Text_3_Times
 //#define Send_Sensor_Health_Messages
-//#define AutoBaud                    // Auto detect telemetry baud - takes a few seconds
+#define AutoBaud                    // Auto detect telemetry baud - takes a few seconds
 
 // ****************************** Set your time zone here ******************************************
 // Date and time determines the TLog file name
@@ -428,7 +430,7 @@ bool daylightSaving = false;
       #endif
     #endif
 
-//#define Request_Missions_From_FC    // Un-comment if you need mission waypoints from FC - NOT NECESSARY RIGHT NOW
+//#define Request_Missions_From_FC    // Un-comment if you need mission waypoint from FC - NOT NECESSARY RIGHT NOW
 
 
 //********************************************* LEDS, OLED SSD1306, rx pin **************************************
@@ -447,9 +449,10 @@ bool daylightSaving = false;
   #define BufStatusLed  34 
   #define FC_Mav_rxPin  8         // PA3   
 #elif (Target_Board == 3)         // ESP32 Dev Module V2
-  #define MavStatusLed  02        // Dev Module=02, TTGO OLED Battery board = 16 
+  #define MavStatusLed  02        // Dev Board=02, TTGO OLED Battery board = 16, LilyGo Mini32 = No Onboard LED
   #define BufStatusLed  13          
-  #define FC_Mav_rxPin  16            
+  #define FC_Mav_rxPin  26        // Dev Board = 16, LilyGo Mini32 WROVER_B Dev4 = 26
+  #define FC_Mav_txPin  27        // Dev Board = 17, LilyGo Mini32 WROVER_B Dev4 = 27            
   #include <SPI.h>
   #include <Wire.h>
   #include <Adafruit_SSD1306.h>  //#define SSD1306_128_64 ///< DEPRECATED: old way to specify 128x64 screen
@@ -1329,8 +1332,8 @@ void setup()  {
     #if defined AutoBaud
       mvBaudFC = GetBaud(FC_Mav_rxPin);
     #endif  
-    mvSerialFC.begin(mvBaudFC);
-  //  mvSerialFC.begin(mvBaudFC, SERIAL_8N1, 16, 17, 35, 32); //  rx=16   tx=17  cts  rts
+  //  mvSerialFC.begin(mvBaudFC);
+    mvSerialFC.begin(mvBaudFC, SERIAL_8N1, FC_Mav_rxPin, FC_Mav_txPin);   //16/17  or 26/27 or 35/32 //  rx/tx  cts  rts
   #endif
   
   #if (GCS_Mavlink_IO == 0)   //  Serial
@@ -2105,7 +2108,7 @@ void DecodeOneMavFrame() {
               break;
           } 
              
-          #if defined Mav_Debug_All || defined Mav_Debug_Params
+          #if defined Mav_Debug_All || defined Mav_Debug_Params || defined Mav_List_Params
             Debug.print("Mavlink in #22 Param_Value: ");
             Debug.print("param_id=");
             Debug.print(ap_param_id);

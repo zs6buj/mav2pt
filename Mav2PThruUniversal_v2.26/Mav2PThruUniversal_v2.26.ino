@@ -1329,8 +1329,8 @@ void setup()  {
     #if defined AutoBaud
       mvBaudFC = GetBaud(FC_Mav_rxPin);
     #endif  
-    mvSerialFC.begin(mvBaudFC);
-  //  mvSerialFC.begin(mvBaudFC, SERIAL_8N1, 16, 17, 35, 32); //  rx=16   tx=17  cts  rts
+  //  mvSerialFC.begin(mvBaudFC);
+    mvSerialFC.begin(mvBaudFC, SERIAL_8N1, 16, 17);   //16, 17, 35, 32); //  rx=16   tx=17  cts  rts
   #endif
   
   #if (GCS_Mavlink_IO == 0)   //  Serial
