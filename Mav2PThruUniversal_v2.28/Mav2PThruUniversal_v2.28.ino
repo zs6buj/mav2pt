@@ -212,6 +212,7 @@ v2.25 2019-08-28 Version for RFD900x. Bug fixes on rssi. Include #define StartWi
                  override startWiFi Pin.  
 v2.26 2019-08-31 Improved GCS to FC debugging. Make baud rate sensing optional. 
 v2.27 2019-09-13 Small additions to test LILYGO®_TTGO_MINI32_ESP32-WROVER_B
+v2.28 2019-09-17 Localise pin definitions in one place to define ESP32 variants more easily
 */
 
 #undef F                         // F defined in c_library_v2\mavlink_sha256.h AND teensy3/WString.h
@@ -352,8 +353,8 @@ const uint16_t bat2_capacity = 0;
 #define SPort_Serial        1         // The default is Serial 1, but 3 is possible 
 
 #define RSSI_Source         0         // default FrSky receiver
-//#define RSSI_Source         1         // designated RC PWM channel - ULRS, QLRS....
-//#define RSSI_Source         2         // frame #109 injected by SiK radio firmware into Mavlink stream - RFD900
+//#define RSSI_Source         1         // Designated RC PWM channel - ULRS, QLRS, Dragonlink ....
+//#define RSSI_Source         2         // RFD900x - frame #109 injected by SiK radio firmware into Mavlink stream
 //#define RSSI_Source         3         // Dummy RSSI - fixed at 70%
 
 // Status_Text messages place a huge burden on the meagre 4 byte FrSky telemetry payload bandwith
@@ -362,7 +363,7 @@ const uint16_t bat2_capacity = 0;
 //  sending 3 times, but if status_text gets distorted, un-comment this line
 //#define Send_Status_Text_3_Times
 //#define Send_Sensor_Health_Messages
-#define AutoBaud                    // Auto detect telemetry baud - takes a few seconds
+//#define AutoBaud                    // Auto detect telemetry baud - takes a few seconds
 
 // ****************************** Set your time zone here ******************************************
 // Date and time determines the TLog file name
@@ -440,26 +441,37 @@ bool daylightSaving = false;
   #define MavStatusLed  13
   #define BufStatusLed  1
   #define FC_Mav_rxPin  9  
+  #define FC_Mav_txPin  10
+ // Fr_txPin (SPort)    1            Hard wired single wire to Taranis/Horus or XSR receiver
 #elif (Target_Board == 1)         // Blue Pill
   #define MavStatusLed  PC13
   #define BufStatusLed  PC14
-  #define FC_Mav_rxPin  PB10   
+  #define FC_Mav_rxPin  PB11  
+  #define FC_Mav_txPin  PB10  
+ // Fr_txPin (SPort)    PA2          SPort hard wired tx to inverter/converter
+ // Fr_txPin (SPort)    PA3          SPort hard wired rx to inverter/converter 
 #elif (Target_Board == 2)         // Maple Mini
   #define MavStatusLed  33        // PB1
   #define BufStatusLed  34 
-  #define FC_Mav_rxPin  8         // PA3   
+  #define FC_Mav_rxPin  8         // PA3  
+  #define FC_Mav_txPin  9         // PA2 
+ // Fr_txPin (SPort)    PA10         SPort hard wired tx to inverter/converter 
+ // Fr_txPin (SPort)    PA9          SPort hard wired rx to inverter/converter   
 #elif (Target_Board == 3)         // ESP32 Dev Module V2
   #define MavStatusLed  02        // Dev Board=02, TTGO OLED Battery board = 16, LilyGo Mini32 = No Onboard LED
   #define BufStatusLed  13          
-  #define FC_Mav_rxPin  26        // Dev Board = 16, LilyGo Mini32 WROVER_B Dev4 = 26
-  #define FC_Mav_txPin  27        // Dev Board = 17, LilyGo Mini32 WROVER_B Dev4 = 27            
+  #define FC_Mav_rxPin  16        // Dev Board = 16, LilyGo Mini32 WROVER_B Dev4 = 26
+  #define FC_Mav_txPin  17        // Dev Board = 17, LilyGo Mini32 WROVER_B Dev4 = 27 
+  #define Fr_rxPin      12        // SPort - Dev Board = 12 - Use both for Air Mode or Relay Mode to inverter/converter
+  #define Fr_txPin      14        // SPort - Dev Board = 14 - Use me for Ground Mode to Taranis/Horus 
   #include <SPI.h>
   #include <Wire.h>
-  #include <Adafruit_SSD1306.h>  //#define SSD1306_128_64 ///< DEPRECATED: old way to specify 128x64 screen
-  // Dev board default SDA = 21;  
-  // Dev board default SCL = 22; 
-  uint16_t sdaPin = 19;
-  uint16_t sclPin = 18;
+  #include <Adafruit_SSD1306.h>  
+
+  //  Put your SCL / SDA pin numbers for your OLED board here
+  #define SDA            21      // Dev board = 21 
+  #define SCL            22      // Dev board = 22   
+  #define i2cAddr        0x3C
   #define SCREEN_WIDTH 128 // OLED display width, in pixels
   #define SCREEN_HEIGHT 64 // OLED display height, in pixels
   // 8 rows of 21 characters
@@ -1117,8 +1129,8 @@ void setup()  {
   Debug.println(ino_name.substring(0, ino_name.lastIndexOf('.')));
 
   #if (Target_Board == 3) 
-    bool TwoWire::begin(sdaPin, sclPin);
-    display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  
+    Wire.begin(SDA, SCL);
+    display.begin(SSD1306_SWITCHCAPVCC, i2cAddr);  
     display.clearDisplay();
   
     display.setTextSize(1);
