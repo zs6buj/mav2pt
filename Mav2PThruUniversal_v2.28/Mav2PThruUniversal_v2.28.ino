@@ -464,14 +464,24 @@ bool daylightSaving = false;
   #define FC_Mav_txPin  17        // Dev Board = 17, LilyGo Mini32 WROVER_B Dev4 = 27 
   #define Fr_rxPin      12        // SPort - Dev Board = 12 - Use both for Air Mode or Relay Mode to inverter/converter
   #define Fr_txPin      14        // SPort - Dev Board = 14 - Use me for Ground Mode to Taranis/Horus 
-  #include <SPI.h>
+  
+  #include <SPI.h>                // for SD card or OLED
   #include <Wire.h>
-  #include <Adafruit_SSD1306.h>  
+  #include <Adafruit_SSD1306.h> 
 
   //  Put your SCL / SDA pin numbers for your OLED board here
   #define SDA            21      // Dev board = 21 
   #define SCL            22      // Dev board = 22   
   #define i2cAddr        0x3C
+
+  /*
+  // Optional SPI interface pins for SD card adapter or SSD1306 OLED display
+  #define CS            5        
+  #define MOSI          23 
+  #define MISO          19 
+  #define SCK           18 
+  */  
+  
   #define SCREEN_WIDTH 128 // OLED display width, in pixels
   #define SCREEN_HEIGHT 64 // OLED display height, in pixels
   // 8 rows of 21 characters
