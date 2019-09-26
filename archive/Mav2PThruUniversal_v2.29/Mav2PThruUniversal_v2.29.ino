@@ -250,7 +250,7 @@ using namespace std;
 //#define Frs_Debug_Params
 //#define Frs_Debug_APStatus
 //#define Mav_Debug_SysStatus
-//#define Debug_Batteries
+#define Debug_Batteries
 //#define Frs_Debug_Home
 //#define Mav_Debug_GPS_Raw     // #24
 //#define Mav_Debug_GPS_Int     // #33
@@ -309,8 +309,8 @@ using namespace std;
 #define PlusVersion  // Added support for 0x5009 Mission WPs, 0x50F1 Servo_Channels, 0x50F2 VFR_Hud
 
 // Choose one only of these three modes
-#define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
-//#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
+//#define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Orange)
+#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
 
@@ -352,7 +352,7 @@ const uint16_t bat1_capacity = 5200;
 const uint16_t bat2_capacity = 0;
 #define Battery_mAh_Source  3  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
 
-#define SPort_Serial        1         // The default is Serial 1, but 3 is possible 
+#define SPort_Serial        3         // The default is Serial 1, but 3 is possible 
 
 #define RSSI_Source         0         // default FrSky receiver
 //#define RSSI_Source         1         // Designated RC PWM channel - ULRS, QLRS, Dragonlink ....
@@ -1056,7 +1056,7 @@ uint32_t fr_bat2_capacity;
 uint32_t fr_mission_count;
 bool     fr_paramsSent = false;
 
-//0x5008 Batt
+//0x5008 Batt2
 float fr_bat2_volts;
 float fr_bat2_amps;
 uint16_t fr_bat2_mAh;
@@ -2089,7 +2089,7 @@ void DecodeOneMavFrame() {
          #endif     
              
          PackSensorTable(0x5003, 0);
-         PackSensorTable(0x5007, 0);
+        // PackSensorTable(0x5007, 0);
          
          break;
         case MAVLINK_MSG_ID_SYSTEM_TIME:   // #2
@@ -2637,7 +2637,7 @@ void DecodeOneMavFrame() {
             else if(ap_voltage_battery2 > 4200 && ap_cell_count2 != 3) ap_cell_count2 = 2;
             else ap_cell_count2 = 0;
    
-          #if defined Mav_Debug_All || defined Mav_Debug_Batteriestery2
+          #if defined Mav_Debug_All || defined Debug_Batteries
             Debug.print("Mavlink in #181 Battery2: ");        
             Debug.print(" Bat volts=");
             Debug.print((float)ap_voltage_battery2 / 1000, 3);   // now V
