@@ -107,9 +107,9 @@ void ReadSPort(void) {
     #endif
 
     if ((prevByt == 0x7E) && (Byt == 0x1B)) { 
-      #if defined Debug_Air_Mode
+ 
         Debug.print("S/S "); 
-      #endif
+
     FrSkySPort_Process(); 
 
     }     

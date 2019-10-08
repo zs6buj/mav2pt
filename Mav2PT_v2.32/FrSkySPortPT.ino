@@ -42,7 +42,6 @@ void FrSkySPort_Init(void)  {
     st[i].id = 0;
     st[i].subid = 0;
     st[i].millis = 0;
-    st[i].burden = 0;
     st[i].inuse = false;
   }
 
@@ -64,11 +63,11 @@ void FrSkySPort_Init(void)  {
 esp_err_t uart_set_line_inverse(uart_port_t uart_num, uint32_t inverse_mask);
 
  */
-  frSerial.begin(frBaud, SERIAL_8N1, 12, 14);  //  rx=12   tx=14    
+  frSerial.begin(frBaud, SERIAL_8N1, Fr_rxPin, Fr_txPin);  //  ESP32 Dev Board rx=12   tx=14    
   uart_set_line_inverse(UART_NUM_1, UART_INVERSE_RXD);
   uart_set_line_inverse(UART_NUM_1, UART_INVERSE_TXD);
 #else
-  frSerial.begin(frBaud); 
+  frSerial.begin(frBaud); // Teensy 3.x, Blue Pill and Maple Mini rx and tx hard wired
 #endif
 
 #if (Target_Board == 0) // Teensy3x
@@ -145,39 +144,67 @@ void FrSkySPort_Process() {
   if (!mavGood) return;  // Wait for good Mavlink data
 
   uint32_t st_now = millis();
-  int32_t st_age;
-  int32_t st_burden_age;
-  int32_t st_max = 0;   
-  uint8_t ptr = 0;       // row with oldest sensor data
+  int16_t st_age;
+  int16_t st_subid_age;
+  int16_t st_max_tier1 = 0; 
+  int16_t st_max_tier2 = 0; 
+  int16_t st_max       = 0;     
+  uint16_t ptr_tier1   = 0;                 // row with oldest sensor data
+  uint16_t ptr_tier2   = 0; 
+  uint16_t ptr         = 0; 
+
+  // 2 tier scheduling. Tier 1 gets priority, tier2 (0x5000) only sent when tier 1 empty 
   
   // find the row with oldest sensor data = ptr 
-  inuse_count = 0;  // how many slots in-use
-  
-  for (int i=0 ; i < st_rows ; i++) {
+  sport_unsent = 0;  // how many slots in-use
+
+  uint16_t i = 0;
+  while (i < st_rows) {  
+    
     if (st[i].inuse) {
-      inuse_count++;
+      sport_unsent++;   
+      
       st_age = (st_now - st[i].millis); 
-      st_burden_age = st_age - st[i].burden;  // so it seems less old
-      if (st_burden_age >= st_max) {
-        st_max = st_burden_age;
-        ptr = i;
-      }   
+      st_subid_age = st_age - st[i].subid;  
+
+      if (st[i].id == 0x5000) {
+        if (st_subid_age >= st_max_tier2) {
+          st_max_tier2 = st_subid_age;
+          ptr_tier2 = i;
+        }
+      } else {
+      if (st_subid_age >= st_max_tier1) {
+        st_max_tier1 = st_subid_age;
+        ptr_tier1 = i;
+        }   
+      }
     } 
+  i++;    
   } 
     
+  if (st_max_tier1 == 0) {            // if there are no tier 1 sensor entries
+    if (st_max_tier2 > 0) {           // but there are tier 2 entries
+      ptr = ptr_tier2;                // send tier 2 instead
+      st_max = st_max_tier2;
+    }
+  } else {
+    ptr = ptr_tier1;                  // if there are tier1 entries send them
+    st_max = st_max_tier1;
+  }
+  
+  //Debug.println(sport_unsent);  // limited detriment :)  
         
-  // send apparent oldest packet when burden_age is positive - one only
-  if (st[ptr].inuse == true)  {
+  // send the packet if there is one
+    if (st_max > 0) {
 
      #ifdef Frs_Debug_Scheduler
-       Debug.print(inuse_count); 
+       Debug.print(sport_unsent); 
        Debug.printf("\tPop  row= %3d", ptr );
- //      Debug.print("\tPop  row=");  Debug.print(ptr);
        Debug.print("  id=");  Debug.print(st[ptr].id, HEX);
        if (st[ptr].id < 0x1000) Debug.print(" ");
-       Debug.printf("  subid= %2d ", st[ptr].subid);       
+       Debug.printf("  subid= %2d", st[ptr].subid);       
        Debug.printf("  payload=%12d", st[ptr].payload );
-       Debug.printf("  age=%3d mS \n" , st_max );    
+       Debug.printf("  age=%3d mS \n" , st_max_tier1 );    
      #endif  
       
     if (st[ptr].id == 0xF101) {
@@ -201,20 +228,22 @@ void PushToEmptyRow(st_t pter) {
   // find empty sensor row
   uint16_t j = 0;
   while (st[j].inuse) {
-    if (j >= st_rows) {
-      Debug.println("Warning, sensor table exceeded. Push ignored.");
-     j = st_rows-1;
-    }
     j++;
   }
-  inuse_count++;
+  if (j >= st_rows-1) {
+    Debug.println("Warning, sensor table exceeded. Push ignored.");
+    return;
+  }
+  
+  sport_unsent++;
+  
   #if defined Frs_Debug_Scheduler
-    Debug.print(inuse_count); 
+    Debug.print(sport_unsent); 
     Debug.printf("\tPush row= %3d", j );
     Debug.print("  id="); Debug.print(pter.id, HEX);
     if (pter.id < 0x1000) Debug.print(" ");
-    Debug.printf("  subid= %2d ", pter.subid);    
-    Debug.printf("  payload= %12d", pter.payload );
+    Debug.printf("  subid= %2d", pter.subid);    
+    Debug.printf("  payload=%12d", pter.payload );
     Debug.printf("\t\t  burden= %4d mS \n", pter.burden );
   #endif
 
@@ -441,7 +470,6 @@ void PackLat800(uint16_t id) {
 
   sr.id = id;
   sr.subid = 0;  
-  sr.burden = 0;   
   sr.payload = fr_payload;
   PushToEmptyRow(sr);        
 }
@@ -481,8 +509,7 @@ void PackLon800(uint16_t id) {
   #endif
 
   sr.id = id;
-  sr.subid = 1;  
-  sr.burden = 0;   
+  sr.subid = 1;    
   sr.payload = fr_payload;
   PushToEmptyRow(sr); 
 }
@@ -492,7 +519,7 @@ void PackMultipleTextChunks_5000(uint16_t id) {
   // status text  char[50] no null,  ap-text char[60]
 
   for (int i=0; i<50 ; i++) {       // Get text len
-    if ((ap_text[i]==32 || ap_text[i]==0) && (ap_text[i+1]==32 || ap_text[i+1]==0)) {      // find first consecutive double-space
+    if (ap_text[i]==0) {            // end of text
       len=i;
       break;
     }
@@ -578,15 +605,13 @@ void PackMultipleTextChunks_5000(uint16_t id) {
 
     sr.id = id;
     sr.subid = fr_chunk_num;
-    sr.burden = 2000 + (fr_chunk_num  * 60);  // Copy 1 - copies can have the same age
     sr.payload = fr_payload;
     PushToEmptyRow(sr); 
-    
-    sr.burden = 20 + (fr_chunk_num * 60);  // Copy 2
-    PushToEmptyRow(sr); 
- 
-    sr.burden = 2000 + (fr_chunk_num * 60);   // Copy 3
-    PushToEmptyRow(sr);
+
+    #if defined Send_Status_Text_3_Times 
+      PushToEmptyRow(sr); 
+      PushToEmptyRow(sr);
+    #endif 
     
     fr_chunk_pntr +=4;
  }
@@ -645,7 +670,6 @@ void Pack_AP_Status_5001(uint16_t id) {
 
     sr.id = id;
     sr.subid = 0;
-    sr.burden = 0;  
     sr.payload = fr_payload;
     PushToEmptyRow(sr);         
 }
@@ -695,17 +719,16 @@ void Pack_GPS_Status_5002(uint16_t id) {
 
   sr.id = id;
   sr.subid = 0;
-  sr.burden = 0;
   sr.payload = fr_payload;
   PushToEmptyRow(sr); 
 }
 // *****************************************************************  
-void Pack_Bat1_5003(uint16_t id) {
+void Pack_Bat1_5003(uint16_t id) {   //  Into sensor table from #1 SYS_STATUS only
   fr_payload = 0;
   fr_bat1_volts = ap_voltage_battery1 / 100;         // Were mV, now dV  - V * 10
   fr_bat1_amps = ap_current_battery1 ;               // Remain       dA  - A * 10   
   
-  // fr_bat1_mAh is populated at #147 depending on battery id
+  // fr_bat1_mAh is populated at #147 depending on battery id.  Into sensor table from #1 SYS_STATUS only.
   //fr_bat1_mAh = Total_mAh1();  // If record type #147 is not sent and good
   
   #if defined Frs_Debug_All || defined Debug_Batteries
@@ -726,7 +749,6 @@ void Pack_Bat1_5003(uint16_t id) {
 
   sr.id = id;
   sr.subid = 0;
-  sr.burden = 0;
   sr.payload = fr_payload;
   PushToEmptyRow(sr); 
                        
@@ -787,7 +809,6 @@ void Pack_Home_5004(uint16_t id) {
 
    sr.id = id;
    sr.subid = 0;
-   sr.burden = 0;
    sr.payload = fr_payload;
    PushToEmptyRow(sr); 
 
@@ -836,7 +857,6 @@ void Pack_VelYaw_5005(uint16_t id) {
 
  sr.id = id;
  sr.subid = 0;
- sr.burden = 0;
  sr.payload = fr_payload;
  PushToEmptyRow(sr); 
     
@@ -862,7 +882,6 @@ void Pack_Atti_5006(uint16_t id) {
 
   sr.id = id;
   sr.subid = 0;
-  sr.burden = 0;
   sr.payload = fr_payload;
   PushToEmptyRow(sr);  
      
@@ -899,7 +918,6 @@ void Pack_Parameters_5007(uint16_t id) {
       
       sr.id = id;     
       sr.subid = 1;
-      sr.burden = 0;
       sr.payload = fr_payload;
       PushToEmptyRow(sr); 
 
@@ -932,7 +950,6 @@ void Pack_Parameters_5007(uint16_t id) {
       
       sr.id = id;
       sr.subid = 4;
-      sr.burden = paramsID * 20;   // mS
       sr.payload = fr_payload;
       PushToEmptyRow(sr); 
 
@@ -960,7 +977,6 @@ void Pack_Parameters_5007(uint16_t id) {
       #endif
       
       sr.subid = 5;
-      sr.burden = 50;   // mS
       sr.payload = fr_payload;
       PushToEmptyRow(sr); 
        
@@ -975,8 +991,6 @@ void Pack_Parameters_5007(uint16_t id) {
 
       sr.id = id;
       sr.subid = 6;
-      sr.burden = 75;     //  mS
-      sr.payload = fr_payload;
       PushToEmptyRow(sr);       
       
       #if defined Frs_Debug_All || defined Frs_Debug_Params || defined Debug_Batteries
@@ -1017,7 +1031,6 @@ void Pack_Bat2_5008(uint16_t id) {
 
   sr.id = id;
   sr.subid = 1;
-  sr.burden = 0;
   sr.payload = fr_payload;
   PushToEmptyRow(sr);          
 }
@@ -1077,7 +1090,6 @@ void Pack_WayPoint_5009(uint16_t id) {
 
   sr.id = id;
   sr.subid = 1;
-  sr.burden = 0;
   sr.payload = fr_payload;
   PushToEmptyRow(sr); 
         
@@ -1126,7 +1138,6 @@ uint8_t sv_chcnt = 8;
 
   sr.id = id;
   sr.subid = sv_num + 1;
-  sr.burden = sv_num * 25;  // add 25 mS for subsequent chunks
   sr.payload = fr_payload;
   PushToEmptyRow(sr); 
 
@@ -1181,7 +1192,6 @@ void Pack_VFR_Hud_50F2(uint16_t id) {
     
   sr.id = id;   
   sr.subid = 1;
-  sr.burden = 0;
   sr.payload = fr_payload;
   PushToEmptyRow(sr); 
         
@@ -1195,19 +1205,13 @@ void Pack_Rssi_F101(uint16_t id) {          // data id 0xF101 RSSI tell LUA scri
   fr_payload = 0;
   
   if (rssiGood)
-    //fr_rssi = (ap_chan16_raw - 1000)  / 10;  //  RSSI uS 1000=0%  2000=100%
     fr_rssi = (ap_rssi / 2.54);                // %
   else
     fr_rssi = 255;     // We may have a connection but don't yet know how strong. Prevents spurious "Telemetry lost" announcement
-  #ifdef Frs_Dummy_rssi
+  #if (RSSI_Source == 3)   // dummy rssi override for debugging
     fr_rssi = 70;
-    if (dmy_rssi_ft) {
-      dmy_rssi_ft = false;
-      Debug.print("Warning! Dummy rssi="); Debug.print(fr_rssi); Debug.println(" <=======");
-      OledDisplayln("Dummy RSSI !"); 
-    }
   #endif
-  
+
   bit32Pack(fr_rssi ,0, 32);
 
   #if defined Frs_Debug_All || defined Debug_Rssi
@@ -1219,13 +1223,8 @@ void Pack_Rssi_F101(uint16_t id) {          // data id 0xF101 RSSI tell LUA scri
     Debug.println();             
   #endif
 
-
-
-  
-  
   sr.id = id;
   sr.subid = 1;
-  sr.burden = 0;
   sr.payload = fr_payload;
   PushToEmptyRow(sr); 
 }
@@ -1372,60 +1371,3 @@ uint16_t prep_number(int32_t number, uint8_t digits, uint8_t power)
     }
     return res;
 }  
-/*
- * // ***************************************************************** 
-void Send_RC_5009() {
-  ap_chcnt = ap_chcnt > 16 ? 16 : ap_chcnt;  // cap number of channels at 16 for now
-  if (rc_count+4 > ap_chcnt) { // 4 channels at a time
-    rc_count = 0;
-    ap_rc_flag = false;  // done with the ap_rc record received
-    return;
-  } 
-
-  fr_chcnt = rc_count / 4; 
-
-  fr_rc[1] = PWM_To_63(ap_chan_raw[sv_count]);     // PWM 1000 to 2000 -> nominal 0 to 63
-  fr_rc[2] = PWM_To_63(ap_chan_raw[sv_count+1]);    
-  fr_rc[3] = PWM_To_63(ap_chan_raw[sv_count+2]); 
-  fr_rc[4] = PWM_To_63(ap_chan_raw[sv_count+3]); 
-
-  bit32Pack(fr_chcnt, 0, 4);             //  channel count, 0 = chans 1-4, 1=chans 5-8, 2 = chans 9-12, 3 = chans 13 -16 .....
-  bit32Pack(Abs(fr_rc[1]) ,4, 6);        // fragment 1 
-  if (fr_rc[1] < 0)
-    bit32Pack(1, 10, 1);                 // neg
-  else 
-    bit32Pack(0, 10, 1);                 // pos          
-  bit32Pack(Abs(fr_rc[2]), 11, 6);       // fragment 2 
-  if (fr_rc[2] < 0)
-    bit32Pack(1, 17, 1);                 // neg
-  else 
-    bit32Pack(0, 17, 1);                 // pos   
-  bit32Pack(Abs(fr_rc[3]), 18, 6);       // fragment 3
-  if (fr_rc[3] < 0)
-    bit32Pack(1, 24, 1);                 // neg
-  else 
-    bit32Pack(0, 24, 1);                 // pos      
-  bit32Pack(Abs(fr_rc[4]), 25, 6);       // fragment 4 
-  if (fr_rc[4] < 0)
-    bit32Pack(1, 31, 1);                 // neg
-  else 
-    bit32Pack(0, 31, 1);                 // pos  
-        
-  FrSkySPort_SendDataFrame(0x1B, 0x5009,fr_payload); 
-
-  #if defined Frs_Debug_All || defined Frs_Debug_RC
-    Debug.print("Frsky out RC 0x5009: ");  
-    Debug.print(" ap_chcnt="); Debug.print(ap_chcnt); 
-    Debug.print(" sv_count="); Debug.print(sv_count); 
-    Debug.print(" fr_chcnt="); Debug.print(fr_chcnt);
-    Debug.print(" fr_rc1="); Debug.print(fr_rc[1]);
-    Debug.print(" fr_rc2="); Debug.print(fr_rc[2]);
-    Debug.print(" fr_rc3="); Debug.print(fr_rc[3]);   
-    Debug.print(" fr_rc4="); Debug.println(fr_rc[4]);       
-  #endif
-
-  rc_count += 4;   
-} 
-*/
-
-    
