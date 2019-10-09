@@ -72,6 +72,9 @@ esp_err_t uart_set_line_inverse(uart_port_t uart_num, uint32_t inverse_mask);
     Debug.println("ESP32 S.Port pins NOT inverted for Air or Relay Modes. Must use a converter");  
   #endif  
 #else
+  #if defined Debug_Air_Mode || defined Debug_Relay_Mode
+    Debug.println("frSerial.begin"); 
+  #endif
   frSerial.begin(frBaud); // Teensy 3.x, Blue Pill and Maple Mini rx and tx hard wired
 #endif
 

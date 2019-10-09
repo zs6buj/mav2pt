@@ -250,7 +250,7 @@ using namespace std;
 //#define Frs_Debug_Params
 //#define Frs_Debug_APStatus
 //#define Mav_Debug_SysStatus
-#define Debug_Batteries
+//#define Debug_Batteries
 //#define Frs_Debug_Home
 //#define Mav_Debug_GPS_Raw     // #24
 //#define Mav_Debug_GPS_Int     // #33

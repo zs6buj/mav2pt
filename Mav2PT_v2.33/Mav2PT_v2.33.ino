@@ -235,7 +235,8 @@ using namespace std;
 uint8_t   MavLedState = LOW; 
 uint8_t   BufLedState = LOW; 
  
-uint16_t  hb_count=0;
+uint32_t  hb_count=0;
+
 
 bool      ap_bat_paramsReq = false;
 bool      ap_bat_paramsRead=false; 
@@ -1060,7 +1061,7 @@ void main_loop() {
     #if defined Mav_Debug_Mav2PT_Heartbeat
       Debug.println("Sending mav2pt hb to FC");  
     #endif    
-    Send_FC_Heartbeat();   // must have Mav2PT tx pin connected to Telem radio rx pin  
+ //   Send_FC_Heartbeat();   // must have Mav2PT tx pin connected to Telem radio rx pin  
   }
 
   
@@ -1528,7 +1529,27 @@ void DecodeOneMavFrame() {
 
           if ((ap_base_mode >> 7) && (!homGood)) 
             MarkHome();  // If motors armed for the first time, then mark this spot as home
-                
+
+          hb_count++; 
+   
+          if(!mavGood) {
+            Debug.print("hb_count=");
+            Debug.print(hb_count);
+            Debug.println("");
+
+            if(hb_count >= 3) {        // If  3 heartbeats from MavLink then we are connected
+              mavGood=true;
+              Debug.println("mavgood=true");
+               OledPrintln("Mavlink good !");      
+              }
+            }
+
+          PackSensorTable(0x5001, 0);
+          if ((!(hb_count % 50)) || (!mavGood)) {
+        //    Debug.print("hb_count % 50="); Debug.println((hb_count % 50));
+            PackSensorTable(0x5007, 0);
+            }
+
           #if defined Mav_Debug_All || defined Mav_Debug_FC_Heartbeat
             Debug.print("Mavlink in #0 Heartbeat: ");           
             Debug.print("ap_type="); Debug.print(ap_type);   
@@ -1546,22 +1567,8 @@ void DecodeOneMavFrame() {
             
             Debug.println();
           #endif
-          
-          PackSensorTable(0x5001, 0);
-          
-          if(!mavGood) {
-            hb_count++; 
-            Debug.print("hb_count=");
-            Debug.print(hb_count);
-            Debug.println("");
 
-            if(hb_count >= 3) {        // If  3 heartbeats from MavLink then we are connected
-              mavGood=true;
-              Debug.println("mavgood=true");
-               OledPrintln("Mavlink good !");      
-              hb_count=0;
-              }
-          }
+          
           break;
         case MAVLINK_MSG_ID_SYS_STATUS:   // #1
           if (!mavGood) break;
