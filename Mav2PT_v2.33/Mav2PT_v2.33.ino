@@ -1062,7 +1062,7 @@ void main_loop() {
     #if defined Mav_Debug_Mav2PT_Heartbeat
       Debug.println("Sending mav2pt hb to FC");  
     #endif    
- //   Send_FC_Heartbeat();   // must have Mav2PT tx pin connected to Telem radio rx pin  
+    Send_FC_Heartbeat();   // must have Mav2PT tx pin connected to Telem radio rx pin  
   }
 
   
