@@ -219,6 +219,7 @@ v2.31 2019-09-30 Configurable declarations moved to config.h file
 v2.32 2019-10-08 Source line corrupted in v2.17 affecting Relay Mode, fixed. Thank you burtgree! 
 v2.33 2019-10-09 Don't invert ESP32 SPort in Relay Mode. Use commercial inverter/converter. 
                  Tidy up config.h file.
+                 Send #5007 3 times at startup and then every 50th heartbeat.
 */
 
 
