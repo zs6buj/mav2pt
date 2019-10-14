@@ -42,7 +42,7 @@
 //#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
 const uint16_t bat1_capacity = 5200;       
 const uint16_t bat2_capacity = 0;
-#define Battery_mAh_Source  1  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
+#define Battery_mAh_Source  3  // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
 
 #define SPort_Serial        1         // The default is Serial 1, but 3 is possible 
 
