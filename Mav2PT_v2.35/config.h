@@ -2,6 +2,7 @@
 /*
 
   Debugging options are at the bottom of this tab
+  
 *****************************************************************************************************************  
 Change log:
                                     
@@ -163,7 +164,6 @@ bool daylightSaving = false;
 
 #define ESP32_Variant     1    //  ESP32 Dev Module - there are several sub-variants that work
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
-
 
 //*********************************************************************************************
 // Check #defines options logic  
