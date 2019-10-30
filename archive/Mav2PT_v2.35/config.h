@@ -84,7 +84,7 @@ v2.35 2019-10-18 Add pre-defined ESP32 board variants. TargetBoard >> Target_Boa
 
 //#define GCS_Mavlink_SD      // SD Card  - for ESP32 only
 
-//#define Start_WiFi         // Start WiFi at startup, override startWiFi Pin
+#define Start_WiFi         // Start WiFi at startup, override startWiFi Pin
 
 // Choose one protocol - for ESP32 only
 //#define WiFi_Protocol 1    // TCP/IP
@@ -102,10 +102,10 @@ const uint16_t bat2_capacity = 0;
 
 #define SPort_Serial        1         // The default is Serial 1, but 3 is possible 
 
-#define RSSI_Source         0         // default FrSky receiver
+//#define RSSI_Source         0         // default FrSky receiver
 //#define RSSI_Source         1         // Designated RC PWM channel - ULRS, QLRS, Dragonlink ....
 //#define RSSI_Source         2         // RFD900x - frame #109 injected by SiK radio firmware into Mavlink stream
-//#define RSSI_Source         3         // Dummy RSSI - fixed at 70%
+#define RSSI_Source         3         // Dummy RSSI - fixed at 70%
 
 // Status_Text messages place a huge burden on the meagre 4 byte FrSky telemetry payload bandwith
 // The practice has been to send them 3 times to ensure that they arrive unscathed at the receiver
@@ -115,7 +115,7 @@ const uint16_t bat2_capacity = 0;
 
 //#define Send_Sensor_Health_Messages
 //#define AutoBaud                    // Auto detect telemetry baud - takes a few seconds
-#define Request_Missions_From_FC    // Un-comment if you need mission waypoint from FC - NOT NECESSARY RIGHT NOW
+//#define Request_Missions_From_FC    // Un-comment if you need mission waypoint from FC - NOT NECESSARY RIGHT NOW
 
 //#define Data_Streams_Enabled // Requests data streams from FC. Requires both rx and tx lines to FC. Rather set SRn in Mission Planner
 #define Max_Waypoints  256     // Note. This is a global RAM trade-off. If exceeded then Debug message and shut down
