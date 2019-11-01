@@ -1,7 +1,7 @@
 
 /*
 
-  Complete change Log and debugging options are at the bottom of this tab
+  Complete change log and debugging options are at the bottom of this tab
   
 v2.36 2019-10-30 Optimise WiFi amd BT read/send as per excellent mavesp8266 bridge by Tridge.
                  Add support for ESP8266. 
@@ -30,7 +30,7 @@ v2.36 2019-10-30 Optimise WiFi amd BT read/send as per excellent mavesp8266 brid
 //#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-//#define GCS_Mavlink_IO  2    // WiFi - ESP32 only
+#define GCS_Mavlink_IO  2    // WiFi - ESP32 and ESP8266 only
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with other GCS I/O
 
 
@@ -42,8 +42,8 @@ v2.36 2019-10-30 Optimise WiFi amd BT read/send as per excellent mavesp8266 brid
 #define WiFi_Protocol 2    // UDP     useful for Ez-WiFiBroadcast in STA mode
 
 // Choose one mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
-//#define WiFi_Mode   1  //AP            
-#define WiFi_Mode   2  // STA
+#define WiFi_Mode   1  //AP            
+//#define WiFi_Mode   2  // STA
 
 //#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both rx and tx lines must be connected      
 //#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
@@ -128,8 +128,8 @@ bool daylightSaving = false;
 //*********************************************************************************************
 //**********************   S E L E C T   E S P   B O A R D   V A R I A N T   ******************
 
-#define ESP32_Variant     1    //  ESP32 Dev Module - there are several sub-variants that work
-//#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
+//#define ESP32_Variant     1    //  ESP32 Dev Module - there are several sub-variants that work
+#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 
 
 #define ESP8266_Variant   1   // Node MFU 12F
@@ -256,7 +256,7 @@ bool daylightSaving = false;
     #define SDA           05        // I2C OLED board
     #define SCL           04        // I2C OLED board
     #define i2cAddr      0x3C       // I2C OLED board
-
+    int16_t wifi_rssi;    
     uint8_t startWiFiPin = 13;     
     uint8_t WiFiPinState = 0;
   #endif
