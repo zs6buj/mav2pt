@@ -384,17 +384,14 @@ bool daylightSaving = false;
     #endif
     
     #if (WiFi_Mode == 2)  //  STA
-    //  const char *STAssid =     "TargetAPName";    // Target AP to connect to      <====
-    //  const char *STApw =       "targetPw";      // Change me!
+      const char *STAssid =     "TargetAPName";    // Target AP to connect to      <====
+      const char *STApw =       "targetPw";      // Change me!
 
     //  const char *STAssid =     "EZ-WifiBroadcast";    // Target AP to connect to      <====
     //  const char *STApw =       "wifibroadcast";         
 
     //  const char *STAssid =     "TXMOD-54-DD-FE";    // Target AP to connect to      <====
     //  const char *STApw =       "txmod123";    
-
-      const char *STAssid =     "OmegaOffice";    // Target AP to connect to      <====
-      const char *STApw =       "Navara@98";      // Change me!
 
     #endif   
 
