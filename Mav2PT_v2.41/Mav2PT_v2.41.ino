@@ -1007,7 +1007,6 @@ void main_loop() {
       PackSensorTable(0xF101, 0);   // 0xF101 RSSI 
       rssi_millis = millis(); 
     #endif 
-
   }
  
   if (millis() - sport_millis > 1) {   // main timing loop for S.Port
@@ -3050,8 +3049,6 @@ void OledPrint(String S) {
  #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)) //  WiFi
  
   void SetupWiFi() { 
-    
-    bool sta_no_connect = false;
 
     #if (WiFi_Mode == 2)  // STA
       uint8_t retry = 0;
@@ -3117,6 +3114,7 @@ void OledPrint(String S) {
 
 
     #if (WiFi_Mode == 1)  // AP
+      WiFi.mode(WIFI_AP);
       WiFi.softAP(APssid, APpw, APchannel);
       localIP = WiFi.softAPIP();
       Debug.print("AP IP address: ");

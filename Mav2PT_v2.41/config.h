@@ -2,11 +2,9 @@
 /*
 
   Complete change log and debugging options are at the bottom of this tab
-  
-v2.36 2019-10-30 Optimise WiFi amd BT read/send as per excellent mavesp8266 bridge by Tridge.
-                 Add support for ESP8266. 
-v2.37 2019-10-31 Bring WiFi STA Mode in line with new WiFi code.
-v2.38 2019-10-31 Config for BT in and WiFi out concurrently             
+   
+v2.41 2019-11-08 Fix STA mode no-connect loop  
+                      
 */
 // ******************************* Please select your options here before compiling *******************************
 
@@ -18,12 +16,18 @@ v2.38 2019-10-31 Config for BT in and WiFi out concurrently
 //#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
+
+
+
 // Choose one only of these Flight-Controller-side I/O channels 
 // How does Mavlink telemetry enter the converter?
 #define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define FC_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
 //#define FC_Mavlink_IO  3    // SD Card / TF - ESP32 only
+
+
+
 
 // Choose one only of these GCS-side I/O channels
 // How does Mavlink telemetry leave the converter?
@@ -34,6 +38,10 @@ v2.38 2019-10-31 Config for BT in and WiFi out concurrently
 #define GCS_Mavlink_IO  2    // WiFi - ESP32 and ESP8266 only
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with other GCS I/O
 
+#define BT_Master_Mode true    // Master connects to BT_Slave_Name --- false for BT Slave Mode
+const char* BT_Slave_Name   =   "Crossfire 0277";  // Example
+
+
 
 #define Start_WiFi         // Start WiFi at startup, override startWiFi Pin
 
@@ -43,8 +51,8 @@ v2.38 2019-10-31 Config for BT in and WiFi out concurrently
 #define WiFi_Protocol 2    // UDP     useful for Ez-WiFiBroadcast in STA mode
 
 // Choose one mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
-#define WiFi_Mode   1  //AP            
-//#define WiFi_Mode   2  // STA
+//#define WiFi_Mode   1  //AP            
+#define WiFi_Mode   2  // STA
 
 //#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both rx and tx lines must be connected      
 //#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
@@ -58,10 +66,10 @@ const uint16_t bat2_capacity = 0;
 
 
 
-//#define RSSI_Source         0         // default FrSky receiver
-//#define RSSI_Source         1         // Designated RC PWM channel - ULRS, QLRS, Dragonlink ....
+#define RSSI_Source         0         // default FrSky receiver or ULRS (firmware emulates embedded rssi)
+//#define RSSI_Source         1         // Designated RC PWM channel - QLRS, Dragonlink ....
 //#define RSSI_Source         2         // RFD900x - frame #109 injected by SiK radio firmware into Mavlink stream
-#define RSSI_Source         3         // Dummy RSSI - fixed at 70%                                                                                                                          
+//#define RSSI_Source         3         // Dummy RSSI - fixed at 70%                                                                                                                          
 
 
 // Status_Text messages place a huge burden on the meagre 4 byte FrSky telemetry payload bandwith
@@ -129,8 +137,8 @@ bool daylightSaving = false;
 //*********************************************************************************************
 //**********************   S E L E C T   E S P   B O A R D   V A R I A N T   ******************
 
-//#define ESP32_Variant     1    //  ESP32 Dev Module - there are several sub-variants that work
-#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
+#define ESP32_Variant     1    //  ESP32 Dev Module - there are several sub-variants that work
+//#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 
 
 #define ESP8266_Variant   1   // Node MFU 12F
@@ -234,8 +242,8 @@ bool daylightSaving = false;
   #if (ESP32_Variant == 1)          // ESP32 Dev Module
     #define MavStatusLed  02        // Onboard LED
     #define BufStatusLed  13          
-    #define FC_Mav_rxPin  16        // Mavlink to FC, LilyGo Mini32 WROVER_B Dev4 = 26
-    #define FC_Mav_txPin  17        // Mavlink from FC, LilyGo Mini32 WROVER_B Dev4 = 27 
+    #define FC_Mav_rxPin  16        // Mavlink to FC
+    #define FC_Mav_txPin  17        // Mavlink from FC
     #define Fr_rxPin      12        // SPort - Use both for Air Mode or Relay Mode to inverter/converter
     #define Fr_txPin      14        // SPort - Use me for Ground Mode to Taranis/Horus 
     #define SDA           21        // I2C OLED board
@@ -282,7 +290,7 @@ bool daylightSaving = false;
     #define SDA           D7        // I2C OLED board
     #define SCL           D8        // I2C OLED board
     #define i2cAddr      0x3C       // I2C OLED board
-
+    int16_t wifi_rssi;   
     uint8_t startWiFiPin = D2;      
     uint8_t WiFiPinState = 0;
   #endif
@@ -347,57 +355,52 @@ bool daylightSaving = false;
   #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2))  // WiFi
 
     // Define link variables
-   #ifndef BT_Setup
-     struct linkStatus {
-       uint32_t    packets_received;
-       uint32_t    packets_lost;
-       uint32_t    packets_sent;
-     };
+    #ifndef BT_Setup
+      struct linkStatus {
+        uint32_t    packets_received;
+        uint32_t    packets_lost;
+        uint32_t    packets_sent;
+      };
 
-      bool          hb_heard_from = false;;
-      uint8_t       hb_system_id = 0;
-      uint8_t       hb_comp_id = 0;
-      uint8_t       hb_seq_expected = 0;
-      uint32_t      hb_last_heartbeat = 0;
-      linkStatus    link_status;
+       bool          hb_heard_from = false;;
+       uint8_t       hb_system_id = 0;
+       uint8_t       hb_comp_id = 0;
+       uint8_t       hb_seq_expected = 0;
+       uint32_t      hb_last_heartbeat = 0;
+       linkStatus    link_status;
     #endif
    
     #if (Target_Board == 3) // ESP32
       #include <WiFi.h>  
       #include <WiFiClient.h>
+      #if (WiFi_Mode == 1)  // AP
+        #include <WiFiAP.h>  
+      #endif   
     #endif
 
     #if (Target_Board == 4) // ESP8266
-      #include <ESP8266WiFi.h>
+      #include <ESP8266WiFi.h>   // Includes AP class
       #include <WiFiClient.h>
     #endif
     
-    #if (WiFi_Protocol == 2) 
-      #include <WiFiUDP.h>
+    #if (WiFi_Protocol == 2)  //  UDP
+      #include <WiFiUDP.h>    // ESP32 and ESP8266
     #endif   
     
-    
-    #if (WiFi_Mode == 1)  // AP
-      #if (Target_Board == 3) // ESP32
-        #include <WiFiAP.h>  
-      #endif
-      
-      const char    *APssid         =    "Mav2Passthru";    // The AP SSID that we advertise  ====>
-      const char    *APpw           =    "password";        // Change me!
-      const uint8_t  APchannel      =    9;                 // The WiFi channel to use
-    #endif
-    
-    #if (WiFi_Mode == 2)  //  STA
-      const char *STAssid =     "TargetAPName";    // Target AP to connect to      <====
-      const char *STApw =       "targetPw";      // Change me!
+    const char    *APssid         =    "Mav2Passthru";    // The AP SSID that we advertise  ====>
+    const char    *APpw           =    "password";        // Change me!
+    const uint8_t  APchannel      =    9;                 // The WiFi channel to use
+    const char    *STAssid        =     "TargetAPName";    // Target AP to connect to      <====
+    const char    *STApw          =     "targetPw";      // Change me!       
 
-    //  const char *STAssid =     "EZ-WifiBroadcast";    // Target AP to connect to      <====
-    //  const char *STApw =       "wifibroadcast";         
+   //  const char    *STAssid =     "EZ-WifiBroadcast";    // Target AP to connect to      <====
+   //  const char    *STApw =       "wifibroadcast";         
 
-    //  const char *STAssid =     "TXMOD-54-DD-FE";    // Target AP to connect to      <====
-    //  const char *STApw =       "txmod123";    
+   //  const char    *STAssid =     "TXMOD-54-DD-FE";    // Target AP to connect to      <====
+   //  const char    *STApw =       "txmod123";      
 
-    #endif   
+
+    // AP and STA below
 
     WiFiClient wifi;   
     
@@ -408,15 +411,15 @@ bool daylightSaving = false;
     
     #if (WiFi_Protocol == 2)     //  UDP
    
-      uint16_t udp_localPort = 14555;
-      uint16_t udp_remotePort = 14550;         
+      uint16_t udp_localPort = 14555;     // This ESP32 or ESP8266
+      uint16_t udp_remotePort = 14550;    // GCS like QGC      
       bool FtRemIP = true;
       #if   (WiFi_Mode == 1)  // AP
-        IPAddress udp_remoteIP =  (192, 168, 4, 2);   // We hand out this IP to the first client via DHCP
+        IPAddress udp_remoteIP(192, 168, 4, 2);       // We hand out this IP to the first client via DHCP
       #elif (WiFi_Mode == 2)  // STA
-        IPAddress udp_remoteIP =  (192, 168, 255, 255); // UDP broadcast on your likely LAN subnet.
+        IPAddress udp_remoteIP(192, 168, 1, 255);    // UDP broadcast on your likely LAN subnet
       #endif
-        
+
       WiFiServer server(udp_localPort);     
 
       WiFiUDP udp;       // Create udp object      
