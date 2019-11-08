@@ -1,4 +1,4 @@
-/******************************************************************************
+/*****************************************************************************************************************
 
      Mav2PT  (Mav2Passthru) Protocol Translator
  
@@ -21,7 +21,7 @@
 
   By downloading this software you are agreeing to the terms specified in this page and the spirit of thereof.
     
-    *****************************************************************************
+    ******************************************************************************************************************
 
     Author: Eric Stockenstrom
     
@@ -35,9 +35,8 @@
 
     Thanks also to athertop for advice and testing, and to florent for advice on working with FlightDeck
 
-    Acknowledgement and thanks are also due to Gus Grubba, author of mavESP8266, the excellent mavlink UDP
-    bridge from which I learned how to readuce WiFi packet loss in an ESP32
-
+    Acknowledgement and thanks to the author of, and contributors to, mavESP8266 serial/Wifi bridge
+    
     *****************************************************************************
 
     See: https://github.com/zs6buj/MavlinkToPassthru/wiki
@@ -696,8 +695,8 @@ void setup()  {
     Debug.println("Maple Mini STM32F103C");
     OledPrintln("Maple Mini STM32F103C");
   #elif (Target_Board == 3) //  ESP32 Board
-    Debug.print("ESP32 / ");
-    OledPrintln("ESP32 /");
+    Debug.print("ESP32 / Variant is ");
+    OledPrintln("ESP32 / Variant is");
     #if (ESP32_Variant == 1)
       Debug.println("Dev Module");
       OledPrintln("Dev Module");
@@ -707,8 +706,8 @@ void setup()  {
       OledPrintln("Wemos® LOLIN");
     #endif
   #elif (Target_Board == 4) //  ESP8266
-    Debug.println("ESP8266 / ");
-    OledPrintln("ESP8266 /");  
+    Debug.println("ESP8266 / Variant is ");
+    OledPrintln("ESP8266 / Variant is");  
     #if (ESP8266_Variant == 1)
       Debug.println("Lonlin Node MCU 12F");
       OledPrintln("Node MCU 12");
@@ -1008,7 +1007,6 @@ void main_loop() {
       PackSensorTable(0xF101, 0);   // 0xF101 RSSI 
       rssi_millis = millis(); 
     #endif 
-
   }
  
   if (millis() - sport_millis > 1) {   // main timing loop for S.Port
@@ -1713,7 +1711,7 @@ bool Send_UDP(mavlink_message_t* msgptr) {
     uint8_t buf[300];
 
     udp.beginPacket(udp_remoteIP, udp_remotePort);
-     
+
     uint16_t len = mavlink_msg_to_send_buffer(buf, msgptr);
   
     size_t sent = udp.write(buf,len);
@@ -3050,33 +3048,8 @@ void OledPrint(String S) {
 //************************************************************
  #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)) //  WiFi
  
-  void SetupWiFi() {
+  void SetupWiFi() { 
 
-    #if (WiFi_Mode == 1)   // AP
-      WiFi.softAP(APssid, APpw, APchannel);
-      localIP = WiFi.softAPIP();
-      Debug.print("AP IP address: ");
-      Debug.println(localIP);
-      server.begin();
-      Debug.print("AP Server started. SSID = ");
-      Debug.println(String(APssid));
-      
-      OledPrintln("WiFi AP SSID =");
-      OledPrintln(String(APssid));
-      OledPrintln(localIP.toString());  
-      
-      #if (WiFi_Protocol == 2)  // UDP
-        udp.begin(udp_localPort);
-        Debug.printf("UDP started, listening on IP %s, UDP port %d\n", WiFi.softAPIP().toString().c_str(), udp_localPort);      
-        OledPrintln("UDP ok port 14550");                 
-      #endif
-      
-      wifiSuGood = true;
-      delay(5000);  // to debounce button press
-    #endif  
-
-    
-    
     #if (WiFi_Mode == 2)  // STA
       uint8_t retry = 0;
       Debug.print("Trying to connect to ");  
@@ -3089,8 +3062,12 @@ void OledPrint(String S) {
       delay(500);
       
       WiFi.begin(STAssid, STApw);
-      while ((WiFi.status() != WL_CONNECTED) && (retry < 10)){
+      while (WiFi.status() != WL_CONNECTED){
         retry++;
+        if (retry > 10) {
+          #define WiFi_Mode  1   // Rather go establish an AP instead
+          break;
+        }
         delay(500);
         Serial.print(".");
       }
@@ -3129,10 +3106,37 @@ void OledPrint(String S) {
         wifiSuGood = true;
         
       } else {
-        Debug.println(" failed to connect");
-        OledPrintln("Failed");
+        Debug.println();
+        Debug.println("Failed to connect in STA mode. Starting AP instead.");
+        OledPrintln("Failed STA. Start AP");
       }
     #endif
+
+
+    #if (WiFi_Mode == 1)  // AP
+      WiFi.mode(WIFI_AP);
+      WiFi.softAP(APssid, APpw, APchannel);
+      localIP = WiFi.softAPIP();
+      Debug.print("AP IP address: ");
+      Debug.println(localIP);
+      server.begin();
+      Debug.print("AP Server started. SSID = ");
+      Debug.println(String(APssid));
+      
+      OledPrintln("WiFi AP SSID =");
+      OledPrintln(String(APssid));
+      OledPrintln(localIP.toString());  
+      
+      #if (WiFi_Protocol == 2)  // UDP
+        udp.begin(udp_localPort);
+        Debug.printf("UDP started, listening on IP %s, UDP port %d\n", WiFi.softAPIP().toString().c_str(), udp_localPort);      
+        OledPrintln("UDP ok port 14550");                 
+      #endif
+      
+      wifiSuGood = true;
+      delay(5000);  // to debounce button press
+    #endif  
+  
   }
   
   #if (WiFi_Protocol == 2)  //  Display the remote UDP IP the first time we get it
@@ -3638,7 +3642,7 @@ void FrSkySPort_Init(void)  {
 esp_err_t uart_set_line_inverse(uart_port_t uart_num, uint32_t inverse_mask);
 
  */
-  frSerial.begin(frBaud, SERIAL_8N1, Fr_rxPin, Fr_txPin);  //  ESP32 Dev Board rx=12   tx=14 
+  frSerial.begin(frBaud, SERIAL_8N1, Fr_rxPin, Fr_txPin); 
   
   #if defined Ground_Mode 
     Debug.println("ESP32 S.Port pins inverted for Ground Mode");   
