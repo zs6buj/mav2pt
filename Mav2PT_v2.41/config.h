@@ -3,7 +3,8 @@
 
   Complete change log and debugging options are at the bottom of this tab
    
-v2.41 2019-11-08 Fix STA mode no-connect loop  
+v2.41 2019-11-08 Fix STA mode no-connect loop 
+      2019-11-08 Make AutoAP optional
                       
 */
 // ******************************* Please select your options here before compiling *******************************
@@ -80,6 +81,7 @@ const uint16_t bat2_capacity = 0;
 
 //#define Send_Sensor_Health_Messages
 //#define AutoBaud                    // Auto detect telemetry baud - takes a few seconds
+#define AutoAP                        // If we fail to connect in STA mode, start AP instead
 //#define Request_Missions_From_FC    // Un-comment if you need mission waypoint from FC - NOT NECESSARY RIGHT NOW
 
 //#define Data_Streams_Enabled // Requests data streams from FC. Requires both rx and tx lines to FC. Rather set SRn in Mission Planner
@@ -400,7 +402,7 @@ bool daylightSaving = false;
    //  const char    *STApw =       "txmod123";      
 
 
-    // AP and STA below
+   // AP and STA below
 
     WiFiClient wifi;   
     

@@ -3050,6 +3050,8 @@ void OledPrint(String S) {
  
   void SetupWiFi() { 
 
+    bool apMode = false;  // used when STA fails to connect
+
     #if (WiFi_Mode == 2)  // STA
       uint8_t retry = 0;
       Debug.print("Trying to connect to ");  
@@ -3065,7 +3067,9 @@ void OledPrint(String S) {
       while (WiFi.status() != WL_CONNECTED){
         retry++;
         if (retry > 10) {
-          #define WiFi_Mode  1   // Rather go establish an AP instead
+          #ifdef AutoAP  
+            apMode = true;  // Rather go establish an AP instead
+          #endif  
           break;
         }
         delay(500);
@@ -3114,6 +3118,10 @@ void OledPrint(String S) {
 
 
     #if (WiFi_Mode == 1)  // AP
+      apMode = true;
+    #endif
+
+    if (apMode) {
       WiFi.mode(WIFI_AP);
       WiFi.softAP(APssid, APpw, APchannel);
       localIP = WiFi.softAPIP();
@@ -3126,7 +3134,8 @@ void OledPrint(String S) {
       OledPrintln("WiFi AP SSID =");
       OledPrintln(String(APssid));
       OledPrintln(localIP.toString());  
-      
+    }  
+    
       #if (WiFi_Protocol == 2)  // UDP
         udp.begin(udp_localPort);
         Debug.printf("UDP started, listening on IP %s, UDP port %d\n", WiFi.softAPIP().toString().c_str(), udp_localPort);      
@@ -3135,7 +3144,7 @@ void OledPrint(String S) {
       
       wifiSuGood = true;
       delay(5000);  // to debounce button press
-    #endif  
+
   
   }
   
