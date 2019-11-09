@@ -5,6 +5,7 @@
    
 v2.41 2019-11-08 Fix STA mode no-connect loop 
       2019-11-08 Make AutoAP optional
+v2.42 2019-11-09 Add support for GCS-side simultaneous WiFi and BT telemetry option 
                       
 */
 // ******************************* Please select your options here before compiling *******************************
@@ -36,10 +37,15 @@ v2.41 2019-11-08 Fix STA mode no-connect loop
 //#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 and ESP8266 only
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 and ESP8266 only
+#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth - ESP32 and ESP8266 only
+
+// NOTE: The Bluetooth class library uses a great deal of application memory. During Compile/Flash
+//  you may need to select Tools/Partition Scheme: "Minimal SPIFFS (1.9MB APP ...)
+
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with other GCS I/O
 
-#define BT_Master_Mode true    // Master connects to BT_Slave_Name --- false for BT Slave Mode
+//#define BT_Master_Mode true    // Master connects to BT_Slave_Name --- false for BT Slave Mode
 const char* BT_Slave_Name   =   "Crossfire 0277";  // Example
 
 
@@ -176,13 +182,13 @@ bool daylightSaving = false;
   #endif
 
   #if (Target_Board != 3) && (Target_Board != 4) 
-     #if (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)
+     #if (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3)
        #error WiFi works only on an ESP32 or ESP8266 board
      #endif  
   #endif
   
   #if (Target_Board != 3) 
-     #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1) 
+     #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1) || (GCS_Mavlink_IO == 3)
        #error Bluetooth works only on an ESP32 board
      #endif  
   #endif
@@ -324,7 +330,7 @@ bool daylightSaving = false;
 //************************************************************************** 
 //**************************** Bluetooth - ESP32 Only **********************
 
-  #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1)  // Bluetooth
+  #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1)|| (GCS_Mavlink_IO == 3)  // Bluetooth
     #if (Target_Board == 3) // ESP32
 
     #define BT_Setup   // so that WiFi setup does not defien these shared variables again
@@ -354,7 +360,7 @@ bool daylightSaving = false;
 ///************************************************************************** 
 //***************************** WiFi - ESP32 or ES8266 Only ***************************
 
-  #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2))  // WiFi
+  #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)) || (GCS_Mavlink_IO == 3) // WiFi
 
     // Define link variables
     #ifndef BT_Setup
@@ -522,7 +528,7 @@ uint32_t mvBaudFC     =       921600;         // Must match Flight Controller or
 //#define Debug_GCS_Up         // traffic up from GCS to FC
 //#define Mav_Debug_Servo
 //#define Frs_Debug_Servo
-#define Debug_Rssi
+//#define Debug_Rssi
 //#define Mav_Debug_RC
 //#define Frs_Debug_RC
 //#define Mav_Debug_FC_Heartbeat
