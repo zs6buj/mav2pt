@@ -38,7 +38,7 @@ v2.42 2019-11-09 Add support for GCS-side simultaneous WiFi and BT telemetry opt
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define GCS_Mavlink_IO  2    // WiFi - ESP32 and ESP8266 only
-#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth - ESP32 and ESP8266 only
+#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 and ESP8266 only
 
 // NOTE: The Bluetooth class library uses a great deal of application memory. During Compile/Flash
 //  you may need to select Tools/Partition Scheme: "Minimal SPIFFS (1.9MB APP ...)
