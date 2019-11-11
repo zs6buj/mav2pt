@@ -19,7 +19,6 @@ v2.41 2019-11-08 Fix STA mode no-connect loop
 
 
 
-
 // Choose one only of these Flight-Controller-side I/O channels 
 // How does Mavlink telemetry enter the converter?
 #define FC_Mavlink_IO  0    // Serial Port (default)         
