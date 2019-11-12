@@ -4,6 +4,11 @@
   Complete change log and debugging options are at the bottom of this tab
    
 v2.42 2019-11-09 Add support for GCS-side simultaneous WiFi and BT telemetry option 
+v2.43 2019-11-10 Tidy up WiFi Setup for auto AP failover. 
+                 Support for 2 new ESP32 board variants, complements of Noircogi.     
+      2019-11-11 Implement Auto RSSI selection(Order of precidence #109, then #65 then #35) 
+      2019-11-11  Support AutoBaud up to 921600. 
+v2.44 2019-11-12  Include Target0815 recommended reset after STA fail to connect.     
 `                    
 */
 // ******************************* Please select your options here before compiling *******************************
