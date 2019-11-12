@@ -596,7 +596,7 @@ uint32_t mvBaudFC     =       921600;         // Must match Flight Controller or
 //#define Frs_Debug_Attitude
 //#define Mav_Debug_StatusText
 //#define Frs_Debug_StatusText    
-#define Mav_Debug_Mission
+//#define Mav_Debug_Mission
 //#define Frs_Debug_Mission   
 //#define Debug_SD    
 //#define Mav_Debug_System_Time   
