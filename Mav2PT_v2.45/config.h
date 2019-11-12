@@ -9,7 +9,7 @@ v2.43 2019-11-10 Tidy up WiFi Setup for auto AP failover.
       2019-11-11 Implement Auto RSSI selection(Order of precidence #109, then #65 then #35) 
       2019-11-11  Support AutoBaud up to 921600. 
 v2.44 2019-11-12  Include Target0815 recommended reset after STA fail to connect.     
-v2.45 2019-11-12  Augment mission debugging for arhertop.  
+v2.45 2019-11-12  Augment mission debugging for athertop.  
 `                    
 */
 // ******************************* Please select your options here before compiling *******************************
