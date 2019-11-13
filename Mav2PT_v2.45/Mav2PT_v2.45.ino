@@ -1771,7 +1771,8 @@ uint32_t bit32Extract(uint32_t dword,uint8_t displ, uint8_t lth); // Forward def
 void DecodeOneMavFrame() {
   
    #if defined Mav_Print_All_Msgid
-     Debug.printf("FC to QGS - msgid = %3d \n",  R2Gmsg.msgid);
+     uint16_t sz = sizeof(R2Gmsg);
+     Debug.printf("FC to QGS - msgid = %3d Msg size =%3d\n",  R2Gmsg.msgid, sz);
    #endif
 
    switch(R2Gmsg.msgid) {
@@ -2786,15 +2787,15 @@ uint8_t   tl;
 uint8_t mavNum;
 
 //Mavlink 1 and 2
-uint8_t mav_magic;              ///< protocol magic marker
-uint8_t mav_len;                ///< Length of payload
+uint8_t mav_magic;               // protocol magic marker
+uint8_t mav_len;                 // Length of payload
 
-//uint8_t mav_incompat_flags;     ///< MAV2 flags that must be understood
-//uint8_t mav_compat_flags;       ///< MAV2 flags that can be ignored if not understood
+//uint8_t mav_incompat_flags;    // MAV2 flags that must be understood
+//uint8_t mav_compat_flags;      // MAV2 flags that can be ignored if not understood
 
-uint8_t mav_seq;                ///< Sequence of packet
-//uint8_t mav_sysid;            ///< ID of message sender system/aircraft
-//uint8_t mav_compid;           ///< ID of the message sender component
+uint8_t mav_seq;                // Sequence of packet
+//uint8_t mav_sysid;            // ID of message sender system/aircraft
+//uint8_t mav_compid;           // ID of the message sender component
 uint8_t mav_msgid;            
 /*
 uint8_t mav_msgid_b1;           ///< first 8 bits of the ID of the message 0:7; 
@@ -2803,6 +2804,7 @@ uint8_t mav_msgid_b3;           ///< last 8 bits of the ID of the message 16:23;
 uint8_t mav_payload[280];      ///< A maximum of 255 payload bytes
 uint16_t mav_checksum;          ///< X.25 CRC
 */
+
   
   if ((bytes[0] == 0xFE) || (bytes[0] == 0xFD)) {
     j = -2;   // relative position moved forward 2 places
@@ -2839,7 +2841,7 @@ uint16_t mav_checksum;          ///< X.25 CRC
  //   mav_compat_flags = bytes[j+5];;
     mav_seq = bytes[j+6];
  //   mav_sysid = bytes[j+7];
-//    mav_compid = bytes[j+8];
+ //   mav_compid = bytes[j+8];
     mav_msgid = bytes[j+9];
 
     //Debug.print(TimeString(millis()/1000)); Debug.print(": ");
@@ -3305,10 +3307,9 @@ void OledPrint(String S) {
     #endif  
 
     wifiSuDone = true;
- #endif 
-  }
-  
-  //***************************************************
+ }   
+
+
   #if (WiFi_Protocol == 2)  //  Display the remote UDP IP the first time we get it
   void DisplayRemoteIP() {
     if (FtRemIP)  {
@@ -3323,7 +3324,10 @@ void OledPrint(String S) {
      }
   }
   #endif
- 
+  
+ #endif  
+
+
 //***************************************************
 
 #if ((FC_Mavlink_IO == 3) || defined GCS_Mavlink_SD)  // SD Card

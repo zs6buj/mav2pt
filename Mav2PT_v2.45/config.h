@@ -10,6 +10,7 @@ v2.43 2019-11-10 Tidy up WiFi Setup for auto AP failover.
       2019-11-11  Support AutoBaud up to 921600. 
 v2.44 2019-11-12  Include Target0815 recommended reset after STA fail to connect.     
 v2.45 2019-11-12  Augment mission debugging for athertop.  
+      2019-11-13  Move #endif outside } in SetupWiFi
 `                    
 */
 // ******************************* Please select your options here before compiling *******************************
@@ -96,7 +97,7 @@ const uint16_t bat2_capacity = 0;
 //#define Send_status_Text_3_Times
 
 //#define Send_Sensor_Health_Messages
-#define AutoBaud                    // UART Serial Only - Auto detect FC_Mavlink telemetry baud 
+//#define AutoBaud                    // UART Serial Only - Auto detect FC_Mavlink telemetry baud 
 
 //#define Request_Missions_From_FC    // Un-comment if you need mission waypoint from FC - NOT NECESSARY RIGHT NOW
 
