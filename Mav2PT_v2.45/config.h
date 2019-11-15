@@ -607,7 +607,7 @@ uint32_t mvBaudFC     =       921600;         // Must match Flight Controller or
 //#define Debug_Radio_Status  
 //#define Debug_GCS_Unknown
 //#define Debug_Param_Request_Read
-//#define Debug_Unknown_Messages
+//#define Mav_Debug_Unknown_Msgs
 //#define Mav_Print_All_Msgid
 // *****************************************************************************************************************
 

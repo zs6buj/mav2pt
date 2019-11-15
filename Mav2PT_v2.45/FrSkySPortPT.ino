@@ -120,7 +120,7 @@ void ReadSPort(void) {
       #if defined Debug_Air_Mode || defined Debug_Relay_Mode
         Debug.print("S/S "); 
       #endif
-    FrSkySPort_Process(); 
+    FrSkySPort_Inject_Packet(); 
 
     }     
   prevByt=Byt;
@@ -136,7 +136,7 @@ void Emulate_ReadSPort() {
     setSPortMode(tx);
   #endif
  
-  FrSkySPort_Process();  
+  FrSkySPort_Inject_Packet();  
 
 
   // and back to main loop
@@ -145,7 +145,7 @@ void Emulate_ReadSPort() {
 
 // ***********************************************************************
 // ***********************************************************************
-void FrSkySPort_Process() {
+void FrSkySPort_Inject_Packet() {
 
   #if defined Frs_Debug_All || defined Frs_Debug_Period
     ShowPeriod();   

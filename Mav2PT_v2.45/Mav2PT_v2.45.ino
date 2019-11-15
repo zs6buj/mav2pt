@@ -2592,7 +2592,7 @@ void DecodeOneMavFrame() {
           break;                                      
         default:
           if (!mavGood) break;
-          #ifdef Mav_Debug_All || Mav_Debug_Unknown_Msgs
+          #if defined Mav_Debug_All || defined Mav_Debug_Unknown_Msgs
             Debug.print("Mavlink from FC: ");
             Debug.print("Unknown Message ID #");
             Debug.print(R2Gmsg.msgid);
