@@ -173,6 +173,7 @@ uint8_t   MavLedState = LOW;
 uint8_t   BufLedState = LOW; 
  
 uint32_t  hb_count=0;
+uint32_t  sens_buf_full_count = 0;
 
 bool      ap_bat_paramsReq = false;
 bool      ap_bat_paramsRead=false; 

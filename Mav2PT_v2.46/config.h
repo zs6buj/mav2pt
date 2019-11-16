@@ -3,14 +3,7 @@
 
   Complete change log and debugging options are at the bottom of this tab
    
-v2.42 2019-11-09 Add support for GCS-side simultaneous WiFi and BT telemetry option 
-v2.43 2019-11-10 Tidy up WiFi Setup for auto AP failover. 
-                 Support for 2 new ESP32 board variants, complements of Noircogi.     
-      2019-11-11 Implement Auto RSSI selection(Order of precidence #109, then #65 then #35) 
-      2019-11-11  Support AutoBaud up to 921600. 
-v2.44 2019-11-12  Include Target0815 recommended reset after STA fail to connect.     
-v2.45 2019-11-12  Augment mission debugging for athertop.  
-      2019-11-13  Move #endif outside } in SetupWiFi
+v2.46 2019-11-16  A few cosmetic improvements     
 `                    
 */
 // ******************************* Please select your options here before compiling *******************************
@@ -42,7 +35,7 @@ v2.45 2019-11-12  Augment mission debugging for athertop.
 //#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 and ESP8266 only
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 and ESP8266 only
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 and ESP8266 only
 
 // NOTE: The Bluetooth class library uses a great deal of application memory. During Compile/Flash
@@ -446,7 +439,7 @@ bool daylightSaving = false;
 //    const char    *STApw          =     "targetPw";      // Change me!    
 
    const char    *STAssid        =     "OmegaOffice";    
-   const char    *STApw          =     "Navara@98";             
+   const char    *STApw          =     "";             
 
    //  const char    *STAssid =     "EZ-WifiBroadcast";    
    //  const char    *STApw =       "wifibroadcast";         
@@ -667,5 +660,13 @@ v2.35 2019-10-18 Add pre-defined ESP32 board variants. TargetBoard >> Target_Boa
 v2.36 2019-10-30 Optimise WiFi amd BT read/send as per excellent mavesp8266 bridge by Tridge.
                  Add support for ESP8266. 
 v2.41 2019-11-08 Fix STA mode no-connect loop 
-      2019-11-08 Make AutoAP optional                         
+      2019-11-08 Make AutoAP optional    
+v2.42 2019-11-09 Add support for GCS-side simultaneous WiFi and BT telemetry option 
+v2.43 2019-11-10 Tidy up WiFi Setup for auto AP failover. 
+                 Support for 2 new ESP32 board variants, complements of Noircogi.     
+      2019-11-11 Implement Auto RSSI selection(Order of precidence #109, then #65 then #35) 
+      2019-11-11  Support AutoBaud up to 921600. 
+v2.44 2019-11-12  Include Target0815 recommended reset after STA fail to connect.     
+v2.45 2019-11-12  Augment mission debugging for athertop.  
+      2019-11-13  Move #endif outside } in SetupWiFi                          
 */

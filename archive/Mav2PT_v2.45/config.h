@@ -9,6 +9,8 @@ v2.43 2019-11-10 Tidy up WiFi Setup for auto AP failover.
       2019-11-11 Implement Auto RSSI selection(Order of precidence #109, then #65 then #35) 
       2019-11-11  Support AutoBaud up to 921600. 
 v2.44 2019-11-12  Include Target0815 recommended reset after STA fail to connect.     
+v2.45 2019-11-12  Augment mission debugging for athertop.  
+      2019-11-13  Move #endif outside } in SetupWiFi
 `                    
 */
 // ******************************* Please select your options here before compiling *******************************
@@ -17,8 +19,8 @@ v2.44 2019-11-12  Include Target0815 recommended reset after STA fail to connect
 #define PlusVersion  // Added support for 0x5009 Mission WPs, 0x50F1 Servo_Channels, 0x50F2 VFR_Hud
 
 // Choose one only of these three modes
-//#define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Dragonlink, ULRS, RFD900...)
-#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
+#define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Dragonlink, ULRS, RFD900...)
+//#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
 
 
@@ -64,6 +66,7 @@ const char* BT_Slave_Name   =   "Crossfire 0277";  // Example
 //#define WiFi_Mode   1  //AP            
 #define WiFi_Mode   2  // STA
 
+
 #define AutoAP                      // If we fail to connect in STA mode, start AP instead
 
 
@@ -94,7 +97,7 @@ const uint16_t bat2_capacity = 0;
 //#define Send_status_Text_3_Times
 
 //#define Send_Sensor_Health_Messages
-#define AutoBaud                    // UART Serial Only - Auto detect FC_Mavlink telemetry baud 
+//#define AutoBaud                    // UART Serial Only - Auto detect FC_Mavlink telemetry baud 
 
 //#define Request_Missions_From_FC    // Un-comment if you need mission waypoint from FC - NOT NECESSARY RIGHT NOW
 
@@ -594,7 +597,7 @@ uint32_t mvBaudFC     =       921600;         // Must match Flight Controller or
 //#define Frs_Debug_Attitude
 //#define Mav_Debug_StatusText
 //#define Frs_Debug_StatusText    
-//#define Mav_Debug_Mission 
+//#define Mav_Debug_Mission
 //#define Frs_Debug_Mission   
 //#define Debug_SD    
 //#define Mav_Debug_System_Time   
@@ -602,10 +605,10 @@ uint32_t mvBaudFC     =       921600;         // Must match Flight Controller or
 //#define Decode_Non_Essential_Mav 
 //#define Debug_Baud 
 //#define Debug_Radio_Status  
-//#define Debug_Mission_Request_Int 
 //#define Debug_GCS_Unknown
 //#define Debug_Param_Request_Read
-
+//#define Mav_Debug_Unknown_Msgs
+//#define Mav_Print_All_Msgid
 // *****************************************************************************************************************
 
 /*

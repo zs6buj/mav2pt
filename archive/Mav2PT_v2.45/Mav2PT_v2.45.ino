@@ -173,6 +173,7 @@ uint8_t   MavLedState = LOW;
 uint8_t   BufLedState = LOW; 
  
 uint32_t  hb_count=0;
+uint32_t  sens_buf_full_count = 0;
 
 bool      ap_bat_paramsReq = false;
 bool      ap_bat_paramsRead=false; 
@@ -454,6 +455,23 @@ uint16_t  ap_chan_raw[18];       // 16 + 2 channels, [0] thru [17]
 
 //uint16_t ap_chan16_raw;        // Used for RSSI uS 1000=0%  2000=100%
 uint8_t  ap_rssi65;              // Receive signal strength indicator, 0: 0%, 100: 100%, 255: invalid/unknown
+
+// Message #73 Mission_Item_Int
+uint8_t   ap73_target_system;    
+uint8_t   ap73_target_component;    
+uint16_t  ap73_seq;             // Waypoint ID (sequence number)
+uint8_t   ap73_frame;           // MAV_FRAME The coordinate system of the waypoint.
+uint16_t  ap73_command;         // MAV_CMD The scheduled action for the waypoint.
+uint8_t   ap73_current;         // false:0, true:1
+uint8_t   ap73_autocontinue;    // Autocontinue to next waypoint
+float     ap73_param1;          // PARAM1, see MAV_CMD enum
+float     ap73_param2;          // PARAM2, see MAV_CMD enum
+float     ap73_param3;          // PARAM3, see MAV_CMD enum
+float     ap73_param4;          // PARAM4, see MAV_CMD enum
+int32_t   ap73_x;               // PARAM5 / local: x position in meters * 1e4, global: latitude in degrees * 10^7
+int32_t   ap73_y;               // PARAM6 / y position: local: x position in meters * 1e4, global: longitude in degrees *10^7
+float     ap73_z;               // PARAM7 / z position: global: altitude in meters (relative or absolute, depending on frame.
+uint8_t   ap73_mission_type;    // Mav2   MAV_MISSION_TYPE  Mission type.
 
 // Message #74 VFR_HUD  
 float    ap_hud_air_spd;
@@ -1455,7 +1473,9 @@ void checkLinkErrors(mavlink_message_t* msgptr)   {
 
 void Decode_GCS_To_FC() {
   #if (GCS_Mavlink_IO == 0) || (GCS_Mavlink_IO == 1) || (GCS_Mavlink_IO == 2)  || (GCS_Mavlink_IO == 3) // if any GCS I/O requested
-  
+   #if defined Mav_Print_All_Msgid
+     Debug.printf("GCS to FC - msgid = %3d \n",  G2Fmsg.msgid);
+   #endif
    switch(G2Fmsg.msgid) {
        case MAVLINK_MSG_ID_HEARTBEAT:    // #0   
           #if defined Mav_Debug_All || defined Debug_GCS_Upxxxx || defined Mav_Debug_GCS_Heartbeat
@@ -1467,7 +1487,7 @@ void Decode_GCS_To_FC() {
             gcs_mavlink_version = mavlink_msg_heartbeat_get_mavlink_version(&G2Fmsg);
   
 
-            Debug.print("Mavlink up to FC: #0 Heartbeat: ");           
+            Debug.print("Mavlink to FC: #0 Heartbeat: ");           
             Debug.print("gcs_type="); Debug.print(ap_type);   
             Debug.print("  gcs_autopilot="); Debug.print(ap_autopilot); 
             Debug.print("  gcs_base_mode="); Debug.print(ap_base_mode); 
@@ -1484,7 +1504,7 @@ void Decode_GCS_To_FC() {
             mavlink_msg_param_request_read_get_param_id(&G2Fmsg, gcs_req_param_id);
             gcs_req_param_index = mavlink_msg_param_request_read_get_param_index(&G2Fmsg);                  
 
-            Debug.print("Mavlink up to FC: #20 Param_Request_Read: ");           
+            Debug.print("Mavlink to FC: #20 Param_Request_Read: ");           
             Debug.print("gcs_target_system="); Debug.print(gcs_target_system);   
             Debug.print("  gcs_req_param_id="); Debug.print(gcs_req_param_id);          
             Debug.print("  gcs_req_param_index="); Debug.print(gcs_req_param_index);    
@@ -1496,13 +1516,13 @@ void Decode_GCS_To_FC() {
           break;
           
          case MAVLINK_MSG_ID_MISSION_REQUEST_INT:  // #51 
-          #if defined Mav_Debug_All || defined Debug_GCS_Up || defined Debug_Mission_Request_Int 
+          #if defined Mav_Debug_All || defined Debug_GCS_Up || defined Mav_Debug_Mission
             gcs_target_system = mavlink_msg_mission_request_int_get_target_system(&G2Fmsg);
             gcs_target_component = mavlink_msg_mission_request_int_get_target_component(&G2Fmsg);
             gcs_seq = mavlink_msg_mission_request_int_get_seq(&G2Fmsg); 
             gcs_mission_type = mavlink_msg_mission_request_int_get_seq(&G2Fmsg);                     
 
-            Debug.print("Mavlink up to FC: #51 Mission_Request_Int: ");           
+            Debug.print("Mavlink to FC: #51 Mission_Request_Int: ");           
             Debug.print("gcs_target_system="); Debug.print(gcs_target_system);   
             Debug.print("  gcs_target_component="); Debug.print(gcs_target_component);          
             Debug.print("  gcs_seq="); Debug.print(gcs_seq);    
@@ -1513,7 +1533,7 @@ void Decode_GCS_To_FC() {
         default:
           if (!mavGood) break;
           #ifdef Debug_All || Debug_GCS_Up || Debug_GCS_Unknown
-            Debug.print("Mavlink up to FC: ");
+            Debug.print("Mavlink to FC: ");
             Debug.print("Unknown Message ID #");
             Debug.print(G2Fmsg.msgid);
             Debug.println(" Ignored"); 
@@ -1749,9 +1769,12 @@ bool Send_UDP(mavlink_message_t* msgptr) {
 
 uint32_t bit32Extract(uint32_t dword,uint8_t displ, uint8_t lth); // Forward define
 
-void DecodeOneMavFrame() { 
-
-     //Debug.print(" msgid="); Debug.println(R2Gmsg.msgid); 
+void DecodeOneMavFrame() {
+  
+   #if defined Mav_Print_All_Msgid
+     uint16_t sz = sizeof(R2Gmsg);
+     Debug.printf("FC to QGS - msgid = %3d Msg size =%3d\n",  R2Gmsg.msgid, sz);
+   #endif
 
    switch(R2Gmsg.msgid) {
     
@@ -1796,7 +1819,7 @@ void DecodeOneMavFrame() {
             }
 
           #if defined Mav_Debug_All || defined Mav_Debug_FC_Heartbeat
-            Debug.print("Mavlink in #0 Heartbeat: ");           
+            Debug.print("Mavlink from FC #0 Heartbeat: ");           
             Debug.print("ap_type="); Debug.print(ap_type);   
             Debug.print("  ap_autopilot="); Debug.print(ap_autopilot); 
             Debug.print("  ap_base_mode="); Debug.print(ap_base_mode); 
@@ -1829,7 +1852,7 @@ void DecodeOneMavFrame() {
             else ap_ccell_count1= 0;
           
           #if defined Mav_Debug_All || defined Mav_Debug_SysStatus || defined Debug_Batteries
-            Debug.print("Mavlink in #1 Sys_status: ");     
+            Debug.print("Mavlink from FC #1 Sys_status: ");     
             Debug.print(" Sensor health=");
             Debug.print(ap_onboard_control_sensors_health);   // 32b bitwise 0: error, 1: healthy.
             Debug.print(" Bat volts=");
@@ -1932,7 +1955,7 @@ void DecodeOneMavFrame() {
             timeGood = true;
           }
           #if defined Mav_Debug_All || defined Mav_Debug_System_Time
-            Debug.print("Mavlink in #2 System_Time: ");        
+            Debug.print("Mavlink from FC #2 System_Time: ");        
             Debug.print(" Unix secs="); Debug.print((float)(ap_time_unix_usec/1E6), 6);  
             Debug.print("  Boot secs="); Debug.println((float)(ap_time_boot_ms/1E3), 0);   
           #endif
@@ -1954,7 +1977,7 @@ void DecodeOneMavFrame() {
             case 356:         // Bat1 Capacity
               ap_bat1_capacity = ap_param_value;
               #if defined Mav_Debug_All || defined Debug_Batteries
-                Debug.print("Mavlink in #22 Param_Value: ");
+                Debug.print("Mavlink from FC #22 Param_Value: ");
                 Debug.print("bat1 capacity=");
                 Debug.println(ap_bat1_capacity);
               #endif
@@ -1963,7 +1986,7 @@ void DecodeOneMavFrame() {
               ap_bat2_capacity = ap_param_value;
               ap_bat_paramsRead = true;
               #if defined Mav_Debug_All || defined Debug_Batteries
-                Debug.print("Mavlink in #22 Param_Value: ");
+                Debug.print("Mavlink from FC #22 Param_Value: ");
                 Debug.print("bat2 capacity=");
                 Debug.println(ap_bat2_capacity);
               #endif             
@@ -1971,7 +1994,7 @@ void DecodeOneMavFrame() {
           } 
              
           #if defined Mav_Debug_All || defined Mav_Debug_Params || defined Mav_List_Params
-            Debug.print("Mavlink in #22 Param_Value: ");
+            Debug.print("Mavlink from FC #22 Param_Value: ");
             Debug.print("param_id=");
             Debug.print(ap_param_id);
             Debug.print("  param_value=");
@@ -2007,7 +2030,7 @@ void DecodeOneMavFrame() {
            
           }
           #if defined Mav_Debug_All || defined Mav_Debug_GPS_Raw
-            Debug.print("Mavlink in #24 GPS_RAW_INT: ");  
+            Debug.print("Mavlink from FC #24 GPS_RAW_INT: ");  
             Debug.print("ap_fixtype="); Debug.print(ap_fixtype);
             if (ap_fixtype==0) Debug.print(" No GPS");
               else if (ap_fixtype==1) Debug.print(" No Fix");
@@ -2050,7 +2073,7 @@ void DecodeOneMavFrame() {
           ap_accY = mavlink_msg_raw_imu_get_yacc(&R2Gmsg);
           ap_accZ = mavlink_msg_raw_imu_get_zacc(&R2Gmsg);
           #if defined Mav_Debug_All || defined Mav_Debug_Raw_IMU
-            Debug.print("Mavlink in #27 Raw_IMU: ");
+            Debug.print("Mavlink from FC #27 Raw_IMU: ");
             Debug.print("accX="); Debug.print((float)ap_accX / 1000); 
             Debug.print("  accY="); Debug.print((float)ap_accY / 1000); 
             Debug.print("  accZ="); Debug.println((float)ap_accZ / 1000);
@@ -2064,7 +2087,7 @@ void DecodeOneMavFrame() {
           ap_press_abs = mavlink_msg_scaled_pressure_get_press_abs(&R2Gmsg);
           ap_temperature = mavlink_msg_scaled_pressure_get_temperature(&R2Gmsg);
           #if defined Mav_Debug_All || defined Mav_Debug_Scaled_Pressure
-            Debug.print("Mavlink in #29 Scaled_Pressure: ");
+            Debug.print("Mavlink from FC #29 Scaled_Pressure: ");
             Debug.print("  press_abs=");  Debug.print(ap_press_abs,1);
             Debug.print("hPa  press_diff="); Debug.print(ap_press_diff, 3);
             Debug.print("hPa  temperature=");  Debug.print((float)(ap_temperature)/100, 1); 
@@ -2087,7 +2110,7 @@ void DecodeOneMavFrame() {
           ap_yaw = RadToDeg(ap_yaw);
           
           #if defined Mav_Debug_All || defined Mav_Debug_Attitude   
-            Debug.print("Mavlink in #30 Attitude: ");      
+            Debug.print("Mavlink from FC #30 Attitude: ");      
             Debug.print(" ap_roll degs=");
             Debug.print(ap_roll, 1);
             Debug.print(" ap_pitch degs=");   
@@ -2116,7 +2139,7 @@ void DecodeOneMavFrame() {
           cur.hdg = ap_gps_hdg / 100;
 
           #if defined Mav_Debug_All || defined Mav_Debug_GPS_Int
-            Debug.print("Mavlink in #33 GPS Int: ");
+            Debug.print("Mavlink from FC #33 GPS Int: ");
             Debug.print(" ap_lat="); Debug.print((float)ap_lat33 / 1E7, 6);
             Debug.print(" ap_lon="); Debug.print((float)ap_lon33 / 1E7, 6);
             Debug.print(" ap_amsl="); Debug.print((float)ap_amsl33 / 1E3, 0);
@@ -2144,7 +2167,7 @@ void DecodeOneMavFrame() {
           }
 
           #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
-            Debug.print("Mavlink in #35 RC_Channels_Raw: ");                        
+            Debug.print("Mavlink from FC #35 RC_Channels_Raw: ");                        
             Debug.print("  ap_rssi35=");  Debug.print(ap_rssi35/ 2.54); 
             Debug.print("  rssiGood=");  Debug.println(rssiGood); 
           #endif                    
@@ -2174,7 +2197,7 @@ void DecodeOneMavFrame() {
           */       
       
           #if defined Mav_Debug_All ||  defined Mav_Debug_Servo
-            Debug.print("Mavlink in #36 servo_output: ");
+            Debug.print("Mavlink from FC #36 servo_output: ");
             Debug.print("ap_port="); Debug.print(ap_port); 
             Debug.print(" PWM: ");
             for (int i=0 ; i < 8; i++) {
@@ -2208,7 +2231,7 @@ void DecodeOneMavFrame() {
             ap_mission_type = mavlink_msg_mission_item_get_z(&R2Gmsg);                // MAV_MISSION_TYPE
                      
             #if defined Mav_Debug_All || defined Mav_Debug_Mission
-              Debug.print("Mavlink in #39 Mission Item: ");
+              Debug.print("Mavlink from FC #39 Mission Item: ");
               Debug.print("ap_ms_seq="); Debug.print(ap_ms_seq);  
               Debug.print(" ap_ms_frame="); Debug.print(ap_ms_frame);   
               Debug.print(" ap_ms_command="); Debug.print(ap_ms_command);   
@@ -2239,8 +2262,10 @@ void DecodeOneMavFrame() {
             ap_ms_seq =  mavlink_msg_mission_current_get_seq(&R2Gmsg);  
             
             #if defined Mav_Debug_All || defined Mav_Debug_Mission
-              Debug.print("Mavlink in #42 Mission Current: ");
+            if (ap_ms_seq) {
+              Debug.print("Mavlink from FC #42 Mission Current: ");
               Debug.print("ap_mission_current="); Debug.println(ap_ms_seq);   
+            }
             #endif 
               
             if (ap_ms_seq > 0) ap_ms_current_flag = true;     //  Ok to send passthru frames 
@@ -2251,7 +2276,7 @@ void DecodeOneMavFrame() {
           if (!mavGood) break;  
             ap_mission_count =  mavlink_msg_mission_count_get_count(&R2Gmsg); 
             #if defined Mav_Debug_All || defined Mav_Debug_Mission
-              Debug.print("Mavlink in #44 Mission Count: ");
+              Debug.print("Mavlink from FC #44 Mission Count: ");
               Debug.print("ap_mission_count="); Debug.println(ap_mission_count);   
             #endif
             #if defined Request_Missions_From_FC
@@ -2262,6 +2287,7 @@ void DecodeOneMavFrame() {
             #endif
           break; 
         #endif
+        
         case MAVLINK_MSG_ID_NAV_CONTROLLER_OUTPUT:   // #62
           if (!mavGood) break;    
             ap_nav_roll =  mavlink_msg_nav_controller_output_get_nav_roll(&R2Gmsg);             // Current desired roll
@@ -2273,8 +2299,8 @@ void DecodeOneMavFrame() {
             ap_aspd_error = mavlink_msg_nav_controller_output_get_aspd_error(&R2Gmsg);          // Current airspeed error
             ap_xtrack_error = mavlink_msg_nav_controller_output_get_xtrack_error(&R2Gmsg);      // Current crosstrack error on x-y plane
 
-            #if defined Mav_Debug_All || defined Mav_Debug_Mission
-              Debug.print("Mavlink in #62 Mission Item: ");
+            #if defined Mav_Debug_All || defined Mav_Debug_Waypoints
+              Debug.print("Mavlink from FC #62 Nav_Controller_Output - (+Waypoint): ");
               Debug.print("ap_nav_roll="); Debug.print(ap_nav_roll, 3);  
               Debug.print(" ap_nav_pitch="); Debug.print(ap_nav_pitch, 3);   
               Debug.print(" ap_nav_bearing="); Debug.print(ap_nav_bearing);   
@@ -2328,7 +2354,7 @@ void DecodeOneMavFrame() {
               }
              
             #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
-              Debug.print("Mavlink in #65 RC_Channels: ");
+              Debug.print("Mavlink from FC #65 RC_Channels: ");
               Debug.print("ap_chcnt="); Debug.print(ap_chcnt); 
               Debug.print(" PWM: ");
               for (int i=0 ; i < ap_chcnt ; i++) {
@@ -2343,7 +2369,46 @@ void DecodeOneMavFrame() {
           break;      
         case MAVLINK_MSG_ID_REQUEST_DATA_STREAM:     // #66 - OUTGOING TO UAV
           if (!mavGood) break;       
-          break;                             
+          break; 
+        case MAVLINK_MSG_ID_MISSION_ITEM_INT:       // #73   received back after #51 Mission_Request_Int sent
+        #if defined Mav_Debug_All || defined Mav_Debug_Mission
+          if (!mavGood) break; 
+          ap73_target_system =  mavlink_msg_mission_item_int_get_target_system(&R2Gmsg);   
+          ap73_target_component =  mavlink_msg_mission_item_int_get_target_component(&R2Gmsg);   
+          ap73_seq = mavlink_msg_mission_item_int_get_seq(&R2Gmsg);           // Waypoint ID (sequence number)
+          ap73_frame = mavlink_msg_mission_item_int_get_frame(&R2Gmsg);       // MAV_FRAME The coordinate system of the waypoint.
+          ap73_command = mavlink_msg_mission_item_int_get_command(&R2Gmsg);   // MAV_CMD The scheduled action for the waypoint.
+          ap73_current = mavlink_msg_mission_item_int_get_current(&R2Gmsg);   // false:0, true:1
+          ap73_autocontinue = mavlink_msg_mission_item_int_get_autocontinue(&R2Gmsg);   // Autocontinue to next waypoint
+          ap73_param1 = mavlink_msg_mission_item_int_get_param1(&R2Gmsg);     // PARAM1, see MAV_CMD enum
+          ap73_param2 = mavlink_msg_mission_item_int_get_param2(&R2Gmsg);     // PARAM2, see MAV_CMD enum
+          ap73_param3 = mavlink_msg_mission_item_int_get_param3(&R2Gmsg);     // PARAM3, see MAV_CMD enum
+          ap73_param4 = mavlink_msg_mission_item_int_get_param4(&R2Gmsg);     // PARAM4, see MAV_CMD enum
+          ap73_x = mavlink_msg_mission_item_int_get_x(&R2Gmsg);               // PARAM5 / local: x position in meters * 1e4, global: latitude in degrees * 10^7
+          ap73_y = mavlink_msg_mission_item_int_get_y(&R2Gmsg);               // PARAM6 / y position: local: x position in meters * 1e4, global: longitude in degrees *10^7
+          ap73_z = mavlink_msg_mission_item_int_get_z(&R2Gmsg);               // PARAM7 / z position: global: altitude in meters (relative or absolute, depending on frame.
+          ap73_mission_type = mavlink_msg_mission_item_int_get_mission_type(&R2Gmsg); // Mav2   MAV_MISSION_TYPE  Mission type.
+ 
+          Debug.print("Mavlink from FC #73 Mission_Item_Int: ");
+          Debug.print("target_system ="); Debug.print(ap73_target_system);   
+          Debug.print("  target_component ="); Debug.print(ap73_target_component);   
+          Debug.print(" _seq ="); Debug.print(ap73_seq);   
+          Debug.print("  frame ="); Debug.print(ap73_frame);     
+          Debug.print("  command ="); Debug.print(ap73_command);   
+          Debug.print("  current ="); Debug.print(ap73_current);   
+          Debug.print("  autocontinue ="); Debug.print(ap73_autocontinue);   
+          Debug.print("  param1 ="); Debug.print(ap73_param1, 2); 
+          Debug.print("  param2 ="); Debug.print(ap73_param2, 2); 
+          Debug.print("  param3 ="); Debug.print(ap73_param3, 2); 
+          Debug.print("  param4 ="); Debug.print(ap73_param4, 2);                                          
+          Debug.print("  x ="); Debug.print(ap73_x);   
+          Debug.print("  y ="); Debug.print(ap73_y);   
+          Debug.print("  z ="); Debug.print(ap73_z, 4);    
+          Debug.print("  mission_type ="); Debug.println(ap73_mission_type);                                                    
+
+          break; 
+        #endif
+                               
         case MAVLINK_MSG_ID_VFR_HUD:                 //  #74
           if (!mavGood) break;      
           ap_hud_air_spd = mavlink_msg_vfr_hud_get_airspeed(&R2Gmsg);
@@ -2356,7 +2421,7 @@ void DecodeOneMavFrame() {
           cur.hdg = ap_hud_hdg;
           
          #if defined Mav_Debug_All || defined Mav_Debug_Hud
-            Debug.print("Mavlink in #74 VFR_HUD: ");
+            Debug.print("Mavlink from FC #74 VFR_HUD: ");
             Debug.print("Airspeed= "); Debug.print(ap_hud_air_spd, 2);                 // m/s    
             Debug.print("  Groundspeed= "); Debug.print(ap_hud_grd_spd, 2);            // m/s
             Debug.print("  Heading= ");  Debug.print(ap_hud_hdg);                      // deg
@@ -2394,7 +2459,7 @@ void DecodeOneMavFrame() {
             #endif     
 
             #if defined Mav_Debug_All || defined Debug_Radio_Status || defined Debug_Rssi
-              Debug.print("Mavlink in #109 Radio: "); 
+              Debug.print("Mavlink from FC #109 Radio: "); 
               Debug.print("ap_rssi109="); Debug.print(ap_rssi109);
               Debug.print("  remrssi="); Debug.print(ap_remrssi);
               Debug.print("  txbuf="); Debug.print(ap_txbuf);
@@ -2418,7 +2483,7 @@ void DecodeOneMavFrame() {
             ap_Vservo = mavlink_msg_power_status_get_Vservo(&R2Gmsg);   // servo rail voltage in millivolts
             ap_flags = mavlink_msg_power_status_get_flags(&R2Gmsg);     // power supply status flags (see MAV_POWER_status enum)
             #ifdef Mav_Debug_All
-              Debug.print("Mavlink in #125 Power Status: ");
+              Debug.print("Mavlink from FC #125 Power Status: ");
               Debug.print("Vcc= "); Debug.print(ap_Vcc); 
               Debug.print("  Vservo= ");  Debug.print(ap_Vservo);       
               Debug.print("  flags= ");  Debug.println(ap_flags);       
@@ -2439,7 +2504,7 @@ void DecodeOneMavFrame() {
           } 
              
           #if defined Mav_Debug_All || defined Debug_Batteries
-            Debug.print("Mavlink in #147 Battery Status: ");
+            Debug.print("Mavlink from FC #147 Battery Status: ");
             Debug.print(" bat id= "); Debug.print(ap_battery_id); 
             Debug.print(" bat current mA= "); Debug.print(ap_current_battery*10); 
             Debug.print(" ap_current_consumed mAh= ");  Debug.print(ap_current_consumed);   
@@ -2469,7 +2534,7 @@ void DecodeOneMavFrame() {
           ap_range = mavlink_msg_rangefinder_get_distance(&R2Gmsg);  // distance in meters
 
           #if defined Mav_Debug_All || defined Mav_Debug_Range
-            Debug.print("Mavlink in #173 rangefinder: ");        
+            Debug.print("Mavlink from FC #173 rangefinder: ");        
             Debug.print(" distance=");
             Debug.println(ap_range);   // now V
           #endif  
@@ -2492,7 +2557,7 @@ void DecodeOneMavFrame() {
             else ap_cell_count2 = 0;
    
           #if defined Mav_Debug_All || defined Debug_Batteries
-            Debug.print("Mavlink in #181 Battery2: ");        
+            Debug.print("Mavlink from FC #181 Battery2: ");        
             Debug.print(" Bat volts=");
             Debug.print((float)ap_voltage_battery2 / 1000, 3);   // now V
             Debug.print("  Bat amps=");
@@ -2517,7 +2582,7 @@ void DecodeOneMavFrame() {
           len=mavlink_msg_statustext_get_text(&R2Gmsg, ap_text);
 
           #if defined Mav_Debug_All || defined Mav_Debug_StatusText
-            Debug.print("Mavlink in #253 Statustext pushed onto MsgRingBuff: ");
+            Debug.print("Mavlink from FC #253 Statustext pushed onto MsgRingBuff: ");
             Debug.print(" Severity="); Debug.print(ap_severity);
             Debug.print(" "); Debug.print(MavSeverity(ap_severity));
             Debug.print("  Text= ");  Debug.print(" |"); Debug.print(ap_text); Debug.println("| ");
@@ -2528,8 +2593,8 @@ void DecodeOneMavFrame() {
           break;                                      
         default:
           if (!mavGood) break;
-          #ifdef Mav_Debug_All
-            Debug.print("Mavlink in: ");
+          #if defined Mav_Debug_All || defined Mav_Debug_Unknown_Msgs
+            Debug.print("Mavlink from FC: ");
             Debug.print("Unknown Message ID #");
             Debug.print(R2Gmsg.msgid);
             Debug.println(" Ignored"); 
@@ -2607,7 +2672,7 @@ void RequestMission(uint16_t ms_seq) {    //  #40
 
   Write_To_FC(40);
   #if defined Mav_Debug_All || defined Mav_Debug_Mission
-    Debug.print("Mavlink out #40 Request Mission:  ms_seq="); Debug.println(ms_seq);
+    Debug.print("Mavlink to FC #40 Request Mission:  ms_seq="); Debug.println(ms_seq);
   #endif  
 }
 #endif 
@@ -2626,7 +2691,7 @@ void RequestMissionList() {   // #43   get back #44 Mission_Count
                              
   Write_To_FC(43);
   #if defined Mav_Debug_All || defined Mav_Debug_Mission
-    Debug.println("Mavlink out #43 Request Mission List (count)");
+    Debug.println("Mavlink to FC #43 Request Mission List (count)");
   #endif  
 }
 #endif
@@ -2667,7 +2732,7 @@ void RequestDataStreams() {    //  REQUEST_DATA_STREAM ( #66 ) DEPRECATED. USE S
                           
   Write_To_FC(66);
     }
- // Debug.println("Mavlink out #66 Request Data Streams:");
+ // Debug.println("Mavlink to FC #66 Request Data Streams:");
 }
 #endif
 
@@ -2723,15 +2788,15 @@ uint8_t   tl;
 uint8_t mavNum;
 
 //Mavlink 1 and 2
-uint8_t mav_magic;              ///< protocol magic marker
-uint8_t mav_len;                ///< Length of payload
+uint8_t mav_magic;               // protocol magic marker
+uint8_t mav_len;                 // Length of payload
 
-//uint8_t mav_incompat_flags;     ///< MAV2 flags that must be understood
-//uint8_t mav_compat_flags;       ///< MAV2 flags that can be ignored if not understood
+//uint8_t mav_incompat_flags;    // MAV2 flags that must be understood
+//uint8_t mav_compat_flags;      // MAV2 flags that can be ignored if not understood
 
-uint8_t mav_seq;                ///< Sequence of packet
-//uint8_t mav_sysid;            ///< ID of message sender system/aircraft
-//uint8_t mav_compid;           ///< ID of the message sender component
+uint8_t mav_seq;                // Sequence of packet
+//uint8_t mav_sysid;            // ID of message sender system/aircraft
+//uint8_t mav_compid;           // ID of the message sender component
 uint8_t mav_msgid;            
 /*
 uint8_t mav_msgid_b1;           ///< first 8 bits of the ID of the message 0:7; 
@@ -2740,6 +2805,7 @@ uint8_t mav_msgid_b3;           ///< last 8 bits of the ID of the message 16:23;
 uint8_t mav_payload[280];      ///< A maximum of 255 payload bytes
 uint16_t mav_checksum;          ///< X.25 CRC
 */
+
   
   if ((bytes[0] == 0xFE) || (bytes[0] == 0xFD)) {
     j = -2;   // relative position moved forward 2 places
@@ -2776,7 +2842,7 @@ uint16_t mav_checksum;          ///< X.25 CRC
  //   mav_compat_flags = bytes[j+5];;
     mav_seq = bytes[j+6];
  //   mav_sysid = bytes[j+7];
-//    mav_compid = bytes[j+8];
+ //   mav_compid = bytes[j+8];
     mav_msgid = bytes[j+9];
 
     //Debug.print(TimeString(millis()/1000)); Debug.print(": ");
@@ -3262,7 +3328,7 @@ void OledPrint(String S) {
   
  #endif  
 
- 
+
 //***************************************************
 
 #if ((FC_Mavlink_IO == 3) || defined GCS_Mavlink_SD)  // SD Card

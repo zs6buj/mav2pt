@@ -243,7 +243,10 @@ void PushToEmptyRow(st_t pter) {
     j++;
   }
   if (j >= st_rows-1) {
-    Debug.println("Warning, sensor table exceeded. Push ignored.");
+    sens_buf_full_count++;
+    if ( (sens_buf_full_count == 0) || (sens_buf_full_count%1000 == 0)) {
+      Debug.println("Sensor buffer full. Check S.Port link");  // Report every so often
+    }
     return;
   }
   
