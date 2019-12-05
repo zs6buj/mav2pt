@@ -1,8 +1,10 @@
 /*****************************************************************************************************************
 
      Mav2PT  (Mav2Passthru) Protocol Translator
+
  
      License and Disclaimer
+
  
   This software is provided under the GNU v2.0 License. All relevant restrictions apply including 
   the following. In case there is a conflict, the GNU v2.0 License is overriding. This software is 
