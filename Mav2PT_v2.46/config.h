@@ -35,7 +35,7 @@ v2.46 2019-11-16  A few cosmetic improvements
 //#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-//#define GCS_Mavlink_IO  2    // WiFi - ESP32 and ESP8266 only
+#define GCS_Mavlink_IO  2    // WiFi - ESP32 and ESP8266 only
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 and ESP8266 only
 
 // NOTE: The Bluetooth class library uses a great deal of application memory. During Compile/Flash
@@ -75,7 +75,7 @@ const uint16_t bat2_capacity = 0;
 
 
 
-// RSSI_Source is Automatic. Order of precidence: 
+// RSSI_Source is Automatic. Order of precedence: 
 //      First:  #109 SiK style RADIO_STATUS
 //      Second: #65 RC_CHANNELS
 //      Third:  #35 RC_CHANNELS_RAW
@@ -154,7 +154,7 @@ bool daylightSaving = false;
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi
 //#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - contributed by Noircogi
 
-#define ESP8266_Variant   1   // Node MFU 12F
+#define ESP8266_Variant   1   // NodeMCU ESP 12F
 
 //*********************************************************************************************
 // Check #defines options logic  
