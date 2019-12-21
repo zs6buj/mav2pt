@@ -12,15 +12,14 @@ v2.46 2019-11-16  A few cosmetic improvements
 #define PlusVersion  // Added support for 0x5009 Mission WPs, 0x50F1 Servo_Channels, 0x50F2 VFR_Hud
 
 // Choose one only of these three modes
-#define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Dragonlink, ULRS, RFD900...)
-//#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
-//#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
-
+#define Ground_Mode          // Translator between Taranis and LRS tranceiver (like Dragonlink, ULRS, RFD900...)
+//#define Air_Mode             // Translator between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
+//#define Relay_Mode           // Translator between LRS tranceiver (like Dragonlink) and FrSky receiver (like XRS) in relay box on the ground
 
 
 
 // Choose one only of these Flight-Controller-side I/O channels 
-// How does Mavlink telemetry enter the converter?
+// How does Mavlink telemetry enter this translator?
 #define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define FC_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
@@ -28,14 +27,13 @@ v2.46 2019-11-16  A few cosmetic improvements
 
 
 
-
 // Choose one only of these GCS-side I/O channels
-// How does Mavlink telemetry leave the converter?
+// How does Mavlink telemetry leave this translator?
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 and ESP8266 only
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 and ESP8266 only
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 and ESP8266 only
 
 // NOTE: The Bluetooth class library uses a great deal of application memory. During Compile/Flash
@@ -90,7 +88,7 @@ const uint16_t bat2_capacity = 0;
 //#define Send_status_Text_3_Times
 
 //#define Send_Sensor_Health_Messages
-//#define AutoBaud                    // UART Serial Only - Auto detect FC_Mavlink telemetry baud 
+#define AutoBaud                    // UART Serial Only - Auto detect FC_Mavlink telemetry baud 
 
 //#define Request_Missions_From_FC    // Un-comment if you need mission waypoint from FC - NOT NECESSARY RIGHT NOW
 
@@ -516,7 +514,7 @@ static DateTime_t dt_tm;
 #endif 
   
 #define frBaud                57600           // Use 57600    
-uint32_t mvBaudFC     =       921600;         // Must match Flight Controller or long range radio
+uint32_t mvBaudFC     =       57600;          //921600;    // Must match Flight Controller or long range radio
  
 
 #if (Target_Board == 0)      //  Teensy 3.1
@@ -664,7 +662,7 @@ v2.41 2019-11-08 Fix STA mode no-connect loop
 v2.42 2019-11-09 Add support for GCS-side simultaneous WiFi and BT telemetry option 
 v2.43 2019-11-10 Tidy up WiFi Setup for auto AP failover. 
                  Support for 2 new ESP32 board variants, complements of Noircogi.     
-      2019-11-11 Implement Auto RSSI selection(Order of precidence #109, then #65 then #35) 
+      2019-11-11 Implement Auto RSSI selection(Order of precedence #109, then #65 then #35) 
       2019-11-11  Support AutoBaud up to 921600. 
 v2.44 2019-11-12  Include Target0815 recommended reset after STA fail to connect.     
 v2.45 2019-11-12  Augment mission debugging for athertop.  

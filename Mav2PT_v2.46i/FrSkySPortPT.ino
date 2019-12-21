@@ -115,7 +115,7 @@ void ReadSPort(void) {
   while ( frSerial.available())   {  
     Byt =  frSerial.read();
 
-    #if defined Debug_Air_Mode || defined Debug_Relay_Mode || defined Debug_Mavlite
+    #if defined Debug_Air_Mode || defined Debug_Relay_Mode || defined Debug_Mavlitexxxxxxxxxxxx
       if (Byt == 0x7E) Debug.println();
       if (Byt == 0x10) Debug.println();
       DisplayByte(Byt);

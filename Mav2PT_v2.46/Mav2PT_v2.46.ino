@@ -88,7 +88,7 @@
     Relay_Mode
     Consider the situation where an air-side LRS UHF tranceiver (trx) (like the DragonLink or Orange), 
     communicates with a matching ground-side UHF trx located in a "relay" box using Mavlink 
-    telemetry. The UHF trx in the relay box feeds Mavlink telemtry into our passthru converter, and 
+    telemetry. The UHF trx in the relay box feeds Mavlink telemtry into our passthru translator, and 
     the ctranslator feeds FrSky passthru telemtry into the FrSky receiver (like an XSR), also 
     located in the relay box. The XSR receiver (actually a tranceiver - trx) then communicates on 
     the public 2.4GHz band with the Taranis on the ground. In this situation the translator need not 

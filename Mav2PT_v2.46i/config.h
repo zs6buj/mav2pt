@@ -22,7 +22,7 @@ v2.47i 2019-12-05  Foundation support for Mavlite. UNTESTED ! FOR TESTING ONLY !
 
 
 // Choose one only of these Flight-Controller-side I/O channels 
-// How does Mavlink telemetry enter the converter?
+// How does Mavlink telemetry enter the translator?
 #define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define FC_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
@@ -30,7 +30,7 @@ v2.47i 2019-12-05  Foundation support for Mavlite. UNTESTED ! FOR TESTING ONLY !
 
 
 // Choose one only of these GCS-side I/O channels
-// How does Mavlink telemetry leave the converter?
+// How does Mavlink telemetry leave the translator?
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
@@ -667,7 +667,7 @@ v2.41 2019-11-08 Fix STA mode no-connect loop
 v2.42 2019-11-09 Add support for GCS-side simultaneous WiFi and BT telemetry option 
 v2.43 2019-11-10 Tidy up WiFi Setup for auto AP failover. 
                  Support for 2 new ESP32 board variants, complements of Noircogi.     
-      2019-11-11 Implement Auto RSSI selection(Order of precidence #109, then #65 then #35) 
+      2019-11-11 Implement Auto RSSI selection(Order of precedence #109, then #65 then #35) 
       2019-11-11  Support AutoBaud up to 921600. 
 v2.44 2019-11-12  Include Target0815 recommended reset after STA fail to connect.     
 v2.45 2019-11-12  Augment mission debugging for athertop.                              
