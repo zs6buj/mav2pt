@@ -126,7 +126,7 @@ void ReadSPort(void) {
       
       if (Byt == 0x1B) {    // Sensor_id for injecting S.Port packets
         
-        #if defined Debug_Air_Mode || defined Debug_Relay_Mode || defined Debug_Mavlite
+        #if defined Debug_Air_Mode || defined Debug_Relay_Mode || defined Debug_Mavlitexxxx
           Debug.println("Start byte & sensor id for injection found "); 
         #endif
         

@@ -87,7 +87,7 @@ const uint16_t bat2_capacity = 0;
 //      Second: #65 RC_CHANNELS
 //      Third:  #35 RC_CHANNELS_RAW
 
-//#define RSSI_Override            // Dummy RSSI - fixed at 70%                                                                                                                    
+#define RSSI_Override            // Dummy RSSI - fixed at 70%                                                                                                                    
 
 
 // Status_Text messages place a huge burden on the meagre 4 byte FrSky telemetry payload bandwith
@@ -97,7 +97,7 @@ const uint16_t bat2_capacity = 0;
 //#define Send_status_Text_3_Times
 
 //#define Send_Sensor_Health_Messages
-//#define AutoBaud                    // UART Serial Only - Auto detect FC_Mavlink telemetry baud 
+#define AutoBaud                    // UART Serial Only - Auto detect FC_Mavlink telemetry baud 
 
 //#define Request_Missions_From_FC    // Un-comment if you need mission waypoint from FC - NOT NECESSARY RIGHT NOW
 
@@ -560,7 +560,7 @@ uint32_t mvBaudFC     =       921600;         // Must match Flight Controller or
 //#define Mav_Debug_All
 //#define Frs_Debug_All
 //#define Frs_Debug_Period
-//#define Frs_Debug_Payload
+#define Frs_Debug_Payload
 //#define Mav_Debug_RingBuff
 //#define Debug_Air_Mode
 //#define Debug_Relay_Mode

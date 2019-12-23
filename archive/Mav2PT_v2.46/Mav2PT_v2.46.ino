@@ -787,7 +787,7 @@ void setup()  {
     Debug.println("RSSI Automatic Select");
     OledPrintln("RSSI Auto Select");     
   #else
-    Debug.println("RSSI_aOverride for testing = 70%");
+    Debug.println("RSSI Override for testing = 70%");
     OledPrintln("RSSI Override = 70%");              // for debugging          
   #endif
 

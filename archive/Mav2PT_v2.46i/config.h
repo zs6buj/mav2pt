@@ -2,48 +2,48 @@
 /*
 
   Complete change log and debugging options are at the bottom of this tab
-  
-v2.36 2019-10-30 Optimise WiFi and BT read/send as per excellent mavesp8266 bridge.
-                 Add support for ESP8266. 
-v2.37 2019-10-31 Bring WiFi STA Mode in line with new WiFi code.
-v2.38 2019-10-31 Config for BT in and WiFi out concurrently 
-v2.39 2019-11-03 Add optional BT Master Mode - Thanks Reinhard.    
-v2.40 2019-11-06 If can't connect to STAssid in STA mode, launch AP mode instead.  Requested by Reinhard.
-                 Fix syntax of IP inititialise :(            
+   
+ 
+v2.46  2019-11-16  A few cosmetic improvements 
+v2.47i 2019-12-05  Foundation support for Mavlite. UNTESTED ! FOR TESTING ONLY ! 
+`                    
 */
 // ******************************* Please select your options here before compiling *******************************
 
 // Do not enable for FlightDeck
 #define PlusVersion  // Added support for 0x5009 Mission WPs, 0x50F1 Servo_Channels, 0x50F2 VFR_Hud
 
+#define Support_Mavlite        //  Half-duplex FrSky telemetry (bi-directional-switched)
+
 // Choose one only of these three modes
-#define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Dragonlink, ULRS, RFD900...)
-//#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
-//#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
-
-
+#define Ground_Mode          // Translator between Taranis and LRS transceiver (like Dragonlink, ULRS, RFD900...)
+//#define Air_Mode             // Translator between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
+//#define Relay_Mode           // Translator between LRS transceiver (like Dragonlink) and FrSky receiver (like XRS) in relay box on the ground
 
 
 // Choose one only of these Flight-Controller-side I/O channels 
-// How does Mavlink telemetry enter the converter?
+// How does Mavlink telemetry enter the translator?
 #define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define FC_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
 //#define FC_Mavlink_IO  3    // SD Card / TF - ESP32 only
 
 
-
-
 // Choose one only of these GCS-side I/O channels
-// How does Mavlink telemetry leave the converter?
+// How does Mavlink telemetry leave the translator?
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define GCS_Mavlink_IO  2    // WiFi - ESP32 and ESP8266 only
+//#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 and ESP8266 only
+
+// NOTE: The Bluetooth class library uses a great deal of application memory. During Compile/Flash
+//  you may need to select Tools/Partition Scheme: "Minimal SPIFFS (1.9MB APP ...)
+
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with other GCS I/O
 
-#define BT_Master_Mode true    // Master connects to BT_Slave_Name --- false for BT Slave Mode
+//#define BT_Master_Mode true    // Master connects to BT_Slave_Name --- false for BT Slave Mode
 const char* BT_Slave_Name   =   "Crossfire 0277";  // Example
 
 
@@ -53,11 +53,15 @@ const char* BT_Slave_Name   =   "Crossfire 0277";  // Example
 
 // Choose one protocol - for ESP32 only
 //#define WiFi_Protocol 1    // TCP/IP
-#define WiFi_Protocol 2    // UDP     useful for Ez-WiFiBroadcast in STA mode
+#define WiFi_Protocol 2    // UDP     
 
 // Choose one mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
-//#define WiFi_Mode   1  //AP            
-#define WiFi_Mode   2  // STA
+#define WiFi_Mode   1  //AP            
+//#define WiFi_Mode   2  // STA
+
+
+#define AutoAP                      // If we fail to connect in STA mode, start AP instead
+
 
 //#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both rx and tx lines must be connected      
 //#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
@@ -71,10 +75,12 @@ const uint16_t bat2_capacity = 0;
 
 
 
-#define RSSI_Source         0         // default FrSky receiver or ULRS (firmware emulates embedded rssi)
-//#define RSSI_Source         1         // Designated RC PWM channel - QLRS, Dragonlink ....
-//#define RSSI_Source         2         // RFD900x - frame #109 injected by SiK radio firmware into Mavlink stream
-//#define RSSI_Source         3         // Dummy RSSI - fixed at 70%                                                                                                                          
+// RSSI_Source is Automatic. Order of precedence: 
+//      First:  #109 SiK style RADIO_STATUS
+//      Second: #65 RC_CHANNELS
+//      Third:  #35 RC_CHANNELS_RAW
+
+//#define RSSI_Override            // Dummy RSSI - fixed at 70%                                                                                                                    
 
 
 // Status_Text messages place a huge burden on the meagre 4 byte FrSky telemetry payload bandwith
@@ -84,11 +90,13 @@ const uint16_t bat2_capacity = 0;
 //#define Send_status_Text_3_Times
 
 //#define Send_Sensor_Health_Messages
-#define AutoBaud                    // Auto detect telemetry baud - takes a few seconds
+
+#define AutoBaud                    // UART Serial Only - Auto detect FC_Mavlink telemetry baud 
+
 //#define Request_Missions_From_FC    // Un-comment if you need mission waypoint from FC - NOT NECESSARY RIGHT NOW
 
-//#define Data_Streams_Enabled // Requests data streams from FC. Requires both rx and tx lines to FC. Rather set SRn in Mission Planner
-#define Max_Waypoints  256     // Note. This is a global RAM trade-off. If exceeded then Debug message and shut down
+//#define Data_Streams_Enabled        // Requests data streams from FC. Requires both rx and tx lines to FC. Rather set SRn in Mission Planner
+#define Max_Waypoints  256          // Note. This is a global RAM trade-off. If exceeded then Debug message and shut down
 
 // ****************************** Set your time zone here ******************************************
 // Date and time determines the TLog file name only
@@ -144,9 +152,10 @@ bool daylightSaving = false;
 
 #define ESP32_Variant     1    //  ESP32 Dev Module - there are several sub-variants that work
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
+//#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi
+//#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - contributed by Noircogi
 
-
-#define ESP8266_Variant   1   // Node MFU 12F
+#define ESP8266_Variant   1   // NodeMCU ESP 12F
 
 //*********************************************************************************************
 // Check #defines options logic  
@@ -158,14 +167,13 @@ bool daylightSaving = false;
 #if (Target_Board == 3) 
   #include <iostream> 
   #include <sstream> 
+  #include <driver/uart.h>  // In Arduino ESP32 install repo 
+  //C:\Users\<YourName>\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\tools\sdk\include\driver
+
 #endif
 
   #ifndef Target_Board
     #error Please choose at least one target board
-  #endif
-
-    #ifndef RSSI_Source
-    #error Please choose a RSSI_Source
   #endif
   
   #if (Target_Board == 1) || (Target_Board == 3) || (Target_Board == 4)  // Blue Pill or ESP32 or ESP8266 (UART0, UART1, and UART2)
@@ -179,13 +187,13 @@ bool daylightSaving = false;
   #endif
 
   #if (Target_Board != 3) && (Target_Board != 4) 
-     #if (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)
+     #if (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3)
        #error WiFi works only on an ESP32 or ESP8266 board
      #endif  
   #endif
   
   #if (Target_Board != 3) 
-     #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1) 
+     #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1) || (GCS_Mavlink_IO == 3)
        #error Bluetooth works only on an ESP32 board
      #endif  
   #endif
@@ -237,7 +245,7 @@ bool daylightSaving = false;
  
 #elif (Target_Board == 2)         // Maple Mini
   #define MavStatusLed  33        // PB1
-  #define BufStatusLed  34 
+  #define BufStatusLed  34        // Ring Buffer, no sensor buffer
   #define FC_Mav_rxPin  8         // PA3  
   #define FC_Mav_txPin  9         // PA2 
  // Fr_txPin (SPort)    PA10         SPort hard wired tx to inverter/converter 
@@ -249,7 +257,7 @@ bool daylightSaving = false;
     #define BufStatusLed  13          
     #define FC_Mav_rxPin  16        // Mavlink to FC
     #define FC_Mav_txPin  17        // Mavlink from FC
-    #define Fr_rxPin      12        // SPort - Use both for Air Mode or Relay Mode to inverter/converter
+    #define Fr_rxPin      27        // SPort - Use both for Air Mode or Relay Mode to inverter/converter
     #define Fr_txPin      14        // SPort - Use me for Ground Mode to Taranis/Horus 
     #define SDA           21        // I2C OLED board
     #define SCL           22        // I2C OLED board
@@ -266,7 +274,7 @@ bool daylightSaving = false;
     #define FC_Mav_rxPin  25        // Mavlink to FC
     #define FC_Mav_txPin  26        // Mavlink from FC
     #define Fr_rxPin      12        // SPort - Use both for Air Mode or Relay Mode to inverter/converter
-    #define Fr_txPin      14        // SPort - Use me for Ground Mode to Taranis/Horus 
+    #define Fr_txPin      27        // SPort - Use me for Ground Mode to Taranis/Horus 
     #define SDA           05        // I2C OLED board
     #define SCL           04        // I2C OLED board
     #define i2cAddr      0x3C       // I2C OLED board
@@ -275,6 +283,37 @@ bool daylightSaving = false;
     uint8_t WiFiPinState = 0;
   #endif
 
+  #if (ESP32_Variant == 3)          // Dragonlink V3 slim with internal ESP32
+    #define MavStatusLed  18        // Blue LED
+    #define BufStatusLed  19        // Green LED
+    #define FC_Mav_rxPin  16        // Mavlink to FC
+    #define FC_Mav_txPin  17        // Mavlink from FC
+    #define Fr_rxPin      12        // SPort - Use both for Air Mode or Relay Mode to inverter/converter
+    #define Fr_txPin      01        // SPort - Use me for Ground Mode to Taranis/Horus - passed to UEXP
+    #define SDA           05        // I2C OLED board
+    #define SCL           04        // I2C OLED board
+    #define i2cAddr      0x3C       // I2C OLED board
+    int16_t wifi_rssi;    
+    uint8_t startWiFiPin = 13;     
+    uint8_t WiFiPinState = 0;
+  #endif
+  
+  #if (ESP32_Variant == 4)          // Heltec Wifi Kit 32
+    #define MavStatusLed  25        // Onboard LED
+    #define BufStatusLed  99          
+    #define FC_Mav_rxPin  27        // Mavlink to FC
+    #define FC_Mav_txPin  17        // Mavlink from FC
+    #define Fr_rxPin      12        // SPort - Use both for Air Mode or Relay Mode to inverter/converter
+    #define Fr_txPin      14        // SPort - Use me for Ground Mode to Taranis/Horus 
+    #define SDA           04        // I2C OLED board
+    #define SCL           15        // I2C OLED board
+    #define i2cAddr      0x3C       // I2C OLED board
+    #define OLED_RESET    16        // RESET here so no rest lower down
+    int16_t wifi_rssi;    
+    uint8_t startWiFiPin = 15;      // D15
+    uint8_t WiFiPinState = 0;
+  #endif
+  
 #elif (Target_Board == 4)         // ESP8266 Platform
   #if (ESP8266_Variant == 1)        // Node MFU 12F
 
@@ -319,7 +358,9 @@ bool daylightSaving = false;
   // 8 rows of 21 characters
 
   // Declaration for an SSD1306 I2C display
-  #define OLED_RESET    -1 // Reset pin # (or -1 if sharing Arduino reset pin)
+  #ifndef OLED_RESET
+    #define OLED_RESET    -1 // Reset pin # (or -1 if sharing Arduino reset pin)
+  #endif  
   Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
   
 #endif
@@ -327,7 +368,7 @@ bool daylightSaving = false;
 //************************************************************************** 
 //**************************** Bluetooth - ESP32 Only **********************
 
-  #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1)  // Bluetooth
+  #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1)|| (GCS_Mavlink_IO == 3)  // Bluetooth
     #if (Target_Board == 3) // ESP32
 
     #define BT_Setup   // so that WiFi setup does not defien these shared variables again
@@ -342,7 +383,7 @@ bool daylightSaving = false;
       uint8_t       hb_system_id = 0;
       uint8_t       hb_comp_id = 0;
       uint8_t       hb_seq_expected = 0;
-      uint32_t      hb_last_heartbeat = 0;
+      uint32_t      hb_lasb_heartbeat = 0;
       linkStatus    link_status;
 
       #include "BluetoothSerial.h"
@@ -357,7 +398,7 @@ bool daylightSaving = false;
 ///************************************************************************** 
 //***************************** WiFi - ESP32 or ES8266 Only ***************************
 
-  #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2))  // WiFi
+  #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)) || (GCS_Mavlink_IO == 3) // WiFi
 
     // Define link variables
     #ifndef BT_Setup
@@ -371,7 +412,7 @@ bool daylightSaving = false;
        uint8_t       hb_system_id = 0;
        uint8_t       hb_comp_id = 0;
        uint8_t       hb_seq_expected = 0;
-       uint32_t      hb_last_heartbeat = 0;
+       uint32_t      hb_lasb_heartbeat = 0;
        linkStatus    link_status;
     #endif
    
@@ -395,17 +436,20 @@ bool daylightSaving = false;
     const char    *APssid         =    "Mav2Passthru";    // The AP SSID that we advertise  ====>
     const char    *APpw           =    "password";        // Change me!
     const uint8_t  APchannel      =    9;                 // The WiFi channel to use
-    const char    *STAssid        =     "TargetAPName";    // Target AP to connect to      <====
-    const char    *STApw          =     "targetPw";      // Change me!  
+//   const char    *STAssid        =     "TargetAPName";    // Target AP to connect to      <====
+//    const char    *STApw          =     "targetPw";      // Change me!    
 
-   //  const char    *STAssid =     "EZ-WifiBroadcast";    // Target AP to connect to      <====
+   const char    *STAssid        =     "OmegaOffice";    
+   const char    *STApw          =     "";             
+
+   //  const char    *STAssid =     "EZ-WifiBroadcast";    
    //  const char    *STApw =       "wifibroadcast";         
 
-   //  const char    *STAssid =     "TXMOD-54-DD-FE";    // Target AP to connect to      <====
+   //  const char    *STAssid =     "TXMOD-54-DD-FE";   
    //  const char    *STApw =       "txmod123";      
 
 
-    // AP and STA below
+   // AP and STA below
 
     WiFiClient wifi;   
     
@@ -423,11 +467,10 @@ bool daylightSaving = false;
         IPAddress udp_remoteIP(192, 168, 4, 2);       // We hand out this IP to the first client via DHCP
       #elif (WiFi_Mode == 2)  // STA
         IPAddress udp_remoteIP(192, 168, 1, 255);    // UDP broadcast on your likely LAN subnet
-      #endif
+      #endif       
 
-      WiFiServer server(udp_localPort);     
-
-      WiFiUDP udp;       // Create udp object      
+      WiFiUDP udp;       // Create udp object    
+        
     #endif   
     
     IPAddress localIP;
@@ -474,8 +517,8 @@ static DateTime_t dt_tm;
 #endif 
   
 #define frBaud                57600           // Use 57600    
-uint32_t mvBaudFC     =       921600;         // Must match Flight Controller or long range radio
- 
+//uint32_t mvBaudFC     =       921600;         // Max baud with good, short wiring
+uint32_t mvBaudFC     =       115200;         // Must match Flight Controller or long range radio
 
 #if (Target_Board == 0)      //  Teensy 3.1
   #if (SPort_Serial == 1) 
@@ -548,7 +591,7 @@ uint32_t mvBaudFC     =       921600;         // Must match Flight Controller or
 //#define Frs_Debug_Attitude
 //#define Mav_Debug_StatusText
 //#define Frs_Debug_StatusText    
-//#define Mav_Debug_Mission 
+//#define Mav_Debug_Mission
 //#define Frs_Debug_Mission   
 //#define Debug_SD    
 //#define Mav_Debug_System_Time   
@@ -556,9 +599,11 @@ uint32_t mvBaudFC     =       921600;         // Must match Flight Controller or
 //#define Decode_Non_Essential_Mav 
 //#define Debug_Baud 
 //#define Debug_Radio_Status  
-//#define Debug_Mission_Request_Int 
 //#define Debug_GCS_Unknown
-//#define Debug_Param_Request_Read
+#define Debug_Param_Request_Read
+//#define Mav_Debug_Unknown_Msgs
+//#define Mav_Print_All_Msgid
+#define Debug_Mavlite
 
 // *****************************************************************************************************************
 
@@ -616,5 +661,14 @@ v2.33 2019-10-09 Don't invert ESP32 SPort in Relay Mode. Use commercial inverter
 v2.34 2019-10-15 Move typedef struct DateTime_t to global scope in line with VS Code/Platform IO.  
 v2.35 2019-10-18 Add pre-defined ESP32 board variants. TargetBoard >> Target_Board typo Paul Atherton. 
 v2.36 2019-10-30 Optimise WiFi amd BT read/send as per excellent mavesp8266 bridge by Tridge.
-                 Add support for ESP8266.         
+                 Add support for ESP8266. 
+v2.41 2019-11-08 Fix STA mode no-connect loop 
+      2019-11-08 Make AutoAP optional  
+v2.42 2019-11-09 Add support for GCS-side simultaneous WiFi and BT telemetry option 
+v2.43 2019-11-10 Tidy up WiFi Setup for auto AP failover. 
+                 Support for 2 new ESP32 board variants, complements of Noircogi.     
+      2019-11-11 Implement Auto RSSI selection(Order of precedence #109, then #65 then #35) 
+      2019-11-11  Support AutoBaud up to 921600. 
+v2.44 2019-11-12  Include Target0815 recommended reset after STA fail to connect.     
+v2.45 2019-11-12  Augment mission debugging for athertop.                              
 */
