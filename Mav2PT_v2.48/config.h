@@ -3,10 +3,11 @@
 
   Complete change log and debugging options are at the bottom of this tab
    
-v2.46 2019-11-16  A few cosmetic improvements     
-v2.47 2019-12-23  For ESP32 Dev Module, use pin 27 for S.Port tx, 
-                   because boot fails if pin 12 pulled high
-`                    
+
+v2.48 2019-12-17 Option for SiK #109, if RSSI is already in %, i.e. not relative to 0xFF (2.55) 
+                 Added #define SiK_Rssi_Percent 
+      2019-12-31 Changes for PlatformIO compatibility                            
+                    
 */
 // ******************************* Please select your options here before compiling *******************************
 
@@ -79,8 +80,9 @@ const uint16_t bat2_capacity = 0;
 //      Second: #65 RC_CHANNELS
 //      Third:  #35 RC_CHANNELS_RAW
 
-#define RSSI_Override            // Dummy RSSI - fixed at 70%                                                                                                                    
+//#define RSSI_Override            // Dummy RSSI - fixed at 70%                                                                                                                    
 
+//#define SiK_Rssi_Percent             // #109 RSSI is already %, not relative to (0xff/100)
 
 // Status_Text messages place a huge burden on the meagre 4 byte FrSky telemetry payload bandwith
 // The practice has been to send them 3 times to ensure that they arrive unscathed at the receiver
@@ -177,6 +179,12 @@ bool daylightSaving = false;
   #if (Target_Board == 1) || (Target_Board == 3) || (Target_Board == 4)  // Blue Pill or ESP32 or ESP8266 (UART0, UART1, and UART2)
     #if (SPort_Serial  == 3)    
       #error Board does not have Serial3. This configuration is not possible.
+    #endif
+  #endif
+
+  #if (Target_Board == 0) || (Target_Board == 1) || (Target_Board == 2) 
+    #if (FC_Mavlink_IO == 3) || defined GCS_Mavlink_SD
+      #error SD card not currently implemented for Teensy or STM32
     #endif
   #endif
 
@@ -281,7 +289,7 @@ bool daylightSaving = false;
     uint8_t WiFiPinState = 0;
   #endif
 
-  #if (ESP32_Variant == 3)          // Dragonlink V3 slim with internal ESP32
+  #if (ESP32_Variant == 3)          //              with internal ESP32
     #define MavStatusLed  18        // Blue LED
     #define BufStatusLed  19        // Green LED
     #define FC_Mav_rxPin  16        // Mavlink to FC
@@ -489,7 +497,7 @@ bool daylightSaving = false;
 // bool begin(uint8_t ssPin=SS, SPIClass &spi=SPI, uint32_t frequency=25000000, const char * mountpoint="/sd", uint8_t max_files=5);  
 
 char     cPath[40];
-string   fnPath[30];
+std::string   fnPath[30];
 uint8_t  fnCnt;
 uint16_t sdReadDelay = 10;  // mS   Otherwise the reads run through unnaturally quickly
 
@@ -497,9 +505,19 @@ File     file;  // Create global object from File class for general use
 
 static  const uint8_t mthdays[]={31,28,31,30,31,30,31,31,30,31,30,31}; 
 
+typedef struct  { 
+  uint16_t yr;   // relative to 1970;  
+  uint8_t mth;
+  uint8_t day;
+  uint8_t dow;   // sunday is day 1 
+  uint8_t hh; 
+  uint8_t mm; 
+  uint8_t ss; 
+}   DateTime_t;
+
 static DateTime_t dt_tm; 
 
-  #endif 
+#endif 
 //************************************************************************** 
 //********************************** Serial ********************************
 
@@ -667,5 +685,8 @@ v2.43 2019-11-10 Tidy up WiFi Setup for auto AP failover.
       2019-11-11  Support AutoBaud up to 921600. 
 v2.44 2019-11-12  Include Target0815 recommended reset after STA fail to connect.     
 v2.45 2019-11-12  Augment mission debugging for athertop.  
-      2019-11-13  Move #endif outside } in SetupWiFi                          
+      2019-11-13  Move #endif outside } in SetupWiFi         
+v2.46 2019-11-16  A few cosmetic improvements     
+v2.47 2019-12-23  For ESP32 Dev Module, use pin 27 for S.Port tx, 
+                   because boot fails if pin 12 pulled high                       
 */

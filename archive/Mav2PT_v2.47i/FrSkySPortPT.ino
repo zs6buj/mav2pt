@@ -1376,7 +1376,7 @@ void Pack_Rssi_F101(uint16_t id) {          // data id 0xF101 RSSI tell LUA scri
   fr_payload = 0;
   
   if (rssiGood)
-    fr_rssi = (ap_rssi / 2.54);                // %
+    fr_rssi = ap_rssi;            // always %
   else
     fr_rssi = 255;     // We may have a connection but don't yet know how strong. Prevents spurious "Telemetry lost" announcement
   #ifdef RSSI_Override   // dummy rssi override for debugging

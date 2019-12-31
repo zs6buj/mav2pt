@@ -2240,7 +2240,7 @@ void DecodeOneMavFrame() {
                
           if ((!rssi65) && (!rssi109)) { // If no #65 and no #109 received, then use #35
             rssiGood=true;            
-            ap_rssi = ap_rssi35;
+            ap_rssi = ap_rssi35 / 2.55;  // 0xff -> 100%
             #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
               #ifndef RSSI_Override
                 Debug.print("Auto RSSI_Source===>  ");
@@ -2250,7 +2250,7 @@ void DecodeOneMavFrame() {
 
           #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
             Debug.print("Mavlink from FC #35 RC_Channels_Raw: ");                        
-            Debug.print("  ap_rssi35=");  Debug.print(ap_rssi35/ 2.54); 
+            Debug.print("  ap_rssi35=");  Debug.print(ap_rssi35); 
             Debug.print("  rssiGood=");  Debug.println(rssiGood); 
           #endif                    
           break;  
@@ -2427,7 +2427,7 @@ void DecodeOneMavFrame() {
              
             if (!rssi109) { // If no #109 received, then use #65
               rssiGood=true;            
-              ap_rssi = ap_rssi65;
+              ap_rssi = ap_rssi65 / 2.55;  // 0xff -> 100%
               #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
                 #ifndef RSSI_Override
                   Debug.print("Auto RSSI_Source===>  ");
@@ -2445,7 +2445,7 @@ void DecodeOneMavFrame() {
                 Debug.print("=");  
                 Debug.print(ap_chan_raw[i]);   
               }                         
-              Debug.print("  ap_rssi65=");  Debug.print(ap_rssi65/ 2.54);
+              Debug.print("  ap_rssi65=");  Debug.print(ap_rssi65);
               Debug.print("  rssiGood=");  Debug.println(rssiGood);         
             #endif             
           break;      
@@ -2533,7 +2533,14 @@ void DecodeOneMavFrame() {
               
             // If we get #109 then it must be a SiK fw radio, so use this reord for rssi
             rssiGood=true;            
-            ap_rssi = ap_rssi109;
+            ap_rssi = ap_rssi109;   //  Percent
+            
+            #if defined SiK_Rssi_Percent
+              ap_rssi = ap_rssi109;          //  Percent
+            #else
+              ap_rssi = ap_rssi109 / 2.55;   //  0xff -> 100%            
+            #endif
+            
             #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
               #ifndef RSSI_Override
                 Debug.print("Auto RSSI_Source===>  ");

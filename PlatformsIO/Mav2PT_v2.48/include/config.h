@@ -3,8 +3,10 @@
 
   Complete change log and debugging options are at the bottom of this tab
    
-v2.46 2019-11-16  A few cosmetic improvements     
-`                    
+
+v2.48 2019-12-17  Option for SiK #109, if RSSI is already in %, i.e. not relative to 0xFF (2.55) 
+                  Added #define SiK_Rssi_Percent                  
+                    
 */
 // ******************************* Please select your options here before compiling *******************************
 
@@ -12,15 +14,14 @@ v2.46 2019-11-16  A few cosmetic improvements
 #define PlusVersion  // Added support for 0x5009 Mission WPs, 0x50F1 Servo_Channels, 0x50F2 VFR_Hud
 
 // Choose one only of these three modes
-#define Ground_Mode          // Converter between Taranis and LRS tranceiver (like Dragonlink, ULRS, RFD900...)
-//#define Air_Mode             // Converter between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
-//#define Relay_Mode           // Converter between LRS tranceiver (like Orange) and FrSky receiver (like XRS) in relay box on the ground
-
+#define Ground_Mode          // Translator between Taranis and LRS tranceiver (like Dragonlink, ULRS, RFD900...)
+//#define Air_Mode             // Translator between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
+//#define Relay_Mode           // Translator between LRS tranceiver (like Dragonlink) and FrSky receiver (like XRS) in relay box on the ground
 
 
 
 // Choose one only of these Flight-Controller-side I/O channels 
-// How does Mavlink telemetry enter the converter?
+// How does Mavlink telemetry enter this translator?
 #define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define FC_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
@@ -28,9 +29,8 @@ v2.46 2019-11-16  A few cosmetic improvements
 
 
 
-
 // Choose one only of these GCS-side I/O channels
-// How does Mavlink telemetry leave the converter?
+// How does Mavlink telemetry leave this translator?
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
@@ -59,7 +59,6 @@ const char* BT_Slave_Name   =   "Crossfire 0277";  // Example
 //#define WiFi_Mode   1  //AP            
 #define WiFi_Mode   2  // STA
 
-
 #define AutoAP                      // If we fail to connect in STA mode, start AP instead
 
 
@@ -71,17 +70,18 @@ const uint16_t bat2_capacity = 0;
 
 
 
-#define SPort_Serial        1         // The default is Serial 1, but 3 is possible 
+#define SPort_Serial        1         // Teensy port1=pin1, port3=pin8. The default is Serial 1, but 3 is possible 
 
 
 
-// RSSI_Source is Automatic. Order of precidence: 
+// RSSI_Source is Automatic. Order of precedence: 
 //      First:  #109 SiK style RADIO_STATUS
 //      Second: #65 RC_CHANNELS
 //      Third:  #35 RC_CHANNELS_RAW
 
 //#define RSSI_Override            // Dummy RSSI - fixed at 70%                                                                                                                    
 
+//#define SiK_Rssi_Percent             // #109 RSSI is already %, not relative to (0xff/100)
 
 // Status_Text messages place a huge burden on the meagre 4 byte FrSky telemetry payload bandwith
 // The practice has been to send them 3 times to ensure that they arrive unscathed at the receiver
@@ -90,7 +90,7 @@ const uint16_t bat2_capacity = 0;
 //#define Send_status_Text_3_Times
 
 //#define Send_Sensor_Health_Messages
-//#define AutoBaud                    // UART Serial Only - Auto detect FC_Mavlink telemetry baud 
+#define AutoBaud                    // UART Serial Only - Auto detect FC_Mavlink telemetry baud 
 
 //#define Request_Missions_From_FC    // Un-comment if you need mission waypoint from FC - NOT NECESSARY RIGHT NOW
 
@@ -154,7 +154,7 @@ bool daylightSaving = false;
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi
 //#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - contributed by Noircogi
 
-#define ESP8266_Variant   1   // Node MFU 12F
+#define ESP8266_Variant   1   // NodeMCU ESP 12F
 
 //*********************************************************************************************
 // Check #defines options logic  
@@ -180,6 +180,13 @@ bool daylightSaving = false;
       #error Board does not have Serial3. This configuration is not possible.
     #endif
   #endif
+
+  #if (Target_Board == 0) || (Target_Board == 1) || (Target_Board == 2) // Teensy or STM32
+    #if (FC_Mavlink_IO == 3) || defined GCS_Mavlink_SD
+      #error SD card not currently implemented for Teensy or STM32
+    #endif
+  #endif
+
 
   #ifndef Battery_mAh_Source
     #error Please choose at least one Battery_mAh_Source
@@ -239,16 +246,16 @@ bool daylightSaving = false;
   #define BufStatusLed  PC14
   #define FC_Mav_rxPin  PB11  
   #define FC_Mav_txPin  PB10  
- // Fr_txPin (SPort)    PA2          SPort hard wired tx to inverter/converter
- // Fr_txPin (SPort)    PA3          SPort hard wired rx to inverter/converter 
+ // Fr_txPin (SPort)    PA2          SPort hard wired tx to inverter/single wire converter
+ // Fr_txPin (SPort)    PA3          SPort hard wired rx to inverter/single wire converter
  
 #elif (Target_Board == 2)         // Maple Mini
   #define MavStatusLed  33        // PB1
   #define BufStatusLed  34 
   #define FC_Mav_rxPin  8         // PA3  
   #define FC_Mav_txPin  9         // PA2 
- // Fr_txPin (SPort)    PA10         SPort hard wired tx to inverter/converter 
- // Fr_txPin (SPort)    PA9          SPort hard wired rx to inverter/converter 
+ // Fr_txPin (SPort)    PA10         SPort hard wired tx to inverter/single wire converter
+ // Fr_txPin (SPort)    PA9          SPort hard wired rx to inverter/single wire converter
    
 #elif (Target_Board == 3)         // ESP32 Platform
   #if (ESP32_Variant == 1)          // ESP32 Dev Module
@@ -256,8 +263,8 @@ bool daylightSaving = false;
     #define BufStatusLed  13          
     #define FC_Mav_rxPin  16        // Mavlink to FC
     #define FC_Mav_txPin  17        // Mavlink from FC
-    #define Fr_rxPin      12        // SPort - Use both for Air Mode or Relay Mode to inverter/converter
-    #define Fr_txPin      14        // SPort - Use me for Ground Mode to Taranis/Horus 
+    #define Fr_rxPin      12        // SPort - Use both for Air Mode or Relay Mode to inverter/single wire converter
+    #define Fr_txPin      27        // SPort - Use me for Ground Mode to Taranis/Horus 
     #define SDA           21        // I2C OLED board
     #define SCL           22        // I2C OLED board
     #define i2cAddr      0x3C       // I2C OLED board
@@ -282,7 +289,7 @@ bool daylightSaving = false;
     uint8_t WiFiPinState = 0;
   #endif
 
-  #if (ESP32_Variant == 3)          // Dragonlink V3 slim with internal ESP32
+  #if (ESP32_Variant == 3)          //              with internal ESP32
     #define MavStatusLed  18        // Blue LED
     #define BufStatusLed  19        // Green LED
     #define FC_Mav_rxPin  16        // Mavlink to FC
@@ -490,7 +497,7 @@ bool daylightSaving = false;
 // bool begin(uint8_t ssPin=SS, SPIClass &spi=SPI, uint32_t frequency=25000000, const char * mountpoint="/sd", uint8_t max_files=5);  
 
 char     cPath[40];
-string   fnPath[30];
+std::string   fnPath[30];
 uint8_t  fnCnt;
 uint16_t sdReadDelay = 10;  // mS   Otherwise the reads run through unnaturally quickly
 
@@ -498,9 +505,21 @@ File     file;  // Create global object from File class for general use
 
 static  const uint8_t mthdays[]={31,28,31,30,31,30,31,31,30,31,30,31}; 
 
+typedef struct  { 
+  uint16_t yr;   // relative to 1970;  
+  uint8_t mth;
+  uint8_t day;
+  uint8_t dow;   // sunday is day 1 
+  uint8_t hh; 
+  uint8_t mm; 
+  uint8_t ss; 
+}   DateTime_t;
+
 static DateTime_t dt_tm; 
 
   #endif 
+
+
 //************************************************************************** 
 //********************************** Serial ********************************
 
@@ -516,7 +535,7 @@ static DateTime_t dt_tm;
 #endif 
   
 #define frBaud                57600           // Use 57600    
-uint32_t mvBaudFC     =       921600;         // Must match Flight Controller or long range radio
+uint32_t mvBaudFC     =       57600;          //921600;    // Must match Flight Controller or long range radio
  
 
 #if (Target_Board == 0)      //  Teensy 3.1
@@ -664,9 +683,12 @@ v2.41 2019-11-08 Fix STA mode no-connect loop
 v2.42 2019-11-09 Add support for GCS-side simultaneous WiFi and BT telemetry option 
 v2.43 2019-11-10 Tidy up WiFi Setup for auto AP failover. 
                  Support for 2 new ESP32 board variants, complements of Noircogi.     
-      2019-11-11 Implement Auto RSSI selection(Order of precidence #109, then #65 then #35) 
+      2019-11-11 Implement Auto RSSI selection(Order of precedence #109, then #65 then #35) 
       2019-11-11  Support AutoBaud up to 921600. 
 v2.44 2019-11-12  Include Target0815 recommended reset after STA fail to connect.     
 v2.45 2019-11-12  Augment mission debugging for athertop.  
-      2019-11-13  Move #endif outside } in SetupWiFi                          
+      2019-11-13  Move #endif outside } in SetupWiFi         
+v2.46 2019-11-16  A few cosmetic improvements     
+v2.47 2019-12-23  For ESP32 Dev Module, use pin 27 for S.Port tx, 
+                   because boot fails if pin 12 pulled high                       
 */
