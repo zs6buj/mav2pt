@@ -8,12 +8,11 @@
      License and Disclaimer
 
  
-  This software is provided under the GNU v2.0 License. All relevant restrictions apply including 
-  the following. In case there is a conflict, the GNU v2.0 License is overriding. This software is 
-  provided as-is in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the 
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General 
-  Public License for more details. In no event will the authors and/or contributors be held liable
-  for any damages arising from the use of this software.
+  This software is provided under the GNU v2.0 License. All relevant restrictions apply. In case there is a conflict,
+  the GNU v2.0 License is overriding. This software is provided as-is in the hope that it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details. In no event will the authors and/or contributors be held liable for any 
+  damages arising from the use of this software.
 
   Permission is granted to anyone to use this software for any purpose, including commercial 
   applications, and to alter it and redistribute it freely, subject to the following restrictions:
@@ -100,7 +99,7 @@
     box to the Taranis.  To enable Relay_Mode :
     Un-comment this line      #define Relay_Mode    like this
 
-    From version 2.12 he target mpu is selected automatically
+    From version 2.12 the target mpu is selected automatically
 
     Battery capacities in mAh can be 
    
@@ -170,8 +169,6 @@
 #include <mavlink_types.h>
 #include <common/mavlink.h>
 #include <ardupilotmega/ardupilotmega.h>
-
-using namespace std;
 
 uint8_t   MavLedState = LOW; 
 uint8_t   BufLedState = LOW; 
@@ -252,6 +249,7 @@ struct Battery bat1     = {
 
 struct Battery bat2     = {
   0, 0, 0, 0, 0, 0, 0, true};   
+
     
 // ****************************************** M A V L I N K *********************************************
 
@@ -336,7 +334,7 @@ char     ap_param_id [16];
 float    ap_param_value;
 uint8_t  ap_param_type;  
 uint16_t ap_param_count;              //  Total number of onboard parameters
-uint16_t ap_param_index;              //  Index of this onboard parameter
+int16_t ap_param_index;              //  Index of this onboard parameter
 
 // Message #24  GPS_RAW_INT 
 uint8_t    ap_fixtype = 3;            // 0= No GPS, 1=No Fix, 2=2D Fix, 3=3D Fix, 4=DGPS, 5=RTK_Float, 6=RTK_Fixed, 7=Static, 8=PPP
@@ -416,7 +414,7 @@ uint8_t   ap_mission_type;      // MAV_MISSION_TYPE - Mavlink 2
 //  Generic Mavlink Header defined above
 bool ap_ms_current_flag = false;
 
-// Message #43 Mission_Request_list
+// Message #43 Mission_Request_List
 //  Generic Mavlink Header defined above
 bool ap_ms_list_req = false;
 
@@ -641,18 +639,18 @@ uint32_t fr_rssi;
   uint32_t   millis; // mS since boot
   uint32_t   payload;
   bool       inuse;
-  } st_t;
+  } sb_t;
 
 // Give the sensor table more space when status_text messages sent three times
 #if defined Send_status_Text_3_Times
-   const uint16_t st_rows = 300;  // possible unsent sensor ids at any moment 
+   const uint16_t sb_rows = 300;  // possible unsent sensor ids at any moment 
 #else 
-   const uint16_t st_rows = 130;  
+   const uint16_t sb_rows = 130;  
 #endif
 
-  st_t sr, st[st_rows];
+  sb_t sr, sb[sb_rows];
   char safety_padding[10];
-  uint16_t sport_unsent;  // how many rows in-use
+  uint16_t sb_unsent;  // how many rows in-use
      
 // OLED declarations *************************
 
@@ -673,6 +671,8 @@ uint8_t col = 0;
 #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1) || (GCS_Mavlink_IO == 3) // Bluetooth
 BluetoothSerial SerialBT;
 #endif
+
+//*************************************************************
 
 // Forward Declarations
 void OledPrintln(String);
@@ -712,7 +712,7 @@ void Accum_Volts2(uint32_t);
 uint32_t GetConsistent(uint8_t);
 uint32_t SenseUart(uint8_t);
 void ReadSPort(void);
-void FrSkySPort_Inject_Packet();
+void Passthru_Inject_Packet();
 void FrSkySPort_SendByte(uint8_t, bool);
 void FrSkySPort_SendDataFrame(uint8_t, uint16_t, uint32_t);
 void PackLat800(uint16_t);
@@ -743,6 +743,7 @@ void ServiceBufStatusLed();
 void BlinkMavLed(uint32_t);
 void DisplayRemoteIP();
 bool Leap_yr(uint16_t);
+
 
 // ******************************************
 void setup()  {
@@ -936,7 +937,7 @@ void setup()  {
   #if ((FC_Mavlink_IO == 3) || defined GCS_Mavlink_SD)  // SD Card
 
     void listDir(fs::FS &fs, const char *, uint8_t);  // Fwd declare
-
+    
     if(!SD.begin()){   
         Debug.println("No SD card reader found. Ignoring SD!"); 
         OledPrintln("No SD reader");
@@ -964,7 +965,7 @@ void setup()  {
 
         #if (FC_Mavlink_IO == 3) //  FC side SD in only
         
-          string S = "";  //std::string
+          std::string S = "";  
           char c = 0x00;
            Debug.println("Enter the number of the SD file to read, and press Send");
            while (c != 0xA) { // line feed
@@ -1166,10 +1167,10 @@ void main_loop() {
   // Request battery capacity params 
   if (mavGood) {
     if (!ap_bat_paramsReq) {
-      Request_Param_Read(356);    // Request Bat1 capacity   do this twice in case of lost frame
-      Request_Param_Read(356);    
-      Request_Param_Read(364);    // Request Bat2 capacity
-      Request_Param_Read(364);    
+      Param_Request_Read(356);    // Request Bat1 capacity   do this twice in case of lost frame
+      Param_Request_Read(356);    
+      Param_Request_Read(364);    // Request Bat2 capacity
+      Param_Request_Read(364);    
       Debug.println("Battery capacities requested");
       OledPrintln("Bat mAh from FC");    
       ap_bat_paramsReq = true;
@@ -1191,7 +1192,7 @@ void main_loop() {
   #endif 
 
   #if defined GCS_Mavlink_SD
-  void OpenSDForWrite();
+    void OpenSDForWrite();  // fwd define
     if ((timeGood) && (sdStatus == 2)) OpenSDForWrite();
   #endif
   
@@ -1202,6 +1203,7 @@ void main_loop() {
 //********************************************************************************
 
 bool Read_FC_To_RingBuffer() {
+
  
   #if (FC_Mavlink_IO == 0) // Serial
   mavlink_status_t status;
@@ -1249,7 +1251,7 @@ bool Read_FC_To_RingBuffer() {
           PrintMavBuffer(&G2Fmsg);
         #endif      
       }
-    return true; 
+    return true;  
     #endif
       
     #if (WiFi_Protocol == 2) // UDP from FC
@@ -1265,7 +1267,7 @@ bool Read_FC_To_RingBuffer() {
           PrintMavBuffer(&F2Rmsg);
         #endif      
       }
-    return true;    
+    return true;     
     #endif 
     
   #endif 
@@ -1288,8 +1290,7 @@ bool Read_FC_To_RingBuffer() {
       file.close();
       sdStatus = 5;  // closed after reading
       return false;  // eof
-    } 
-  return true;        
+    }     
   #endif 
 }
 //********************************************************************************
@@ -1329,7 +1330,6 @@ void Read_From_GCS() {
   
  #if (GCS_Mavlink_IO == 0) // Serial 
   mavlink_status_t status;
-
   while(mvSerialGCS.available()) { 
     uint8_t c = mvSerialGCS.read();
     if(mavlink_parse_char(MAVLINK_COMM_0, c, &G2Fmsg, &status)) {  // Read a frame from GCS  
@@ -1392,7 +1392,7 @@ void Read_From_GCS() {
 //********************************************************************************
 #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3)) && (WiFi_Protocol == 1)  //  WiFi  TCP
 
-bool Read_TCP(mavlink_message_t* msgptr)  {
+bool Read_TCP(mavlink_message_t* msgidx)  {
     if (!wifiSuGood) return false;  
     bool msgRcvd = false;
     mavlink_status_t _status;
@@ -1405,21 +1405,21 @@ bool Read_TCP(mavlink_message_t* msgptr)  {
             int result = wifi.read();
             if (result >= 0)  {
 
-                msgRcvd = mavlink_parse_char(MAVLINK_COMM_2, result, msgptr, &_status);
+                msgRcvd = mavlink_parse_char(MAVLINK_COMM_2, result, msgidx, &_status);
                 if(msgRcvd) {
 
                     if(!hb_heard_from) {
-                        if(msgptr->msgid == MAVLINK_MSG_ID_HEARTBEAT) {
+                        if(msgidx->msgid == MAVLINK_MSG_ID_HEARTBEAT) {
                             hb_heard_from     = true;
-                            hb_system_id      = msgptr->sysid;
-                            hb_comp_id        = msgptr->compid;
-                            hb_seq_expected   = msgptr->seq + 1;
+                            hb_system_id      = msgidx->sysid;
+                            hb_comp_id        = msgidx->compid;
+                            hb_seq_expected   = msgidx->seq + 1;
                             hb_last_heartbeat = millis();
                         }
                     } else {
-                        if(msgptr->msgid == MAVLINK_MSG_ID_HEARTBEAT)
+                        if(msgidx->msgid == MAVLINK_MSG_ID_HEARTBEAT)
                           hb_last_heartbeat = millis();
-                          checkLinkErrors(msgptr);
+                          checkLinkErrors(msgidx);
                     }
                  
                     break;
@@ -1435,7 +1435,7 @@ bool Read_TCP(mavlink_message_t* msgptr)  {
 
 #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3)) && (WiFi_Protocol == 2) //  WiFi  UDP
 
-bool Read_UDP(mavlink_message_t* msgptr)  {
+bool Read_UDP(mavlink_message_t* msgidx)  {
     if (!wifiSuGood) return false;  
     bool msgRcvd = false;
     mavlink_status_t _status;
@@ -1449,23 +1449,23 @@ bool Read_UDP(mavlink_message_t* msgptr)  {
             int result = udp.read();
             if (result >= 0)  {
 
-                msgRcvd = mavlink_parse_char(MAVLINK_COMM_2, result, msgptr, &_status);
+                msgRcvd = mavlink_parse_char(MAVLINK_COMM_2, result, msgidx, &_status);
                 if(msgRcvd) {
                   
                     udp_remoteIP = udp.remoteIP();  // remember which remote client sent this packet so we can target it
                     DisplayRemoteIP();
                     if(!hb_heard_from) {
-                        if(msgptr->msgid == MAVLINK_MSG_ID_HEARTBEAT) {
+                        if(msgidx->msgid == MAVLINK_MSG_ID_HEARTBEAT) {
                             hb_heard_from      = true;
-                            hb_system_id       = msgptr->sysid;
-                            hb_comp_id         = msgptr->compid;
-                            hb_seq_expected   = msgptr->seq + 1;
+                            hb_system_id       = msgidx->sysid;
+                            hb_comp_id         = msgidx->compid;
+                            hb_seq_expected   = msgidx->seq + 1;
                             hb_last_heartbeat = millis();
                         }
                     } else {
-                        if(msgptr->msgid == MAVLINK_MSG_ID_HEARTBEAT)
+                        if(msgidx->msgid == MAVLINK_MSG_ID_HEARTBEAT)
                           hb_last_heartbeat = millis();
-                          checkLinkErrors(msgptr);
+                          checkLinkErrors(msgidx);
                     }
                     
                     break;
@@ -1480,7 +1480,7 @@ bool Read_UDP(mavlink_message_t* msgptr)  {
 //********************************************************************************
 #if ((FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1) || (GCS_Mavlink_IO == 3))
 
-bool Read_Bluetooth(mavlink_message_t* msgptr)  {
+bool Read_Bluetooth(mavlink_message_t* msgidx)  {
     
     bool msgRcvd = false;
     mavlink_status_t _status;
@@ -1493,21 +1493,21 @@ bool Read_Bluetooth(mavlink_message_t* msgptr)  {
             int result = SerialBT.read();
             if (result >= 0)  {
 
-                msgRcvd = mavlink_parse_char(MAVLINK_COMM_2, result, msgptr, &_status);
+                msgRcvd = mavlink_parse_char(MAVLINK_COMM_2, result, msgidx, &_status);
                 if(msgRcvd) {
 
                     if(!hb_heard_from) {
-                        if(msgptr->msgid == MAVLINK_MSG_ID_HEARTBEAT) {
+                        if(msgidx->msgid == MAVLINK_MSG_ID_HEARTBEAT) {
                             hb_heard_from     = true;
-                            hb_system_id      = msgptr->sysid;
-                            hb_comp_id        = msgptr->compid;
-                            hb_seq_expected   = msgptr->seq + 1;
+                            hb_system_id      = msgidx->sysid;
+                            hb_comp_id        = msgidx->compid;
+                            hb_seq_expected   = msgidx->seq + 1;
                             hb_last_heartbeat = millis();
                         }
                     } else {
-                        if(msgptr->msgid == MAVLINK_MSG_ID_HEARTBEAT)
+                        if(msgidx->msgid == MAVLINK_MSG_ID_HEARTBEAT)
                           hb_last_heartbeat = millis();
-                          checkLinkErrors(msgptr);
+                          checkLinkErrors(msgidx);
                     }
                  
                     break;
@@ -1521,13 +1521,13 @@ bool Read_Bluetooth(mavlink_message_t* msgptr)  {
 #endif
 //********************************************************************************
 #if ((FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1)) || ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3)) // BT or WiFi
-void checkLinkErrors(mavlink_message_t* msgptr)   {
+void checkLinkErrors(mavlink_message_t* msgidx)   {
 
     //-- Don't bother if we have not heard from the link (and it's the proper sys/comp ids)
-    if(!hb_heard_from || msgptr->sysid != hb_system_id || msgptr->compid != hb_comp_id) {
+    if(!hb_heard_from || msgidx->sysid != hb_system_id || msgidx->compid != hb_comp_id) {
         return;
     }
-    uint16_t seq_received = (uint16_t)msgptr->seq;
+    uint16_t seq_received = (uint16_t)msgidx->seq;
     uint16_t packet_lost_count = 0;
     //-- Account for overflow during packet loss
     if(seq_received < hb_seq_expected) {
@@ -1535,7 +1535,7 @@ void checkLinkErrors(mavlink_message_t* msgptr)   {
     } else {
         packet_lost_count = seq_received - hb_seq_expected;
     }
-    hb_seq_expected = msgptr->seq + 1;
+    hb_seq_expected = msgidx->seq + 1;
     link_status.packets_lost += packet_lost_count;
 }
 #endif
@@ -1580,7 +1580,7 @@ void Decode_GCS_To_FC() {
             Debug.print("  gcs_req_param_index="); Debug.print(gcs_req_param_index);    
             Debug.println();    
 
-            Request_Param_Read(gcs_req_param_index); 
+            Param_Request_Read(gcs_req_param_index); 
             
           #endif
           break;
@@ -1731,7 +1731,7 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
         #if (WiFi_Protocol == 2) // UDP 
 
           bool msgSent = Send_UDP(&R2Gmsg);  // to GCS
-
+          
           #ifdef  Debug_GCS_Down
             Debug.print("Passed down from Ring buffer to GCS by WiFi UDP: msgSent="); Debug.println(msgSent);
             PrintMavBuffer(&R2Gmsg);
@@ -1775,12 +1775,12 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
 //********************************************************************************
 #if ((FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1) || (GCS_Mavlink_IO == 3)) 
 
-bool Send_Bluetooth(mavlink_message_t* msgptr) {
+bool Send_Bluetooth(mavlink_message_t* msgidx) {
 
     bool msgSent = false;
     uint8_t buf[300];
      
-    uint16_t len = mavlink_msg_to_send_buffer(buf, msgptr);
+    uint16_t len = mavlink_msg_to_send_buffer(buf, msgidx);
   
     size_t sent = SerialBT.write(buf,len);
 
@@ -1795,11 +1795,11 @@ bool Send_Bluetooth(mavlink_message_t* msgptr) {
 //**********************************************************************************
 #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3)) && (WiFi_Protocol == 1) //  WiFi  TCP/IP
 
-bool Send_TCP(mavlink_message_t* msgptr) {
+bool Send_TCP(mavlink_message_t* msgidx) {
     if (!wifiSuGood) return false;  
     bool msgSent = false;
     uint8_t buf[300];
-    uint16_t len = mavlink_msg_to_send_buffer(buf, msgptr);
+    uint16_t len = mavlink_msg_to_send_buffer(buf, msgidx);
   
     size_t sent =  wifi.write(buf,len);  
 
@@ -1814,14 +1814,14 @@ bool Send_TCP(mavlink_message_t* msgptr) {
 //********************************************************************************
 #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3)) && (WiFi_Protocol == 2) //  WiFi  UDP
 
-bool Send_UDP(mavlink_message_t* msgptr) {
+bool Send_UDP(mavlink_message_t* msgidx) {
     if (!wifiSuGood) return false;  
     bool msgSent = false;
     uint8_t buf[300];
 
     udp.beginPacket(udp_remoteIP, udp_remotePort);
 
-    uint16_t len = mavlink_msg_to_send_buffer(buf, msgptr);
+    uint16_t len = mavlink_msg_to_send_buffer(buf, msgidx);
   
     size_t sent = udp.write(buf,len);
 
@@ -2713,7 +2713,7 @@ void Send_FC_Heartbeat() {
   Write_To_FC(0); 
 }
 //***************************************************
- void Request_Param_Read(int16_t param_index) {
+ void Param_Request_Read(int16_t param_index) {
   ap_sysid = 20;                        // ID 20 for this aircraft
   ap_compid = 1;                        //  autopilot1
 
@@ -3437,7 +3437,7 @@ void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
           listDir(fs, file.name(), levels -1);   //  Recursive :)
           }
       } else { 
-        string myStr (file.name());  // std::string  using namespace std; 
+        std::string myStr (file.name());  
         if (myStr.compare(0,14,"/System Volume") != 0)  {
       
           fnPath[i] = myStr;
@@ -3795,7 +3795,7 @@ const uint32_t su_timeout = 5000; // uS !
 
   while(digitalRead(rxPin) == 1){ }  // wait for low bit to start
   
-  for (int i = 0; i < 10; i++) {
+  for (int i = 1; i <= 10; i++) {            // 1 start bit, 8 data and 1 stop bit
     pw = pulseIn(rxPin,LOW, su_timeout);     // default timeout 1000mS! Returns the length of the pulse in uS
     SenseWiFiPin();
     if (pw !=0) {
@@ -3891,11 +3891,11 @@ void setSPortMode(SPortMode mode) {
 // ***********************************************************************
 void FrSkySPort_Init(void)  {
 
-  for (int i=0 ; i < st_rows ; i++) {  // initialise sensor table
-    st[i].id = 0;
-    st[i].subid = 0;
-    st[i].millis = 0;
-    st[i].inuse = false;
+  for (int i=0 ; i < sb_rows ; i++) {  // initialise sensor table
+    sb[i].id = 0;
+    sb[i].subid = 0;
+    sb[i].millis = 0;
+    sb[i].inuse = false;
   }
 
   
@@ -3918,17 +3918,17 @@ esp_err_t uart_set_line_inverse(uart_port_t uart_num, uint32_t inverse_mask);
  */
   frSerial.begin(frBaud, SERIAL_8N1, Fr_rxPin, Fr_txPin); 
   
-  #if defined Ground_Mode 
+  #ifndef Support_Mavlite && defined Ground_Mode 
     Debug.println("ESP32 S.Port pins inverted for Ground Mode");   
-    uart_set_line_inverse(UART_NUM_1, UART_INVERSE_RXD);  // moot, not needed
+    uart_set_line_inverse(UART_NUM_1, UART_INVERSE_RXD);  // not really needed
     uart_set_line_inverse(UART_NUM_1, UART_INVERSE_TXD);  // line to Taranis or Horus etc
   #else
-    Debug.println("ESP32 S.Port pins NOT inverted for Air or Relay Modes. Must use a converter");  
+    Debug.println("ESP32 S.Port pins NOT inverted for Air / Relay Modes / Mavlite. Must use a converter/inverter");  
   #endif  
   
 #else
 
-  #if defined Debug_Air_Mode || defined Debug_Relay_Mode
+  #if defined Debug_Air_Mode || defined Debug_Relay_Mode || defined Support_Mavlite
     Debug.println("frSerial.begin"); 
   #endif
   
@@ -3956,52 +3956,209 @@ esp_err_t uart_set_line_inverse(uart_port_t uart_num, uint32_t inverse_mask);
 } 
 // ***********************************************************************
 
-#if defined Air_Mode || defined Relay_Mode
+#if defined Air_Mode || defined Relay_Mode || defined Support_Mavlite
+
 void ReadSPort(void) {
-  #if defined Debug_Air_Mode || defined Debug_Relay_Mode
-    Debug.println("Reading S.Port "); 
+  #if defined Debug_Air_Mode || defined Debug_Relay_Mode 
+    Debug.println("R SP"); 
   #endif
   uint8_t prevByt=0;
   #if (Target_Board == 0) // Teensy3x
     setSPortMode(rx);
   #endif  
   uint8_t Byt = 0;
+  
   while ( frSerial.available())   {  
     Byt =  frSerial.read();
-    #if defined Debug_Air_Mode || defined Debug_Relay_Mode
+
+    #if defined Debug_Air_Mode || defined Debug_Relay_Mode || defined Debug_Mavlitexxxxxxxxxxxx
+      if (Byt == 0x7E) Debug.println();
+      if (Byt == 0x10) Debug.println();
       DisplayByte(Byt);
     #endif
+  
+    if (prevByt == 0x7E) {  // Start/Stop byte
+      sp_start_stop = prevByt;
+      
+      if (Byt == 0x1B) {    // Sensor_id for injecting S.Port packets
+        
+        #if defined Debug_Air_Mode || defined Debug_Relay_Mode || defined Debug_Mavlitexxxx
+          Debug.println("Start byte & sensor id for injection found "); 
+        #endif
+        
+        #if defined Support_Mavlite
+          if (ml20_paramsReq == 2)  {       // mavlite available to inject
+            #if defined defined Debug_Mavlite         
+              Debug.println("Mavlite_Inject_Packet");
+            #endif
+            Mavlite_Inject_Packet();
+            ml20_paramsReq = 0;            // tri-state  0= none, 1=mavlink reply pending, 2 mav reply received
+        }
+        #endif
+        
+        if (FRS_available) {           // passthru available to inject
+          Passthru_Inject_Packet();
+          FRS_available = false; 
+          }
 
-    if ((prevByt == 0x7E) && (Byt == 0x1B)) { 
-      #if defined Debug_Air_Mode || defined Debug_Relay_Mode
-        Debug.print("S/S "); 
-      #endif
-    FrSkySPort_Inject_Packet(); 
+      } 
 
-    }     
-  prevByt=Byt;
+    #if defined Support_Mavlite      
+      if (Byt == 0x0D){  // Sensor ID for Mavlite uplink
+        mlBytes[0] =  Byt; 
+        for (int i = 1 ; i < 8 ; i++) {
+          mlBytes[i] =  frSerial.read(); 
+          if ((i>2) && (mlBytes[i-1] == 0x7D) && (mlBytes[i] == 0x5E)) { // correct bytestuff
+             mlBytes[i-1] = 0x7E;
+             i--;
+          }
+          if ((i>2) && (mlBytes[i-1] == 0x7D) && (mlBytes[i] == 0x5D)) { // correct bytestuff
+             mlBytes[i-1] = 0x7D;
+             i--;
+          }        
+        }    
+        ml.sensor_id = mlBytes[0];
+        ml.frame_id = mlBytes[1];
+        if (ml.frame_id == 0x30) {
+          ml.data = *(uint16_t *)(mlBytes+2);
+          ml.value = *(uint32_t*)(mlBytes+4);
+        
+           #if defined Debug_Mavlite 
+             Debug.print("S.Port Read raw: ");
+             for (int i=0 ; i < 8 ; i++) {
+               DisplayByte(mlBytes[i]);
+              }
+             Debug.printf("\t0x%02X:0x%02X:%04X:%08X\n", ml.sensor_id, ml.frame_id, ml.data, ml.value);          
+           #endif   
+
+           if (DecodeMavLite()) {    // Uplink from Taranis/Horus
+                     
+             ml20_paramsReq = 1;     // 0=none pending, 1=waiting for FC, 2=received_from_fc
+             Param_Request_Read(-1, ap_param_id); //   Request Param Read using param_id, not index  //  Param_Request_Read_id(ap_param_id); 
+           }
+        }      
+      }
+    #endif
+      
+    }       
+    prevByt=Byt;
   }
   // and back to main loop
 }  
 #endif
+
+// ***********************************************************************
+#if defined Support_Mavlite
+bool DecodeMavLite() {
+  ml20_seq = ml.raw[2];
+  if (ml20_seq == 0) {
+    ml20_msg_id = ml.raw[4];
+    ml20_paylth = ml.raw[3];
+    ml20_idx = 0;
+    }
+    switch (ml20_msg_id) {
+      case 20:    //  #20 or 0x14
+        if (Unpack_ml20()) {
+          #if defined Debug_Mavlite
+            Debug.printf("MavLITE #20 Param_Request_Read :%s:\n", ml20_param_id);  
+          #endif  
+          strncpy(ap_param_id, ml20_param_id, 16);
+          return true;           
+        }
+        return false;
+      case 21:         
+        return false;
+      case 22:  
+        return false;      
+    }  
+  return false;     
+}
+#endif
+// ***********************************************************************
+#if defined Support_Mavlite
+void EncodeMavlite()  {    // For  Downlink
+  ml22.sensor_id = 0x14;  
+  ml22.frame_id = 0x32;
+  ml22.seq = 0;
+  ml22.paylth = 20;
+  ml22.msg_id = 22;
+  ml22.value = ap_param_value;
+  strncpy(ml22.param_id, ap_param_id, 16);
+}
+#endif
+// ***********************************************************************
+#if defined Support_Mavlite
+bool Unpack_ml20 () {
+  if (ml20_seq == 0) {
+    for (int i = 5 ; i < 8 ; i++, ml20_idx++) {
+      ml20_param_id[ml20_idx] = ml.raw[i];
+      if (ml20_idx >= ml20_paylth) {
+        return true;
+      }        
+    }
+    return false;
+  }  
+        
+  if (ml20_seq > 0) {
+    for (int i = 3 ; i < 8 ; i++, ml20_idx++) {
+      ml20_param_id[ml20_idx] = ml.raw[i];
+      if (ml20_idx >= ml20_paylth) {
+        ml20_param_id[ml20_idx] = 0x00; // terminate string      
+        return true; 
+      }                
+     }
+   return false;
+  }
+ return false;
+}
+#endif
 // ***********************************************************************
 
-#if defined Ground_Mode
+#if not defined Support_Mavlite && defined Ground_Mode
 void Emulate_ReadSPort() {
   #if (Target_Board == 0)      // Teensy3x
     setSPortMode(tx);
   #endif
  
-  FrSkySPort_Inject_Packet();  
-
+  Passthru_Inject_Packet();  
 
   // and back to main loop
 }
 #endif
 
 // ***********************************************************************
+#if defined Support_Mavlite
+void Mavlite_Inject_Packet() {
+
+  EncodeMavlite();  // To Downlink  
+  
+  uint8_t tot_lth = ml22.paylth + 5;
+  #if defined Debug_Mavlite         
+    Debug.print("Sending:");
+  #endif
+
+  for (int i = 0 ; i < tot_lth ; i++) {
+    if (i > 4) {
+      FrSkySPort_SendByte(ml22.raw[i], true);  // include for CRC
+      #if defined Debug_Mavlite   
+        DisplayByte(ml22.raw[i]);
+      #endif  
+      } else {
+      FrSkySPort_SendByte(ml22.raw[i], false); // don't include for CRC
+      #if defined Debug_Mavlite   
+        DisplayByte(ml22.raw[i]);
+      #endif  
+      }
+  }
+  #if defined Debug_Mavlite   
+    Debug.printf("CRC=%2X\n", crc);
+  #endif  
+  FrSkySPort_SendCrc();  //  CRC byte
+
+}
+#endif
 // ***********************************************************************
-void FrSkySPort_Inject_Packet() {
+void Passthru_Inject_Packet() {
 
   #if defined Frs_Debug_All || defined Frs_Debug_Period
     ShowPeriod();   
@@ -4011,94 +4168,94 @@ void FrSkySPort_Inject_Packet() {
     
   if (!mavGood) return;  // Wait for good Mavlink data
 
-  uint32_t st_now = millis();
-  int16_t st_age;
-  int16_t st_subid_age;
-  int16_t st_max_tier1 = 0; 
-  int16_t st_max_tier2 = 0; 
-  int16_t st_max       = 0;     
-  uint16_t ptr_tier1   = 0;                 // row with oldest sensor data
-  uint16_t ptr_tier2   = 0; 
-  uint16_t ptr         = 0; 
+  uint32_t sb_now = millis();
+  int16_t sb_age;
+  int16_t sb_subid_age;
+  int16_t sb_max_tier1 = 0; 
+  int16_t sb_max_tier2 = 0; 
+  int16_t sb_max       = 0;     
+  uint16_t idx_tier1   = 0;                 // row with oldest sensor data
+  uint16_t idx_tier2   = 0; 
+  uint16_t idx         = 0; 
 
   // 2 tier scheduling. Tier 1 gets priority, tier2 (0x5000) only sent when tier 1 empty 
   
-  // find the row with oldest sensor data = ptr 
-  sport_unsent = 0;  // how many slots in-use
+  // find the row with oldest sensor data = idx 
+  sb_unsent = 0;  // how many slots in-use
 
   uint16_t i = 0;
-  while (i < st_rows) {  
+  while (i < sb_rows) {  
     
-    if (st[i].inuse) {
-      sport_unsent++;   
+    if (sb[i].inuse) {
+      sb_unsent++;   
       
-      st_age = (st_now - st[i].millis); 
-      st_subid_age = st_age - st[i].subid;  
+      sb_age = (sb_now - sb[i].millis); 
+      sb_subid_age = sb_age - sb[i].subid;  
 
-      if (st[i].id == 0x5000) {
-        if (st_subid_age >= st_max_tier2) {
-          st_max_tier2 = st_subid_age;
-          ptr_tier2 = i;
+      if (sb[i].id == 0x5000) {
+        if (sb_subid_age >= sb_max_tier2) {
+          sb_max_tier2 = sb_subid_age;
+          idx_tier2 = i;
         }
       } else {
-      if (st_subid_age >= st_max_tier1) {
-        st_max_tier1 = st_subid_age;
-        ptr_tier1 = i;
+      if (sb_subid_age >= sb_max_tier1) {
+        sb_max_tier1 = sb_subid_age;
+        idx_tier1 = i;
         }   
       }
     } 
   i++;    
   } 
     
-  if (st_max_tier1 == 0) {            // if there are no tier 1 sensor entries
-    if (st_max_tier2 > 0) {           // but there are tier 2 entries
-      ptr = ptr_tier2;                // send tier 2 instead
-      st_max = st_max_tier2;
+  if (sb_max_tier1 == 0) {            // if there are no tier 1 sensor entries
+    if (sb_max_tier2 > 0) {           // but there are tier 2 entries
+      idx = idx_tier2;                // send tier 2 instead
+      sb_max = sb_max_tier2;
     }
   } else {
-    ptr = ptr_tier1;                  // if there are tier1 entries send them
-    st_max = st_max_tier1;
+    idx = idx_tier1;                  // if there are tier1 entries send them
+    sb_max = sb_max_tier1;
   }
   
-  //Debug.println(sport_unsent);  // limited detriment :)  
+  //Debug.println(sb_unsent);  // limited detriment :)  
         
   // send the packet if there is one
-    if (st_max > 0) {
+    if (sb_max > 0) {
 
      #ifdef Frs_Debug_Scheduler
-       Debug.print(sport_unsent); 
-       Debug.printf("\tPop  row= %3d", ptr );
-       Debug.print("  id=");  Debug.print(st[ptr].id, HEX);
-       if (st[ptr].id < 0x1000) Debug.print(" ");
-       Debug.printf("  subid= %2d", st[ptr].subid);       
-       Debug.printf("  payload=%12d", st[ptr].payload );
-       Debug.printf("  age=%3d mS \n" , st_max_tier1 );    
+       Debug.print(sb_unsent); 
+       Debug.printf("\tPop  row= %3d", idx );
+       Debug.print("  id=");  Debug.print(sb[idx].id, HEX);
+       if (sb[idx].id < 0x1000) Debug.print(" ");
+       Debug.printf("  subid= %2d", sb[idx].subid);       
+       Debug.printf("  payload=%12d", sb[idx].payload );
+       Debug.printf("  age=%3d mS \n" , sb_max_tier1 );    
      #endif  
       
-    if (st[ptr].id == 0xF101) {
+    if (sb[idx].id == 0xF101) {
       #ifdef Relay_Mode
         FrSkySPort_SendByte(0x7E, false);   
         FrSkySPort_SendByte(0x1B, false);  
       #endif
      }
                               
-    FrSkySPort_SendDataFrame(0x1B, st[ptr].id, st[ptr].payload);
+    FrSkySPort_SendDataFrame(0x1B, sb[idx].id, sb[idx].payload);
   
-    st[ptr].payload = 0;  
-    st[ptr].inuse = false; // free the row for re-use
+    sb[idx].payload = 0;  
+    sb[idx].inuse = false; // free the row for re-use
   }
   
  }
 // ***********************************************************************     
 // ***********************************************************************
-void PushToEmptyRow(st_t pter) {
+void PushToEmptyRow(sb_t pter) {
   
   // find empty sensor row
   uint16_t j = 0;
-  while (st[j].inuse) {
+  while (sb[j].inuse) {
     j++;
   }
-  if (j >= st_rows-1) {
+  if (j >= sb_rows-1) {
     sens_buf_full_count++;
     if ( (sens_buf_full_count == 0) || (sens_buf_full_count%1000 == 0)) {
       Debug.println("Sensor buffer full. Check S.Port link");  // Report every so often
@@ -4106,10 +4263,10 @@ void PushToEmptyRow(st_t pter) {
     return;
   }
   
-  sport_unsent++;
+  sb_unsent++;
   
   #if defined Frs_Debug_Scheduler
-    Debug.print(sport_unsent); 
+    Debug.print(sb_unsent); 
     Debug.printf("\tPush row= %3d", j );
     Debug.print("  id="); Debug.print(pter.id, HEX);
     if (pter.id < 0x1000) Debug.print(" ");
@@ -4120,7 +4277,7 @@ void PushToEmptyRow(st_t pter) {
   // The push
   pter.millis = millis();
   pter.inuse = true;
-  st[j] = pter;
+  sb[j] = pter;
 
 }
 // ***********************************************************************
@@ -4246,7 +4403,7 @@ void FrSkySPort_SendDataFrame(uint8_t Instance, uint16_t Id, uint32_t value) {
   setSPortMode(tx); 
   #endif
   
-  #ifdef Ground_Mode   // Only if ground mode send these bytes, else XSR sends them
+  #if defined Ground_Mode && not defined Support_Mavlite  // Only if ground mode send these bytes, else XSR sends them
     FrSkySPort_SendByte(0x7E, false);       //  START/STOP don't add into crc
     FrSkySPort_SendByte(Instance, false);   //  don't add into crc  
   #endif 
@@ -5240,4 +5397,5 @@ uint16_t prep_number(int32_t number, uint8_t digits, uint8_t power)
         }
     }
     return res;
-}  
+} 
+//********************************************************************************
