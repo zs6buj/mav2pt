@@ -6,12 +6,11 @@
      License and Disclaimer
 
  
-  This software is provided under the GNU v2.0 License. All relevant restrictions apply including 
-  the following. In case there is a conflict, the GNU v2.0 License is overriding. This software is 
-  provided as-is in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the 
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General 
-  Public License for more details. In no event will the authors and/or contributors be held liable
-  for any damages arising from the use of this software.
+  This software is provided under the GNU v2.0 License. All relevant restrictions apply. In case there is a conflict,
+  the GNU v2.0 License is overriding. This software is provided as-is in the hope that it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details. In no event will the authors and/or contributors be held liable for any 
+  damages arising from the use of this software.
 
   Permission is granted to anyone to use this software for any purpose, including commercial 
   applications, and to alter it and redistribute it freely, subject to the following restrictions:
@@ -98,7 +97,7 @@
     box to the Taranis.  To enable Relay_Mode :
     Un-comment this line      #define Relay_Mode    like this
 
-    From version 2.12 he target mpu is selected automatically
+    From version 2.12 the target mpu is selected automatically
 
     Battery capacities in mAh can be 
    
@@ -333,7 +332,7 @@ char     ap_param_id [16];
 float    ap_param_value;
 uint8_t  ap_param_type;  
 uint16_t ap_param_count;              //  Total number of onboard parameters
-uint16_t ap_param_index;              //  Index of this onboard parameter
+int16_t ap_param_index;              //  Index of this onboard parameter
 
 // Message #24  GPS_RAW_INT 
 uint8_t    ap_fixtype = 3;            // 0= No GPS, 1=No Fix, 2=2D Fix, 3=3D Fix, 4=DGPS, 5=RTK_Float, 6=RTK_Fixed, 7=Static, 8=PPP
@@ -413,7 +412,7 @@ uint8_t   ap_mission_type;      // MAV_MISSION_TYPE - Mavlink 2
 //  Generic Mavlink Header defined above
 bool ap_ms_current_flag = false;
 
-// Message #43 Mission_Request_list
+// Message #43 Mission_Request_List
 //  Generic Mavlink Header defined above
 bool ap_ms_list_req = false;
 
@@ -638,18 +637,18 @@ uint32_t fr_rssi;
   uint32_t   millis; // mS since boot
   uint32_t   payload;
   bool       inuse;
-  } st_t;
+  } sb_t;
 
 // Give the sensor table more space when status_text messages sent three times
 #if defined Send_status_Text_3_Times
-   const uint16_t st_rows = 300;  // possible unsent sensor ids at any moment 
+   const uint16_t sb_rows = 300;  // possible unsent sensor ids at any moment 
 #else 
-   const uint16_t st_rows = 130;  
+   const uint16_t sb_rows = 130;  
 #endif
 
-  st_t sr, st[st_rows];
+  sb_t sr, sb[sb_rows];
   char safety_padding[10];
-  uint16_t sport_unsent;  // how many rows in-use
+  uint16_t sb_unsent;  // how many rows in-use
      
 // OLED declarations *************************
 
@@ -1093,10 +1092,10 @@ void main_loop() {
   // Request battery capacity params 
   if (mavGood) {
     if (!ap_bat_paramsReq) {
-      Request_Param_Read(356);    // Request Bat1 capacity   do this twice in case of lost frame
-      Request_Param_Read(356);    
-      Request_Param_Read(364);    // Request Bat2 capacity
-      Request_Param_Read(364);    
+      Param_Request_Read(356);    // Request Bat1 capacity   do this twice in case of lost frame
+      Param_Request_Read(356);    
+      Param_Request_Read(364);    // Request Bat2 capacity
+      Param_Request_Read(364);    
       Debug.println("Battery capacities requested");
       OledPrintln("Bat mAh from FC");    
       ap_bat_paramsReq = true;
@@ -1318,7 +1317,7 @@ void Read_From_GCS() {
 //********************************************************************************
 #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3)) && (WiFi_Protocol == 1)  //  WiFi  TCP
 
-bool Read_TCP(mavlink_message_t* msgptr)  {
+bool Read_TCP(mavlink_message_t* msgidx)  {
     if (!wifiSuGood) return false;  
     bool msgRcvd = false;
     mavlink_status_t _status;
@@ -1331,21 +1330,21 @@ bool Read_TCP(mavlink_message_t* msgptr)  {
             int result = wifi.read();
             if (result >= 0)  {
 
-                msgRcvd = mavlink_parse_char(MAVLINK_COMM_2, result, msgptr, &_status);
+                msgRcvd = mavlink_parse_char(MAVLINK_COMM_2, result, msgidx, &_status);
                 if(msgRcvd) {
 
                     if(!hb_heard_from) {
-                        if(msgptr->msgid == MAVLINK_MSG_ID_HEARTBEAT) {
+                        if(msgidx->msgid == MAVLINK_MSG_ID_HEARTBEAT) {
                             hb_heard_from     = true;
-                            hb_system_id      = msgptr->sysid;
-                            hb_comp_id        = msgptr->compid;
-                            hb_seq_expected   = msgptr->seq + 1;
+                            hb_system_id      = msgidx->sysid;
+                            hb_comp_id        = msgidx->compid;
+                            hb_seq_expected   = msgidx->seq + 1;
                             hb_last_heartbeat = millis();
                         }
                     } else {
-                        if(msgptr->msgid == MAVLINK_MSG_ID_HEARTBEAT)
+                        if(msgidx->msgid == MAVLINK_MSG_ID_HEARTBEAT)
                           hb_last_heartbeat = millis();
-                          checkLinkErrors(msgptr);
+                          checkLinkErrors(msgidx);
                     }
                  
                     break;
@@ -1361,7 +1360,7 @@ bool Read_TCP(mavlink_message_t* msgptr)  {
 
 #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3)) && (WiFi_Protocol == 2) //  WiFi  UDP
 
-bool Read_UDP(mavlink_message_t* msgptr)  {
+bool Read_UDP(mavlink_message_t* msgidx)  {
     if (!wifiSuGood) return false;  
     bool msgRcvd = false;
     mavlink_status_t _status;
@@ -1375,23 +1374,23 @@ bool Read_UDP(mavlink_message_t* msgptr)  {
             int result = udp.read();
             if (result >= 0)  {
 
-                msgRcvd = mavlink_parse_char(MAVLINK_COMM_2, result, msgptr, &_status);
+                msgRcvd = mavlink_parse_char(MAVLINK_COMM_2, result, msgidx, &_status);
                 if(msgRcvd) {
                   
                     udp_remoteIP = udp.remoteIP();  // remember which remote client sent this packet so we can target it
                     DisplayRemoteIP();
                     if(!hb_heard_from) {
-                        if(msgptr->msgid == MAVLINK_MSG_ID_HEARTBEAT) {
+                        if(msgidx->msgid == MAVLINK_MSG_ID_HEARTBEAT) {
                             hb_heard_from      = true;
-                            hb_system_id       = msgptr->sysid;
-                            hb_comp_id         = msgptr->compid;
-                            hb_seq_expected   = msgptr->seq + 1;
+                            hb_system_id       = msgidx->sysid;
+                            hb_comp_id         = msgidx->compid;
+                            hb_seq_expected   = msgidx->seq + 1;
                             hb_last_heartbeat = millis();
                         }
                     } else {
-                        if(msgptr->msgid == MAVLINK_MSG_ID_HEARTBEAT)
+                        if(msgidx->msgid == MAVLINK_MSG_ID_HEARTBEAT)
                           hb_last_heartbeat = millis();
-                          checkLinkErrors(msgptr);
+                          checkLinkErrors(msgidx);
                     }
                     
                     break;
@@ -1406,7 +1405,7 @@ bool Read_UDP(mavlink_message_t* msgptr)  {
 //********************************************************************************
 #if ((FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1) || (GCS_Mavlink_IO == 3))
 
-bool Read_Bluetooth(mavlink_message_t* msgptr)  {
+bool Read_Bluetooth(mavlink_message_t* msgidx)  {
     
     bool msgRcvd = false;
     mavlink_status_t _status;
@@ -1419,21 +1418,21 @@ bool Read_Bluetooth(mavlink_message_t* msgptr)  {
             int result = SerialBT.read();
             if (result >= 0)  {
 
-                msgRcvd = mavlink_parse_char(MAVLINK_COMM_2, result, msgptr, &_status);
+                msgRcvd = mavlink_parse_char(MAVLINK_COMM_2, result, msgidx, &_status);
                 if(msgRcvd) {
 
                     if(!hb_heard_from) {
-                        if(msgptr->msgid == MAVLINK_MSG_ID_HEARTBEAT) {
+                        if(msgidx->msgid == MAVLINK_MSG_ID_HEARTBEAT) {
                             hb_heard_from     = true;
-                            hb_system_id      = msgptr->sysid;
-                            hb_comp_id        = msgptr->compid;
-                            hb_seq_expected   = msgptr->seq + 1;
+                            hb_system_id      = msgidx->sysid;
+                            hb_comp_id        = msgidx->compid;
+                            hb_seq_expected   = msgidx->seq + 1;
                             hb_last_heartbeat = millis();
                         }
                     } else {
-                        if(msgptr->msgid == MAVLINK_MSG_ID_HEARTBEAT)
+                        if(msgidx->msgid == MAVLINK_MSG_ID_HEARTBEAT)
                           hb_last_heartbeat = millis();
-                          checkLinkErrors(msgptr);
+                          checkLinkErrors(msgidx);
                     }
                  
                     break;
@@ -1447,13 +1446,13 @@ bool Read_Bluetooth(mavlink_message_t* msgptr)  {
 #endif
 //********************************************************************************
 #if ((FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1)) || ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3)) // BT or WiFi
-void checkLinkErrors(mavlink_message_t* msgptr)   {
+void checkLinkErrors(mavlink_message_t* msgidx)   {
 
     //-- Don't bother if we have not heard from the link (and it's the proper sys/comp ids)
-    if(!hb_heard_from || msgptr->sysid != hb_system_id || msgptr->compid != hb_comp_id) {
+    if(!hb_heard_from || msgidx->sysid != hb_system_id || msgidx->compid != hb_comp_id) {
         return;
     }
-    uint16_t seq_received = (uint16_t)msgptr->seq;
+    uint16_t seq_received = (uint16_t)msgidx->seq;
     uint16_t packet_lost_count = 0;
     //-- Account for overflow during packet loss
     if(seq_received < hb_seq_expected) {
@@ -1461,7 +1460,7 @@ void checkLinkErrors(mavlink_message_t* msgptr)   {
     } else {
         packet_lost_count = seq_received - hb_seq_expected;
     }
-    hb_seq_expected = msgptr->seq + 1;
+    hb_seq_expected = msgidx->seq + 1;
     link_status.packets_lost += packet_lost_count;
 }
 #endif
@@ -1506,7 +1505,7 @@ void Decode_GCS_To_FC() {
             Debug.print("  gcs_req_param_index="); Debug.print(gcs_req_param_index);    
             Debug.println();    
 
-            Request_Param_Read(gcs_req_param_index); 
+            Param_Request_Read(gcs_req_param_index); 
             
           #endif
           break;
@@ -1701,12 +1700,12 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
 //********************************************************************************
 #if ((FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1) || (GCS_Mavlink_IO == 3)) 
 
-bool Send_Bluetooth(mavlink_message_t* msgptr) {
+bool Send_Bluetooth(mavlink_message_t* msgidx) {
 
     bool msgSent = false;
     uint8_t buf[300];
      
-    uint16_t len = mavlink_msg_to_send_buffer(buf, msgptr);
+    uint16_t len = mavlink_msg_to_send_buffer(buf, msgidx);
   
     size_t sent = SerialBT.write(buf,len);
 
@@ -1721,11 +1720,11 @@ bool Send_Bluetooth(mavlink_message_t* msgptr) {
 //**********************************************************************************
 #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3)) && (WiFi_Protocol == 1) //  WiFi  TCP/IP
 
-bool Send_TCP(mavlink_message_t* msgptr) {
+bool Send_TCP(mavlink_message_t* msgidx) {
     if (!wifiSuGood) return false;  
     bool msgSent = false;
     uint8_t buf[300];
-    uint16_t len = mavlink_msg_to_send_buffer(buf, msgptr);
+    uint16_t len = mavlink_msg_to_send_buffer(buf, msgidx);
   
     size_t sent =  wifi.write(buf,len);  
 
@@ -1740,14 +1739,14 @@ bool Send_TCP(mavlink_message_t* msgptr) {
 //********************************************************************************
 #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3)) && (WiFi_Protocol == 2) //  WiFi  UDP
 
-bool Send_UDP(mavlink_message_t* msgptr) {
+bool Send_UDP(mavlink_message_t* msgidx) {
     if (!wifiSuGood) return false;  
     bool msgSent = false;
     uint8_t buf[300];
 
     udp.beginPacket(udp_remoteIP, udp_remotePort);
 
-    uint16_t len = mavlink_msg_to_send_buffer(buf, msgptr);
+    uint16_t len = mavlink_msg_to_send_buffer(buf, msgidx);
   
     size_t sent = udp.write(buf,len);
 
@@ -2639,7 +2638,7 @@ void Send_FC_Heartbeat() {
   Write_To_FC(0); 
 }
 //***************************************************
- void Request_Param_Read(int16_t param_index) {
+ void Param_Request_Read(int16_t param_index) {
   ap_sysid = 20;                        // ID 20 for this aircraft
   ap_compid = 1;                        //  autopilot1
 
@@ -3721,7 +3720,7 @@ const uint32_t su_timeout = 5000; // uS !
 
   while(digitalRead(rxPin) == 1){ }  // wait for low bit to start
   
-  for (int i = 0; i < 10; i++) {
+  for (int i = 1; i <= 10; i++) {            // 1 start bit, 8 data and 1 stop bit
     pw = pulseIn(rxPin,LOW, su_timeout);     // default timeout 1000mS! Returns the length of the pulse in uS
     SenseWiFiPin();
     if (pw !=0) {

@@ -35,11 +35,11 @@ void setSPortMode(SPortMode mode) {
 // ***********************************************************************
 void FrSkySPort_Init(void)  {
 
-  for (int i=0 ; i < st_rows ; i++) {  // initialise sensor table
-    st[i].id = 0;
-    st[i].subid = 0;
-    st[i].millis = 0;
-    st[i].inuse = false;
+  for (int i=0 ; i < sb_rows ; i++) {  // initialise sensor table
+    sb[i].id = 0;
+    sb[i].subid = 0;
+    sb[i].millis = 0;
+    sb[i].inuse = false;
   }
 
   
@@ -62,9 +62,9 @@ esp_err_t uart_set_line_inverse(uart_port_t uart_num, uint32_t inverse_mask);
  */
   frSerial.begin(frBaud, SERIAL_8N1, Fr_rxPin, Fr_txPin); 
   
-  #if defined Ground_Mode 
+  #if defined Ground_Mode
     Debug.println("ESP32 S.Port pins inverted for Ground Mode");   
-    uart_set_line_inverse(UART_NUM_1, UART_INVERSE_RXD);  // moot, not needed
+    uart_set_line_inverse(UART_NUM_1, UART_INVERSE_RXD);  // only needed for bi-directional telemetry
     uart_set_line_inverse(UART_NUM_1, UART_INVERSE_TXD);  // line to Taranis or Horus etc
   #else
     Debug.println("ESP32 S.Port pins NOT inverted for Air or Relay Modes. Must use a converter");  
@@ -103,7 +103,7 @@ esp_err_t uart_set_line_inverse(uart_port_t uart_num, uint32_t inverse_mask);
 #if defined Air_Mode || defined Relay_Mode
 void ReadSPort(void) {
   #if defined Debug_Air_Mode || defined Debug_Relay_Mode
-    Debug.println("Reading S.Port "); 
+  //  Debug.println("Reading S.Port "); 
   #endif
   uint8_t prevByt=0;
   #if (Target_Board == 0) // Teensy3x
@@ -118,7 +118,7 @@ void ReadSPort(void) {
 
     if ((prevByt == 0x7E) && (Byt == 0x1B)) { 
       #if defined Debug_Air_Mode || defined Debug_Relay_Mode
-        Debug.print("S/S "); 
+        Debug.println("S/S "); 
       #endif
     FrSkySPort_Inject_Packet(); 
 
@@ -155,12 +155,12 @@ void FrSkySPort_Inject_Packet() {
     
   if (!mavGood) return;  // Wait for good Mavlink data
 
-  uint32_t st_now = millis();
-  int16_t st_age;
-  int16_t st_subid_age;
-  int16_t st_max_tier1 = 0; 
-  int16_t st_max_tier2 = 0; 
-  int16_t st_max       = 0;     
+  uint32_t sb_now = millis();
+  int16_t sb_age;
+  int16_t sb_subid_age;
+  int16_t sb_max_tier1 = 0; 
+  int16_t sb_max_tier2 = 0; 
+  int16_t sb_max       = 0;     
   uint16_t ptr_tier1   = 0;                 // row with oldest sensor data
   uint16_t ptr_tier2   = 0; 
   uint16_t ptr         = 0; 
@@ -168,25 +168,25 @@ void FrSkySPort_Inject_Packet() {
   // 2 tier scheduling. Tier 1 gets priority, tier2 (0x5000) only sent when tier 1 empty 
   
   // find the row with oldest sensor data = ptr 
-  sport_unsent = 0;  // how many slots in-use
+  sb_unsent = 0;  // how many slots in-use
 
   uint16_t i = 0;
-  while (i < st_rows) {  
+  while (i < sb_rows) {  
     
-    if (st[i].inuse) {
-      sport_unsent++;   
+    if (sb[i].inuse) {
+      sb_unsent++;   
       
-      st_age = (st_now - st[i].millis); 
-      st_subid_age = st_age - st[i].subid;  
+      sb_age = (sb_now - sb[i].millis); 
+      sb_subid_age = sb_age - sb[i].subid;  
 
-      if (st[i].id == 0x5000) {
-        if (st_subid_age >= st_max_tier2) {
-          st_max_tier2 = st_subid_age;
+      if (sb[i].id == 0x5000) {
+        if (sb_subid_age >= sb_max_tier2) {
+          sb_max_tier2 = sb_subid_age;
           ptr_tier2 = i;
         }
       } else {
-      if (st_subid_age >= st_max_tier1) {
-        st_max_tier1 = st_subid_age;
+      if (sb_subid_age >= sb_max_tier1) {
+        sb_max_tier1 = sb_subid_age;
         ptr_tier1 = i;
         }   
       }
@@ -194,55 +194,55 @@ void FrSkySPort_Inject_Packet() {
   i++;    
   } 
     
-  if (st_max_tier1 == 0) {            // if there are no tier 1 sensor entries
-    if (st_max_tier2 > 0) {           // but there are tier 2 entries
+  if (sb_max_tier1 == 0) {            // if there are no tier 1 sensor entries
+    if (sb_max_tier2 > 0) {           // but there are tier 2 entries
       ptr = ptr_tier2;                // send tier 2 instead
-      st_max = st_max_tier2;
+      sb_max = sb_max_tier2;
     }
   } else {
     ptr = ptr_tier1;                  // if there are tier1 entries send them
-    st_max = st_max_tier1;
+    sb_max = sb_max_tier1;
   }
   
-  //Debug.println(sport_unsent);  // limited detriment :)  
+  //Debug.println(sb_unsent);  // limited detriment :)  
         
   // send the packet if there is one
-    if (st_max > 0) {
+    if (sb_max > 0) {
 
      #ifdef Frs_Debug_Scheduler
-       Debug.print(sport_unsent); 
+       Debug.print(sb_unsent); 
        Debug.printf("\tPop  row= %3d", ptr );
-       Debug.print("  id=");  Debug.print(st[ptr].id, HEX);
-       if (st[ptr].id < 0x1000) Debug.print(" ");
-       Debug.printf("  subid= %2d", st[ptr].subid);       
-       Debug.printf("  payload=%12d", st[ptr].payload );
-       Debug.printf("  age=%3d mS \n" , st_max_tier1 );    
+       Debug.print("  id=");  Debug.print(sb[ptr].id, HEX);
+       if (sb[ptr].id < 0x1000) Debug.print(" ");
+       Debug.printf("  subid= %2d", sb[ptr].subid);       
+       Debug.printf("  payload=%12d", sb[ptr].payload );
+       Debug.printf("  age=%3d mS \n" , sb_max_tier1 );    
      #endif  
       
-    if (st[ptr].id == 0xF101) {
+    if (sb[ptr].id == 0xF101) {
       #ifdef Relay_Mode
         FrSkySPort_SendByte(0x7E, false);   
         FrSkySPort_SendByte(0x1B, false);  
       #endif
      }
                               
-    FrSkySPort_SendDataFrame(0x1B, st[ptr].id, st[ptr].payload);
+    FrSkySPort_SendDataFrame(0x1B, sb[ptr].id, sb[ptr].payload);
   
-    st[ptr].payload = 0;  
-    st[ptr].inuse = false; // free the row for re-use
+    sb[ptr].payload = 0;  
+    sb[ptr].inuse = false; // free the row for re-use
   }
   
  }
 // ***********************************************************************     
 // ***********************************************************************
-void PushToEmptyRow(st_t pter) {
+void PushToEmptyRow(sb_t pter) {
   
   // find empty sensor row
   uint16_t j = 0;
-  while (st[j].inuse) {
+  while (sb[j].inuse) {
     j++;
   }
-  if (j >= st_rows-1) {
+  if (j >= sb_rows-1) {
     sens_buf_full_count++;
     if ( (sens_buf_full_count == 0) || (sens_buf_full_count%1000 == 0)) {
       Debug.println("Sensor buffer full. Check S.Port link");  // Report every so often
@@ -250,10 +250,10 @@ void PushToEmptyRow(st_t pter) {
     return;
   }
   
-  sport_unsent++;
+  sb_unsent++;
   
   #if defined Frs_Debug_Scheduler
-    Debug.print(sport_unsent); 
+    Debug.print(sb_unsent); 
     Debug.printf("\tPush row= %3d", j );
     Debug.print("  id="); Debug.print(pter.id, HEX);
     if (pter.id < 0x1000) Debug.print(" ");
@@ -264,7 +264,7 @@ void PushToEmptyRow(st_t pter) {
   // The push
   pter.millis = millis();
   pter.inuse = true;
-  st[j] = pter;
+  sb[j] = pter;
 
 }
 // ***********************************************************************

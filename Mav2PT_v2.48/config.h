@@ -6,7 +6,8 @@
 
 v2.48 2019-12-17 Option for SiK #109, if RSSI is already in %, i.e. not relative to 0xFF (2.55) 
                  Added #define SiK_Rssi_Percent 
-      2019-12-31 Changes for PlatformIO compatibility                            
+      2019-12-31 Changes for PlatformIO compatibility 
+      2020-01-02 ESP32 Dev Board change again for stability - S.Port pins rx=13, tx=14                           
                     
 */
 // ******************************* Please select your options here before compiling *******************************
@@ -80,7 +81,7 @@ const uint16_t bat2_capacity = 0;
 //      Second: #65 RC_CHANNELS
 //      Third:  #35 RC_CHANNELS_RAW
 
-//#define RSSI_Override            // Dummy RSSI - fixed at 70%                                                                                                                    
+#define RSSI_Override            // Dummy RSSI - fixed at 70%                                                                                                                    
 
 //#define SiK_Rssi_Percent             // #109 RSSI is already %, not relative to (0xff/100)
 
@@ -260,11 +261,11 @@ bool daylightSaving = false;
 #elif (Target_Board == 3)         // ESP32 Platform
   #if (ESP32_Variant == 1)          // ESP32 Dev Module
     #define MavStatusLed  02        // Onboard LED
-    #define BufStatusLed  13          
+    #define BufStatusLed  27        // untested pin
     #define FC_Mav_rxPin  16        // Mavlink to FC
     #define FC_Mav_txPin  17        // Mavlink from FC
-    #define Fr_rxPin      12        // SPort - Use both for Air Mode or Relay Mode to inverter/single wire converter
-    #define Fr_txPin      27        // SPort - Use me for Ground Mode to Taranis/Horus 
+    #define Fr_rxPin      13        // SPort - Use both for Air Mode or Relay Mode to inverter/single wire converter
+    #define Fr_txPin      14        // SPort - Use me for Ground Mode to Taranis/Horus 
     #define SDA           21        // I2C OLED board
     #define SCL           22        // I2C OLED board
     #define i2cAddr      0x3C       // I2C OLED board
@@ -279,8 +280,8 @@ bool daylightSaving = false;
     #define BufStatusLed  99        // None  
     #define FC_Mav_rxPin  25        // Mavlink to FC
     #define FC_Mav_txPin  26        // Mavlink from FC
-    #define Fr_rxPin      12        // SPort - Use both for Air Mode or Relay Mode to inverter/converter
-    #define Fr_txPin      14        // SPort - Use me for Ground Mode to Taranis/Horus 
+    #define Fr_rxPin      14        // 12 ?SPort - Use both for Air Mode or Relay Mode to inverter/converter
+    #define Fr_txPin      27        // SPort - Use me for Ground Mode to Taranis/Horus 
     #define SDA           05        // I2C OLED board
     #define SCL           04        // I2C OLED board
     #define i2cAddr      0x3C       // I2C OLED board
@@ -294,7 +295,7 @@ bool daylightSaving = false;
     #define BufStatusLed  19        // Green LED
     #define FC_Mav_rxPin  16        // Mavlink to FC
     #define FC_Mav_txPin  17        // Mavlink from FC
-    #define Fr_rxPin      12        // SPort - Use both for Air Mode or Relay Mode to inverter/converter
+    #define Fr_rxPin      12        // /?check this SPort - Use both for Air Mode or Relay Mode to inverter/converter
     #define Fr_txPin      01        // SPort - Use me for Ground Mode to Taranis/Horus - passed to UEXP
     #define SDA           05        // I2C OLED board
     #define SCL           04        // I2C OLED board
@@ -377,7 +378,7 @@ bool daylightSaving = false;
   #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1)|| (GCS_Mavlink_IO == 3)  // Bluetooth
     #if (Target_Board == 3) // ESP32
 
-    #define BT_Setup   // so that WiFi setup does not defien these shared variables again
+    #define BT_Setup   // so that WiFi setup does not define these shared variables again
     // Define link variables
     struct linkStatus {
       uint32_t    packets_received;

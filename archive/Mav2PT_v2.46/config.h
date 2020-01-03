@@ -4,7 +4,7 @@
   Complete change log and debugging options are at the bottom of this tab
    
 v2.46 2019-11-16  A few cosmetic improvements     
-v2.47 2019-12-23  For ESP32 Dev Module, pin 27 is a better choice the pin 12 for S.Port tx, 
+v2.47 2019-12-23  For ESP32 Dev Module, pin 13 is a better choice than pin 12 for S.Port tx, 
                    because boot fails if pin 12 pulled high
 `                    
 */
@@ -255,8 +255,8 @@ bool daylightSaving = false;
     #define BufStatusLed  13          
     #define FC_Mav_rxPin  16        // Mavlink to FC
     #define FC_Mav_txPin  17        // Mavlink from FC
-    #define Fr_rxPin      12        // SPort - Use both for Air Mode or Relay Mode to inverter/single wire converter
-    #define Fr_txPin      27        // SPort - Use me for Ground Mode to Taranis/Horus 
+    #define Fr_rxPin      13        // SPort - Use both for Air Mode or Relay Mode to inverter/single wire converter
+    #define Fr_txPin      14        // SPort - Use me for Ground Mode to Taranis/Horus 
     #define SDA           21        // I2C OLED board
     #define SCL           22        // I2C OLED board
     #define i2cAddr      0x3C       // I2C OLED board
