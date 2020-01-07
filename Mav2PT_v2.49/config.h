@@ -2,27 +2,37 @@
 /*
 
   Complete change log and debugging options are at the bottom of this tab
-   
-
-v2.48 2019-12-17 Option for SiK #109, if RSSI is already in %, i.e. not relative to 0xFF (2.55) 
-                 Added #define SiK_Rssi_Percent 
-      2019-12-31 Changes for PlatformIO compatibility 
-      2020-01-02 ESP32 Dev Board change again for stability - S.Port pins rx=13, tx=14                           
+    
+v2.49 2020-01-07 Move baud and ssid settings to top of config.h for convenience                        
                     
 */
+//*****************************************************************************************************************
 // ******************************* Please select your options here before compiling *******************************
+
+  
+#define mvBaudFC              115200   //  Mavlink to/from the flight controller - max 921600 - must match FC or long range radio
+#define frBaud                57600    // S.Port baud setting - default 57600 
+#define AP_Name               "Mav2Passthru"    // The AP SSID that we advertise   ====>
+#define AP_Pw                 "password"        // Change me!
+#define STA_Name              "OmegaOffice"     // Target AP to connect to         <====
+#define STA_Pw                "targetPw"       
+
+/*
+   "EZ-WifiBroadcast" /  "wifibroadcast"         
+   "TXMOD-54-DD-FE"   /  "txmod123"
+*/
 
 // Do not enable for FlightDeck
 #define PlusVersion  // Added support for 0x5009 Mission WPs, 0x50F1 Servo_Channels, 0x50F2 VFR_Hud
 
-// Choose one only of these three modes
+// Choose only one of these three modes
 #define Ground_Mode          // Translator between Taranis and LRS tranceiver (like Dragonlink, ULRS, RFD900...)
 //#define Air_Mode             // Translator between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Translator between LRS tranceiver (like Dragonlink) and FrSky receiver (like XRS) in relay box on the ground
 
 
 
-// Choose one only of these Flight-Controller-side I/O channels 
+// Choose only one of these Flight-Controller-side I/O channels 
 // How does Mavlink telemetry enter this translator?
 #define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
@@ -31,13 +41,13 @@ v2.48 2019-12-17 Option for SiK #109, if RSSI is already in %, i.e. not relative
 
 
 
-// Choose one only of these GCS-side I/O channels
+// Choose only one of these GCS-side I/O channels
 // How does Mavlink telemetry leave this translator?
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-//#define GCS_Mavlink_IO  2    // WiFi - ESP32 and ESP8266 only
+#define GCS_Mavlink_IO  2    // WiFi - ESP32 and ESP8266 only
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 and ESP8266 only
 
 // NOTE: The Bluetooth class library uses a great deal of application memory. During Compile/Flash
@@ -58,8 +68,8 @@ const char* BT_Slave_Name   =   "Crossfire 0277";  // Example
 #define WiFi_Protocol 2    // UDP     
 
 // Choose one mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
-//#define WiFi_Mode   1  //AP            
-#define WiFi_Mode   2  // STA
+#define WiFi_Mode   1  //AP            
+//#define WiFi_Mode   2  // STA
 
 #define AutoAP                      // If we fail to connect in STA mode, start AP instead
 
@@ -92,7 +102,7 @@ const uint16_t bat2_capacity = 0;
 //#define Send_status_Text_3_Times
 
 //#define Send_Sensor_Health_Messages
-#define AutoBaud                    // UART Serial Only - Auto detect FC_Mavlink telemetry baud 
+//#define AutoBaud                    // UART Serial Only - Auto detect FC_Mavlink telemetry baud 
 
 //#define Request_Missions_From_FC    // Un-comment if you need mission waypoint from FC - NOT NECESSARY RIGHT NOW
 
@@ -272,6 +282,12 @@ bool daylightSaving = false;
     int16_t wifi_rssi;    
     uint8_t startWiFiPin = 15;      // D15
     uint8_t WiFiPinState = 0;
+ /*  
+   SPI/CS                       Pin 05   For optional TF/SD Card Adapter
+   SPI/MOSI                     Pin 23   For optional TF/SD Card Adapter
+   SPI/MISO                     Pin 19   For optional TF/SD Card Adapter
+   SPI/SCK                      Pin 18   For optional TF/SD Card Adapter  
+*/
 
   #endif
 
@@ -290,7 +306,7 @@ bool daylightSaving = false;
     uint8_t WiFiPinState = 0;
   #endif
 
-  #if (ESP32_Variant == 3)          //              with internal ESP32
+  #if (ESP32_Variant == 3)          // Dragonlink V3 slim with internal ESP32
     #define MavStatusLed  18        // Blue LED
     #define BufStatusLed  19        // Green LED
     #define FC_Mav_rxPin  16        // Mavlink to FC
@@ -439,22 +455,12 @@ bool daylightSaving = false;
     #if (WiFi_Protocol == 2)  //  UDP
       #include <WiFiUDP.h>    // ESP32 and ESP8266
     #endif   
-    
-    const char    *APssid         =    "Mav2Passthru";    // The AP SSID that we advertise  ====>
-    const char    *APpw           =    "password";        // Change me!
-    const uint8_t  APchannel      =    9;                 // The WiFi channel to use
-//   const char    *STAssid        =     "TargetAPName";    // Target AP to connect to      <====
-//    const char    *STApw          =     "targetPw";      // Change me!    
 
-   const char    *STAssid        =     "OmegaOffice";    
-   const char    *STApw          =     "";             
-
-   //  const char    *STAssid =     "EZ-WifiBroadcast";    
-   //  const char    *STApw =       "wifibroadcast";         
-
-   //  const char    *STAssid =     "TXMOD-54-DD-FE";   
-   //  const char    *STApw =       "txmod123";      
-
+    const char    *APssid         =    AP_Name;     
+    const char    *APpw           =    AP_Pw;     
+    const uint8_t  APchannel      =    9;            // The WiFi channel to use
+    const char    *STAssid        =     STA_Name;    
+    const char    *STApw          =     STA_Pw;    
 
    // AP and STA below
 
@@ -533,8 +539,8 @@ static DateTime_t dt_tm;
   #define mvSerialFC          Serial2   
 #endif 
   
-#define frBaud                57600           // Use 57600    
-uint32_t mvBaudFC     =       57600;          //921600;    // Must match Flight Controller or long range radio
+
+uint32_t mvBaudFC_var     =       mvBaudFC; 
  
 
 #if (Target_Board == 0)      //  Teensy 3.1
@@ -689,5 +695,10 @@ v2.45 2019-11-12  Augment mission debugging for athertop.
       2019-11-13  Move #endif outside } in SetupWiFi         
 v2.46 2019-11-16  A few cosmetic improvements     
 v2.47 2019-12-23  For ESP32 Dev Module, use pin 27 for S.Port tx, 
-                   because boot fails if pin 12 pulled high                       
+                   because boot fails if pin 12 pulled high   
+
+v2.48 2019-12-17 Option for SiK #109, if RSSI is already in %, i.e. not relative to 0xFF (2.55) 
+                 Added #define SiK_Rssi_Percent 
+      2019-12-31 Changes for PlatformIO compatibility 
+      2020-01-02 ESP32 Dev Board change again for stability - S.Port pins rx=13, tx=14                                         
 */
