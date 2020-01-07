@@ -836,9 +836,9 @@ void setup()  {
   #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1)  || (GCS_Mavlink_IO == 3) // Bluetooth
    
   #ifdef BT_Master_Mode
-    SerialBT.begin("Mav2PT", true);            
+    SerialBT.begin(BT_Name, true);            
   #else
-      SerialBT.begin("Mav2PT");   
+      SerialBT.begin(BT_Name);   
   #endif 
       
     bool bt_connected;

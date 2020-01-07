@@ -3,7 +3,7 @@
 
   Complete change log and debugging options are at the bottom of this tab
     
-v2.49 2020-01-07 Move baud and ssid settings to top of config.h for convenience                        
+v2.49 2020-01-07 Move baud, ssid and BT settings to top of config.h for convenience                        
                     
 */
 //*****************************************************************************************************************
@@ -16,6 +16,8 @@ v2.49 2020-01-07 Move baud and ssid settings to top of config.h for convenience
 #define AP_Pw                 "password"        // Change me!
 #define STA_Name              "OmegaOffice"     // Target AP to connect to         <====
 #define STA_Pw                "targetPw"       
+
+#define BT_Name               "Mav2PT"         // The Bluetooth name that we advertise
 
 /*
    "EZ-WifiBroadcast" /  "wifibroadcast"         
