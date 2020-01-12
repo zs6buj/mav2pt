@@ -93,7 +93,7 @@ const uint16_t bat2_capacity = 0;
 //      Second: #65 RC_CHANNELS
 //      Third:  #35 RC_CHANNELS_RAW
 
-#define RSSI_Override            // Dummy RSSI - fixed at 70%                                                                                                                    
+//#define RSSI_Override            // Dummy RSSI - fixed at 70%                                                                                                                    
 
 //#define SiK_Rssi_Percent             // #109 RSSI is already %, not relative to (0xff/100)
 
@@ -298,8 +298,8 @@ bool daylightSaving = false;
     #define BufStatusLed  99        // None  
     #define FC_Mav_rxPin  25        // Mavlink to FC
     #define FC_Mav_txPin  26        // Mavlink from FC
-    #define Fr_rxPin      14        // 12 ?SPort - Use both for Air Mode or Relay Mode to inverter/converter
-    #define Fr_txPin      27        // SPort - Use me for Ground Mode to Taranis/Horus 
+    #define Fr_rxPin      12        // 12 ?SPort - Use both for Air Mode or Relay Mode to inverter/converter
+    #define Fr_txPin      14        // SPort - Use me for Ground Mode to Taranis/Horus 
     #define SDA           05        // I2C OLED board
     #define SCL           04        // I2C OLED board
     #define i2cAddr      0x3C       // I2C OLED board
@@ -309,11 +309,15 @@ bool daylightSaving = false;
   #endif
 
   #if (ESP32_Variant == 3)          // Dragonlink V3 slim with internal ESP32
+    #if defined mvBaudFC
+      #undef mvBaudFC
+      #define mvBaudFC 115200       // Force baud rate to DragonLink rate
+    #endif
     #define MavStatusLed  18        // Blue LED
     #define BufStatusLed  19        // Green LED
     #define FC_Mav_rxPin  16        // Mavlink to FC
     #define FC_Mav_txPin  17        // Mavlink from FC
-    #define Fr_rxPin      12        // /?check this SPort - Use both for Air Mode or Relay Mode to inverter/converter
+    #define Fr_rxPin      12        // check this pin - Use both for Air Mode or Relay Mode to inverter/converter
     #define Fr_txPin      01        // SPort - Use me for Ground Mode to Taranis/Horus - passed to UEXP
     #define SDA           05        // I2C OLED board
     #define SCL           04        // I2C OLED board

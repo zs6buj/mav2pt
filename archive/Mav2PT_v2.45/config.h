@@ -42,7 +42,7 @@ v2.45 2019-11-12  Augment mission debugging for athertop.
 //#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-//#define GCS_Mavlink_IO  2    // WiFi - ESP32 and ESP8266 only
+#define GCS_Mavlink_IO  2    // WiFi - ESP32 and ESP8266 only
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 and ESP8266 only
 
 // NOTE: The Bluetooth class library uses a great deal of application memory. During Compile/Flash
@@ -560,7 +560,7 @@ uint32_t mvBaudFC     =       921600;         // Must match Flight Controller or
 //#define Mav_Debug_All
 //#define Frs_Debug_All
 //#define Frs_Debug_Period
-#define Frs_Debug_Payload
+//#define Frs_Debug_Payload
 //#define Mav_Debug_RingBuff
 //#define Debug_Air_Mode
 //#define Debug_Relay_Mode

@@ -2,27 +2,39 @@
 /*
 
   Complete change log and debugging options are at the bottom of this tab
-   
-
-v2.48 2019-12-17 Option for SiK #109, if RSSI is already in %, i.e. not relative to 0xFF (2.55) 
-                 Added #define SiK_Rssi_Percent 
-      2019-12-31 Changes for PlatformIO compatibility 
-      2020-01-02 ESP32 Dev Board change again for stability - S.Port pins rx=13, tx=14                           
+     
+v2.50 2020-01-12 AutoAP: Activate udp broadcast on AP dhcp allocated IP subnet.
+                 Eliminate annoying periodic "Stabilized Flight Mode" announcements.
+                 Further localise options in to logical groups.                      
                     
 */
+//*****************************************************************************************************************
+//*****************************************************************************************************************
+//*****************************************************************************************************************
 // ******************************* Please select your options here before compiling *******************************
+
+
+//#define AutoBaud                  // Auto detect Mavlink serial-in baud rate
+#define mvBaudFC              57600   //  Mavlink to/from the flight controller - max 921600 - must match FC or long range radio
+
+#define frBaud                57600    // S.Port baud setting - default 57600 
+
+/*
+   "EZ-WifiBroadcast" /  "wifibroadcast"         
+   "TXMOD-54-DD-FE"   /  "txmod123"
+*/
 
 // Do not enable for FlightDeck
 #define PlusVersion  // Added support for 0x5009 Mission WPs, 0x50F1 Servo_Channels, 0x50F2 VFR_Hud
 
-// Choose one only of these three modes
+// Choose only one of these three modes
 #define Ground_Mode          // Translator between Taranis and LRS tranceiver (like Dragonlink, ULRS, RFD900...)
 //#define Air_Mode             // Translator between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Translator between LRS tranceiver (like Dragonlink) and FrSky receiver (like XRS) in relay box on the ground
 
 
 
-// Choose one only of these Flight-Controller-side I/O channels 
+// Choose only one of these Flight-Controller-side I/O channels 
 // How does Mavlink telemetry enter this translator?
 #define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
@@ -31,38 +43,40 @@ v2.48 2019-12-17 Option for SiK #109, if RSSI is already in %, i.e. not relative
 
 
 
-// Choose one only of these GCS-side I/O channels
+// Choose only one of these GCS-side I/O channels
 // How does Mavlink telemetry leave this translator?
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 and ESP8266 only
-//#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 and ESP8266 only
+#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
+//#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 or ESP8266 only
 
 // NOTE: The Bluetooth class library uses a great deal of application memory. During Compile/Flash
 //  you may need to select Tools/Partition Scheme: "Minimal SPIFFS (1.9MB APP ...)
 
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with other GCS I/O
 
+
+#define BT_Name               "Mav2PT"         // The Bluetooth name that we advertise
+#define Start_WiFi         // Start WiFi at startup, override startWiFi Pin
 //#define BT_Master_Mode true    // Master connects to BT_Slave_Name --- false for BT Slave Mode
 const char* BT_Slave_Name   =   "Crossfire 0277";  // Example
 
 
-
-#define Start_WiFi         // Start WiFi at startup, override startWiFi Pin
-
-
-// Choose one protocol - for ESP32 only
-//#define WiFi_Protocol 1    // TCP/IP
-#define WiFi_Protocol 2    // UDP     
+#define AP_Name               "Mav2Passthru"    // The AP SSID that we advertise   ====>
+#define AP_Pw                 "password"        // Change me!
+#define STA_Name              "OmegaOffice"     // Target AP to connect to         <====
+#define STA_Pw                ""         
 
 // Choose one mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
 //#define WiFi_Mode   1  //AP            
 #define WiFi_Mode   2  // STA
 
 #define AutoAP                      // If we fail to connect in STA mode, start AP instead
-
+// Choose one protocol - for ESP32 only
+//#define WiFi_Protocol 1    // TCP/IP
+#define WiFi_Protocol 2    // UDP   
 
 //#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both rx and tx lines must be connected      
 //#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
@@ -81,7 +95,7 @@ const uint16_t bat2_capacity = 0;
 //      Second: #65 RC_CHANNELS
 //      Third:  #35 RC_CHANNELS_RAW
 
-#define RSSI_Override            // Dummy RSSI - fixed at 70%                                                                                                                    
+//#define RSSI_Override            // Dummy RSSI - fixed at 70%                                                                                                                    
 
 //#define SiK_Rssi_Percent             // #109 RSSI is already %, not relative to (0xff/100)
 
@@ -92,16 +106,26 @@ const uint16_t bat2_capacity = 0;
 //#define Send_status_Text_3_Times
 
 //#define Send_Sensor_Health_Messages
-//#define AutoBaud                    // UART Serial Only - Auto detect FC_Mavlink telemetry baud 
 
 //#define Request_Missions_From_FC    // Un-comment if you need mission waypoint from FC - NOT NECESSARY RIGHT NOW
 
 //#define Data_Streams_Enabled        // Requests data streams from FC. Requires both rx and tx lines to FC. Rather set SRn in Mission Planner
 #define Max_Waypoints  256          // Note. This is a global RAM trade-off. If exceeded then Debug message and shut down
 
+
+//**********************   S E L E C T   E S P   B O A R D   V A R I A N T   ******************
+
+#define ESP32_Variant     1    //  ESP32 Dev Module - there are several sub-variants that work
+//#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
+//#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi
+//#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - contributed by Noircogi
+
+#define ESP8266_Variant   1   // NodeMCU ESP 12F
+
+
 // ****************************** Set your time zone here ******************************************
 // Date and time determines the TLog file name only
-//const float Time_Zone = 10.5;    // Adelaide
+//const float Time_Zone = 10.5;    // Adelaide, Australia
 const float Time_Zone = 2.0;    // Jo'burg
 bool daylightSaving = false;
 
@@ -109,8 +133,8 @@ bool daylightSaving = false;
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-
+//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
 
@@ -148,17 +172,7 @@ bool daylightSaving = false;
 
 
 
-//*********************************************************************************************
-//**********************   S E L E C T   E S P   B O A R D   V A R I A N T   ******************
 
-#define ESP32_Variant     1    //  ESP32 Dev Module - there are several sub-variants that work
-//#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
-//#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi
-//#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - contributed by Noircogi
-
-#define ESP8266_Variant   1   // NodeMCU ESP 12F
-
-//*********************************************************************************************
 // Check #defines options logic  
 
 #if defined PlusVersion
@@ -286,8 +300,8 @@ bool daylightSaving = false;
     #define BufStatusLed  99        // None  
     #define FC_Mav_rxPin  25        // Mavlink to FC
     #define FC_Mav_txPin  26        // Mavlink from FC
-    #define Fr_rxPin      14        // 12 ?SPort - Use both for Air Mode or Relay Mode to inverter/converter
-    #define Fr_txPin      27        // SPort - Use me for Ground Mode to Taranis/Horus 
+    #define Fr_rxPin      12        // 12 ?SPort - Use both for Air Mode or Relay Mode to inverter/converter
+    #define Fr_txPin      14        // SPort - Use me for Ground Mode to Taranis/Horus 
     #define SDA           05        // I2C OLED board
     #define SCL           04        // I2C OLED board
     #define i2cAddr      0x3C       // I2C OLED board
@@ -297,11 +311,15 @@ bool daylightSaving = false;
   #endif
 
   #if (ESP32_Variant == 3)          // Dragonlink V3 slim with internal ESP32
+    #if defined mvBaudFC
+      #undef mvBaudFC
+      #define mvBaudFC 115200       // Force baud rate to DragonLink rate
+    #endif
     #define MavStatusLed  18        // Blue LED
     #define BufStatusLed  19        // Green LED
     #define FC_Mav_rxPin  16        // Mavlink to FC
     #define FC_Mav_txPin  17        // Mavlink from FC
-    #define Fr_rxPin      12        // /?check this SPort - Use both for Air Mode or Relay Mode to inverter/converter
+    #define Fr_rxPin      12        // check this pin - Use both for Air Mode or Relay Mode to inverter/converter
     #define Fr_txPin      01        // SPort - Use me for Ground Mode to Taranis/Horus - passed to UEXP
     #define SDA           05        // I2C OLED board
     #define SCL           04        // I2C OLED board
@@ -443,24 +461,14 @@ bool daylightSaving = false;
     #endif
     
     #if (WiFi_Protocol == 2)  //  UDP
-      #include <WiFiUDP.h>    // ESP32 and ESP8266
+      #include <WiFiUDP.h>    // ESP32 or ESP8266
     #endif   
-    
-    const char    *APssid         =    "Mav2Passthru";    // The AP SSID that we advertise  ====>
-    const char    *APpw           =    "password";        // Change me!
-    const uint8_t  APchannel      =    9;                 // The WiFi channel to use
-//   const char    *STAssid        =     "TargetAPName";    // Target AP to connect to      <====
-//    const char    *STApw          =     "targetPw";      // Change me!    
 
-   const char    *STAssid        =     "OmegaOffice";    
-   const char    *STApw          =     "";             
-
-   //  const char    *STAssid =     "EZ-WifiBroadcast";    
-   //  const char    *STApw =       "wifibroadcast";         
-
-   //  const char    *STAssid =     "TXMOD-54-DD-FE";   
-   //  const char    *STApw =       "txmod123";      
-
+    const char    *APssid         =    AP_Name;     
+    const char    *APpw           =    AP_Pw;     
+    const uint8_t  APchannel      =    9;            // The WiFi channel to use
+    const char    *STAssid        =     STA_Name;    
+    const char    *STApw          =     STA_Pw;    
 
    // AP and STA below
 
@@ -477,7 +485,8 @@ bool daylightSaving = false;
       uint16_t udp_remotePort = 14550;    // GCS like QGC      
       bool FtRemIP = true;
       #if   (WiFi_Mode == 1)  // AP
-        IPAddress udp_remoteIP(192, 168, 4, 2);       // We hand out this IP to the first client via DHCP
+        IPAddress udp_localIP(192, 168, 4, 1); 
+        IPAddress udp_remoteIP(192, 168, 4, 255);    // UDP broadcast on your 192.168.4. subnet
       #elif (WiFi_Mode == 2)  // STA
         IPAddress udp_remoteIP(192, 168, 1, 255);    // UDP broadcast on your likely LAN subnet
       #endif       
@@ -486,7 +495,7 @@ bool daylightSaving = false;
         
     #endif   
     
-    IPAddress localIP;
+    IPAddress localIP;   // tcp and udp
   #endif  
   
 //************************************************************************** 
@@ -539,8 +548,8 @@ static DateTime_t dt_tm;
   #define mvSerialFC          Serial2   
 #endif 
   
-#define frBaud                57600           // Use 57600    
-uint32_t mvBaudFC     =       115200; //57600;          //921600;    // Must match Flight Controller or long range radio
+
+uint32_t mvBaudFC_var     =       mvBaudFC; 
  
 
 #if (Target_Board == 0)      //  Teensy 3.1
@@ -606,6 +615,7 @@ uint32_t mvBaudFC     =       115200; //57600;          //921600;    // Must mat
 //#define Frs_Debug_LatLon
 //#define Frs_Debug_YelYaw
 //#define Frs_Debug_GPS_status
+//#define Mav_Debug_Scaled_IMU
 //#define Mav_Debug_Raw_IMU
 //#define Mav_Debug_Hud
 //#define Frs_Debug_Hud
@@ -624,7 +634,7 @@ uint32_t mvBaudFC     =       115200; //57600;          //921600;    // Must mat
 //#define Debug_Radio_Status  
 //#define Debug_GCS_Unknown
 //#define Debug_Param_Request_Read
-//#define Mav_Debug_Unknown_Msgs
+//#define Mav_Show_Unknown_Msgs
 //#define Mav_Print_All_Msgid
 // *****************************************************************************************************************
 
@@ -695,5 +705,11 @@ v2.45 2019-11-12  Augment mission debugging for athertop.
       2019-11-13  Move #endif outside } in SetupWiFi         
 v2.46 2019-11-16  A few cosmetic improvements     
 v2.47 2019-12-23  For ESP32 Dev Module, use pin 27 for S.Port tx, 
-                   because boot fails if pin 12 pulled high                       
+                   because boot fails if pin 12 pulled high   
+
+v2.48 2019-12-17 Option for SiK #109, if RSSI is already in %, i.e. not relative to 0xFF (2.55) 
+                 Added #define SiK_Rssi_Percent 
+      2019-12-31 Changes for PlatformIO compatibility 
+      2020-01-02 ESP32 Dev Board change again for stability - S.Port pins rx=13, tx=14 
+v2.49 2020-01-07 Move baud, ssid and BT settings to top of config.h for convenience                                               
 */
