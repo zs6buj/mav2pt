@@ -1223,7 +1223,7 @@ void Pack_Rssi_F101(uint16_t id) {          // data id 0xF101 RSSI tell LUA scri
   if (rssiGood)
     fr_rssi = ap_rssi;            // always %
   else
-    fr_rssi = 255;     // We may have a connection but don't yet know how strong. Prevents spurious "Telemetry lost" announcement
+    fr_rssi = 254;     // We may have a connection but don't yet know how strong. Prevents spurious "Telemetry lost" announcement
   #ifdef RSSI_Override   // dummy rssi override for debugging
     fr_rssi = 70;
   #endif

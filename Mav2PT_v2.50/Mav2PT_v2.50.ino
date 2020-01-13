@@ -2244,8 +2244,12 @@ void DecodeOneMavFrame() {
           rssi35 = true;  
                
           if ((!rssi65) && (!rssi109)) { // If no #65 and no #109 received, then use #35
-            rssiGood=true;            
-            ap_rssi = ap_rssi35 / 2.55;  // 0xff -> 100%
+            rssiGood=true;   
+            #if defined Rssi_In_Percent
+              ap_rssi = ap_rssi35;          //  Percent
+            #else           
+              ap_rssi = ap_rssi35 / 2.54;  // 254 -> 100%    
+            #endif               
             #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
               #ifndef RSSI_Override
                 Debug.print("Auto RSSI_Source===>  ");
@@ -2431,8 +2435,12 @@ void DecodeOneMavFrame() {
             rssi65 = true;  
              
             if (!rssi109) { // If no #109 received, then use #65
-              rssiGood=true;            
-              ap_rssi = ap_rssi65 / 2.55;  // 0xff -> 100%
+              rssiGood=true; 
+              #if defined Rssi_In_Percent
+                ap_rssi = ap_rssi65;          //  Percent
+              #else           
+                ap_rssi = ap_rssi65 / 2.54;  // 254 -> 100%
+              #endif                
               #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
                 #ifndef RSSI_Override
                   Debug.print("Auto RSSI_Source===>  ");
@@ -2450,7 +2458,7 @@ void DecodeOneMavFrame() {
                 Debug.print("=");  
                 Debug.print(ap_chan_raw[i]);   
               }                         
-              Debug.print("  ap_rssi65=");  Debug.print(ap_rssi65);   // 0xff -> 100%
+              Debug.print("  ap_rssi65=");  Debug.print(ap_rssi65); 
               Debug.print("  rssiGood=");  Debug.println(rssiGood);         
             #endif             
           break;      
@@ -2540,10 +2548,10 @@ void DecodeOneMavFrame() {
             rssiGood=true;            
             ap_rssi = ap_rssi109;   //  Percent
             
-            #if defined SiK_Rssi_Percent
+            #if defined Rssi_In_Percent
               ap_rssi = ap_rssi109;          //  Percent
             #else
-              ap_rssi = ap_rssi109 / 2.55;   //  0xff -> 100%            
+              ap_rssi = ap_rssi109 / 2.54;   //  254 -> 100%            
             #endif
             
             #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC

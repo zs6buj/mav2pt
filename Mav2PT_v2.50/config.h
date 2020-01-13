@@ -5,7 +5,8 @@
      
 v2.50 2020-01-12 AutoAP: Activate udp broadcast on AP dhcp allocated IP subnet.
                  Eliminate annoying periodic "Stabilized Flight Mode" announcements.
-                 Further localise options in to logical groups.                      
+                 Further localise options in to logical groups.     
+      201-01-13  Revert max rssi to 254. 255 is invalid/unknown in ardupilot                            
                     
 */
 //*****************************************************************************************************************
@@ -97,7 +98,7 @@ const uint16_t bat2_capacity = 0;
 
 //#define RSSI_Override            // Dummy RSSI - fixed at 70%                                                                                                                    
 
-//#define SiK_Rssi_Percent             // #109 RSSI is already %, not relative to (0xff/100)
+//#define Rssi_In_Percent             // Un-comment if RSSI is already %, not relative to (254/100)
 
 // Status_Text messages place a huge burden on the meagre 4 byte FrSky telemetry payload bandwith
 // The practice has been to send them 3 times to ensure that they arrive unscathed at the receiver
@@ -707,8 +708,8 @@ v2.46 2019-11-16  A few cosmetic improvements
 v2.47 2019-12-23  For ESP32 Dev Module, use pin 27 for S.Port tx, 
                    because boot fails if pin 12 pulled high   
 
-v2.48 2019-12-17 Option for SiK #109, if RSSI is already in %, i.e. not relative to 0xFF (2.55) 
-                 Added #define SiK_Rssi_Percent 
+v2.48 2019-12-17 Option for SiK #109, if RSSI is already in %, i.e. not relative to 2.54 
+                 Added #define Rssi_In_Percent 
       2019-12-31 Changes for PlatformIO compatibility 
       2020-01-02 ESP32 Dev Board change again for stability - S.Port pins rx=13, tx=14 
 v2.49 2020-01-07 Move baud, ssid and BT settings to top of config.h for convenience                                               
