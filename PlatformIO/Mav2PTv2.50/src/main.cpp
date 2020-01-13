@@ -116,7 +116,7 @@
   ***************************************************************************************************************** 
 
 
-   Connections to ESP32 and ESP8266 boards depend on the board variant
+   Connections to ESP32 or ESP8266 boards depend on the board variant
 
     Go to config.h tab and look for "S E L E C T   E S P   B O A R D   V A R I A N T" 
 
@@ -180,7 +180,7 @@ bool      ap_bat_paramsReq = false;
 bool      ap_bat_paramsRead=false; 
 bool      parm_msg_shown = false;
 bool      ap_paramsList=false;
-uint8_t   paramsID=0;
+uint8_t   app_count=0;
 
 bool      homGood = false;      
 bool      mavGood = false;
@@ -205,7 +205,7 @@ uint32_t  sp_millis=0;
 uint32_t  mav_led_millis=0;
 uint32_t  health_millis = 0;
 uint32_t  rssi_millis = 0;
-
+uint32_t  param_millis = 0;
 uint32_t  now_millis = 0;
 uint32_t  prev_millis = 0;
 
@@ -353,10 +353,33 @@ uint32_t   ap_v_acc;                  // mm    Altitude uncertainty. Positive fo
 uint32_t   ap_vel_acc;                // mm    Speed uncertainty. Positive for up.
 uint32_t   ap_hdg_acc;                // degE5   Heading / track uncertainty
 
+// Message #26  SCALED_IMU
+int16_t   ap26_xacc = 0;
+int16_t   ap26_yacc = 0;
+int16_t   ap26_zacc = 0;
+int16_t   ap26_xgyro = 0;
+int16_t   ap26_ygyro = 0;
+int16_t   ap26_zgyro = 0;
+int16_t   ap26_xmag = 0;
+int16_t   ap26_ymag = 0;
+int16_t   ap26_zmag = 0;
+// mav2
+int16_t ap26_temp = 0;             // cdegC
+
 // Message #27 RAW IMU 
-int32_t   ap_accX = 0;
-int32_t   ap_accY = 0;
-int32_t   ap_accZ = 0;
+int32_t   ap27_xacc = 0;
+int32_t   ap27_yacc = 0;
+int32_t   ap27_zacc = 0;
+int16_t   ap27_xgyro = 0;
+int16_t   ap27_ygyro = 0;
+int16_t   ap27_zgyro = 0;
+int16_t   ap27_xmag = 0;
+int16_t   ap27_ymag = 0;
+int16_t   ap27_zmag = 0;
+// mav2
+int8_t    ap27_id = 0;
+int16_t   ap27_temp = 0;             // cdegC
+
 
 // Message #29 SCALED_PRESSURE
 float      ap_press_abs;         // Absolute pressure (hectopascal)
@@ -383,6 +406,7 @@ uint16_t ap_gps_hdg;           // Vehicle heading (yaw angle) in degrees * 100, 
 
 // Message #35 RC_CHANNELS_RAW
 uint8_t ap_rssi;
+bool    ap_rssi_ft = true; // first rssi connection
 uint8_t ap_rssi35;
 
 // Message #36 Servo_Output
@@ -555,6 +579,7 @@ uint8_t fr_land_complete;
 uint8_t fr_armed;
 uint8_t fr_bat_fs;
 uint8_t fr_ekf_fs;
+uint8_t fr_imu_temp;
 
 // 0x5002 GPS Status
 uint8_t fr_numsats;
@@ -607,18 +632,22 @@ uint16_t fr_bat2_mAh;
 uint8_t  frPort; 
 int8_t   fr_sv[5];       
 
-//0x5010 HUD
+//0x50F1 HUD
 float    fr_air_spd;       // dm/s
 uint16_t fr_throt;         // 0 to 100%
 float    fr_bar_alt;       // metres
 
-//0x500B Missions       
+//0x50F2 Missions       
 uint16_t  fr_ms_seq;                // WP number
 uint16_t  fr_ms_dist;               // To next WP  
 float     fr_ms_xtrack;             // Cross track error in metres
 float     fr_ms_target_bearing;     // Direction of next WP
 float     fr_ms_cog;                // Course-over-ground in degrees
 int8_t    fr_ms_offset;             // Next WP bearing offset from COG
+
+//0x50F3 Wind Estimate      
+uint16_t  fr_wind_speed;            // dm/s
+uint16_t  fr_direction;             // Wind direction relative to yaw, deg / 3
 
 //0xF103
 uint32_t fr_rssi;
@@ -672,9 +701,7 @@ uint8_t col = 0;
 BluetoothSerial SerialBT;
 #endif
 
-//*************************************************************
-
-// Forward Declarations
+// Forward declarations
 void OledPrintln(String);
 void FrSkySPort_Init(void);
 uint32_t GetBaud(uint8_t);
@@ -704,7 +731,7 @@ void MarkHome();
 uint32_t Get_Volt_Average1(uint16_t);
 uint32_t Get_Volt_Average2(uint16_t);
 uint32_t Get_Current_Average1(uint16_t);
- uint32_t Get_Current_Average2(uint16_t); 
+uint32_t Get_Current_Average2(uint16_t); 
 void Accum_mAh1(uint32_t);
 void Accum_mAh2(uint32_t);
 void Accum_Volts1(uint32_t); 
@@ -712,7 +739,7 @@ void Accum_Volts2(uint32_t);
 uint32_t GetConsistent(uint8_t);
 uint32_t SenseUart(uint8_t);
 void ReadSPort(void);
-void Passthru_Inject_Packet();
+void FrSkySPort_Inject_Packet();
 void FrSkySPort_SendByte(uint8_t, bool);
 void FrSkySPort_SendDataFrame(uint8_t, uint16_t, uint32_t);
 void PackLat800(uint16_t);
@@ -743,7 +770,6 @@ void ServiceBufStatusLed();
 void BlinkMavLed(uint32_t);
 void DisplayRemoteIP();
 bool Leap_yr(uint16_t);
-
 
 // ******************************************
 void setup()  {
@@ -911,9 +937,9 @@ void setup()  {
   #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1)  || (GCS_Mavlink_IO == 3) // Bluetooth
    
   #ifdef BT_Master_Mode
-    SerialBT.begin("Mav2PT", true);            
+    SerialBT.begin(BT_Name, true);            
   #else
-      SerialBT.begin("Mav2PT");   
+      SerialBT.begin(BT_Name);   
   #endif 
       
     bool bt_connected;
@@ -1019,13 +1045,13 @@ void setup()  {
   #if (FC_Mavlink_IO == 0)    //  Serial
   
     #if defined AutoBaud
-      mvBaudFC = GetBaud(FC_Mav_rxPin);
+      mvBaudFC_var = GetBaud(FC_Mav_rxPin);
     #endif  
     
     #if (Target_Board == 3)
-      mvSerialFC.begin(mvBaudFC, SERIAL_8N1, FC_Mav_rxPin, FC_Mav_txPin);   //  rx,tx, cts, rts
+      mvSerialFC.begin(mvBaudFC_var, SERIAL_8N1, FC_Mav_rxPin, FC_Mav_txPin);   //  rx,tx, cts, rts
     #else
-      mvSerialFC.begin(mvBaudFC);    
+      mvSerialFC.begin(mvBaudFC_var);    
     #endif
     
   #endif
@@ -1101,19 +1127,35 @@ void main_loop() {
       sdStatus = 0;  // closed after reading   
     }
   }
+
+
+  if (ap_rssi > 0) {
+    if (ap_rssi_ft) {  // first time we have an rc connection
+      ap_rssi_ft = false;
+      PackSensorTable(0x5007, 0);  // Send basic ap parameters (like frame type) 
+      delay (10);
+      PackSensorTable(0x5007, 0);  // 
+      delay (10);
+      PackSensorTable(0x5007, 0);  // three times
+    }
+    else if ((millis () - param_millis) > 5000) {
+      param_millis = millis();
+      PackSensorTable(0x5007, 0);
+    }
+  }
   
-  bool rssiOverride = false;;
+  bool rssiOverride = false;
   #ifdef RSSI_Override
     rssiOverride = true;
   #endif
 
-  if (((rssiGood) || ((rssiOverride) && mavGood)) && (millis() - rssi_millis > 800)) {
-    #if defined Ground_Mode || defined Relay_Mode      // In Air_Mode the FrSky receiver provides rssi
+  #if defined Ground_Mode || defined Relay_Mode      // In Air_Mode the FrSky receiver provides rssi
+    if (((rssiGood) || ((rssiOverride) && mavGood)) && (millis() - rssi_millis > 700)) {
       PackSensorTable(0xF101, 0);   // 0xF101 RSSI 
       rssi_millis = millis(); 
-    #endif 
-  }
- 
+     }   
+  #endif 
+
   if (millis() - sport_millis > 1) {   // main timing loop for S.Port
     RB_To_Decode_To_SPort_and_GCS();
   }
@@ -1869,7 +1911,7 @@ void DecodeOneMavFrame() {
             MarkHome();  // If motors armed for the first time, then mark this spot as home
 
           hb_count++; 
-   
+          
           if(!mavGood) {
             Debug.print("hb_count=");
             Debug.print(hb_count);
@@ -1883,10 +1925,9 @@ void DecodeOneMavFrame() {
             }
 
           PackSensorTable(0x5001, 0);
-          if ((!(hb_count % 10)) || (!mavGood)) {
-        //    Debug.print("hb_count % 50="); Debug.println((hb_count % 50));
-            PackSensorTable(0x5007, 0);
-            }
+
+          // PackSensorTable(0x5007, 0);
+
 
           #if defined Mav_Debug_All || defined Mav_Debug_FC_Heartbeat
             Debug.print("Mavlink from FC #0 Heartbeat: ");           
@@ -2136,17 +2177,65 @@ void DecodeOneMavFrame() {
            PackSensorTable(0x5004, 0);  // 0x5004 Home         
               
           break;
+        case MAVLINK_MSG_ID_SCALED_IMU:   // #26
+
+          if (!mavGood) break;        
+          ap26_xacc = mavlink_msg_scaled_imu_get_xacc(&R2Gmsg);                 
+          ap26_yacc = mavlink_msg_scaled_imu_get_yacc(&R2Gmsg);
+          ap26_zacc = mavlink_msg_scaled_imu_get_zacc(&R2Gmsg);
+          ap26_xgyro = mavlink_msg_scaled_imu_get_xgyro(&R2Gmsg);                 
+          ap26_ygyro = mavlink_msg_scaled_imu_get_ygyro(&R2Gmsg);
+          ap26_zgyro = mavlink_msg_scaled_imu_get_zgyro(&R2Gmsg);
+          ap26_xmag = mavlink_msg_scaled_imu_get_xmag(&R2Gmsg);                 
+          ap26_ymag = mavlink_msg_scaled_imu_get_ymag(&R2Gmsg);
+          ap26_zmag = mavlink_msg_scaled_imu_get_zmag(&R2Gmsg);
+          //  mav2
+          ap26_temp = mavlink_msg_scaled_imu_get_temperature(&R2Gmsg);         
+          
+          #if defined Mav_Debug_All || defined Mav_Debug_Scaled_IMU
+            Debug.print("Mavlink from FC #26 Scaled_IMU: ");
+            Debug.print("xacc="); Debug.print((float)ap26_xacc / 1000, 3); 
+            Debug.print("  yacc="); Debug.print((float)ap26_yacc / 1000, 3); 
+            Debug.print("  zacc="); Debug.print((float)ap26_zacc / 1000, 3);
+            Debug.print("  xgyro="); Debug.print((float)ap26_xgyro / 1000, 3); 
+            Debug.print("  ygyro="); Debug.print((float)ap26_ygyro / 1000, 3); 
+            Debug.print("  zgyro="); Debug.print((float)ap26_zgyro / 1000, 3);
+            Debug.print("  xmag="); Debug.print((float)ap26_xmag / 1000, 3); 
+            Debug.print("  ymag="); Debug.print((float)ap26_ymag / 1000, 3); 
+            Debug.print("  zmag="); Debug.print((float)ap26_zmag / 1000, 3);  
+            Debug.print("  temp="); Debug.println((float)ap26_temp / 100, 2);    // cdegC                              
+          #endif 
+
+          break; 
+          
         case MAVLINK_MSG_ID_RAW_IMU:   // #27
         #if defined Decode_Non_Essential_Mav
           if (!mavGood) break;        
-          ap_accX = mavlink_msg_raw_imu_get_xacc(&R2Gmsg);                 
-          ap_accY = mavlink_msg_raw_imu_get_yacc(&R2Gmsg);
-          ap_accZ = mavlink_msg_raw_imu_get_zacc(&R2Gmsg);
+          ap27_xacc = mavlink_msg_raw_imu_get_xacc(&R2Gmsg);                 
+          ap27_yacc = mavlink_msg_raw_imu_get_yacc(&R2Gmsg);
+          ap27_zacc = mavlink_msg_raw_imu_get_zacc(&R2Gmsg);
+          ap27_xgyro = mavlink_msg_raw_imu_get_xgyro(&R2Gmsg);                 
+          ap27_ygyro = mavlink_msg_raw_imu_get_ygyro(&R2Gmsg);
+          ap27_zgyro = mavlink_msg_raw_imu_get_zgyro(&R2Gmsg);
+          ap27_xmag = mavlink_msg_raw_imu_get_xmag(&R2Gmsg);                 
+          ap27_ymag = mavlink_msg_raw_imu_get_ymag(&R2Gmsg);
+          ap27_zmag = mavlink_msg_raw_imu_get_zmag(&R2Gmsg);
+          ap27_id = mavlink_msg_raw_imu_get_id(&R2Gmsg);         
+          //  mav2
+          ap26_temp = mavlink_msg_scaled_imu_get_temperature(&R2Gmsg);           
           #if defined Mav_Debug_All || defined Mav_Debug_Raw_IMU
             Debug.print("Mavlink from FC #27 Raw_IMU: ");
-            Debug.print("accX="); Debug.print((float)ap_accX / 1000); 
-            Debug.print("  accY="); Debug.print((float)ap_accY / 1000); 
-            Debug.print("  accZ="); Debug.println((float)ap_accZ / 1000);
+            Debug.print("accX="); Debug.print((float)ap27_xacc / 1000); 
+            Debug.print("  accY="); Debug.print((float)ap27_yacc / 1000); 
+            Debug.print("  accZ="); Debug.println((float)ap27_zacc / 1000);
+            Debug.print("  xgyro="); Debug.print((float)ap27_xgyro / 1000, 3); 
+            Debug.print("  ygyro="); Debug.print((float)ap27_ygyro / 1000, 3); 
+            Debug.print("  zgyro="); Debug.print((float)ap27_zgyro / 1000, 3);
+            Debug.print("  xmag="); Debug.print((float)ap27_xmag / 1000, 3); 
+            Debug.print("  ymag="); Debug.print((float)ap27_ymag / 1000, 3); 
+            Debug.print("  zmag="); Debug.print((float)ap27_zmag / 1000, 3);
+            Debug.print("  id="); Debug.print((float)ap27_id);             
+            Debug.print("  temp="); Debug.println((float)ap27_temp / 100, 2);    // cdegC               
           #endif 
         #endif             
           break; 
@@ -2227,8 +2316,12 @@ void DecodeOneMavFrame() {
           rssi35 = true;  
                
           if ((!rssi65) && (!rssi109)) { // If no #65 and no #109 received, then use #35
-            rssiGood=true;            
-            ap_rssi = ap_rssi35 / 2.55;  // 0xff -> 100%
+            rssiGood=true;   
+            #if defined Rssi_In_Percent
+              ap_rssi = ap_rssi35;          //  Percent
+            #else           
+              ap_rssi = ap_rssi35 / 2.54;  // 254 -> 100%    
+            #endif               
             #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
               #ifndef RSSI_Override
                 Debug.print("Auto RSSI_Source===>  ");
@@ -2414,8 +2507,12 @@ void DecodeOneMavFrame() {
             rssi65 = true;  
              
             if (!rssi109) { // If no #109 received, then use #65
-              rssiGood=true;            
-              ap_rssi = ap_rssi65 / 2.55;  // 0xff -> 100%
+              rssiGood=true; 
+              #if defined Rssi_In_Percent
+                ap_rssi = ap_rssi65;          //  Percent
+              #else           
+                ap_rssi = ap_rssi65 / 2.54;  // 254 -> 100%
+              #endif                
               #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
                 #ifndef RSSI_Override
                   Debug.print("Auto RSSI_Source===>  ");
@@ -2433,7 +2530,7 @@ void DecodeOneMavFrame() {
                 Debug.print("=");  
                 Debug.print(ap_chan_raw[i]);   
               }                         
-              Debug.print("  ap_rssi65=");  Debug.print(ap_rssi65);   // 0xff -> 100%
+              Debug.print("  ap_rssi65=");  Debug.print(ap_rssi65); 
               Debug.print("  rssiGood=");  Debug.println(rssiGood);         
             #endif             
           break;      
@@ -2523,10 +2620,10 @@ void DecodeOneMavFrame() {
             rssiGood=true;            
             ap_rssi = ap_rssi109;   //  Percent
             
-            #if defined SiK_Rssi_Percent
+            #if defined Rssi_In_Percent
               ap_rssi = ap_rssi109;          //  Percent
             #else
-              ap_rssi = ap_rssi109 / 2.55;   //  0xff -> 100%            
+              ap_rssi = ap_rssi109 / 2.54;   //  254 -> 100%            
             #endif
             
             #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
@@ -2670,7 +2767,7 @@ void DecodeOneMavFrame() {
           break;                                      
         default:
           if (!mavGood) break;
-          #if defined Mav_Debug_All || defined Mav_Debug_Unknown_Msgs
+          #if defined Mav_Debug_All || defined Mav_Show_Unknown_Msgs
             Debug.print("Mavlink from FC: ");
             Debug.print("Unknown Message ID #");
             Debug.print(R2Gmsg.msgid);
@@ -3273,13 +3370,15 @@ void OledPrint(String S) {
      //*******************************  S T A T I O N   *****************************
     #if (WiFi_Mode == 2)  // STA
       uint8_t retry = 0;
-      Debug.print("Trying to connect to ");  
-      Debug.print(STAssid); 
-      OledPrintln("WiFi trying ..");
+
 
       WiFi.disconnect(true);   // To circumvent "wifi: Set status to INIT" error bug
       delay(500);
-      WiFi.mode(WIFI_STA);
+      Serial.printf("Wi-Fi mode set to WIFI_STA %s\n", WiFi.mode(WIFI_STA) ? "" : "Failed!");
+   //   WiFi.mode(WIFI_STA);
+      Debug.print("Trying to connect to ");  
+      Debug.print(STAssid); 
+      OledPrintln("WiFi trying ..");
       delay(500);
       
       WiFi.begin(STAssid, STApw);
@@ -3289,11 +3388,11 @@ void OledPrint(String S) {
           Debug.println();
           Debug.println("Failed to connect in STA mode");
           OledPrintln("Failed in STA Mode");
-          wifiSuDone = true;
+     //     wifiSuDone = true;
           
           #ifdef AutoAP  
             apMode = true;            // Rather go establish an AP instead
-            Debug.println("Starting AP instead.");
+            Debug.println("Starting AP instead");
             OledPrintln("Starting AP instead");  
             //new from Target0815:
             Debug.println("WiFi-Reset ...");
@@ -3302,7 +3401,7 @@ void OledPrint(String S) {
             #else
               WiFi.mode(WIFI_OFF);  // esp8266 target board 4
             #endif                 
-            delay(500);             
+            delay(1000);      
           #endif  
           
           break;
@@ -3312,7 +3411,7 @@ void OledPrint(String S) {
       }
       
       if (WiFi.status() == WL_CONNECTED) {
-        localIP = WiFi.localIP();
+        localIP = WiFi.localIP();  // TCP and UDP
         Debug.println();
         Debug.println("WiFi connected!");
         Debug.print("Local IP address: ");
@@ -3358,7 +3457,7 @@ void OledPrint(String S) {
     if (apMode)   {
       WiFi.mode(WIFI_AP);
       WiFi.softAP(APssid, APpw, APchannel);
-      localIP = WiFi.softAPIP();
+      localIP = WiFi.softAPIP();   // tcp and udp
       Debug.print("AP IP address: ");
       Debug.print (localIP); 
       Debug.print("  SSID: ");
@@ -3376,7 +3475,8 @@ void OledPrint(String S) {
         udp.begin(udp_localPort);
         Debug.printf("UDP started, listening on IP %s, UDP port %d\n", WiFi.softAPIP().toString().c_str(), udp_localPort);
         OledPrint("UDP port = ");  OledPrintln(String(udp_localPort));
-
+        udp_remoteIP[2] = 4;
+        udp_remoteIP[3] = 255;    // UDP broadcast on the AP 192.168.4/ subnet
       #endif 
       
       wifiSuGood = true;
@@ -3391,7 +3491,7 @@ void OledPrint(String S) {
     wifiSuDone = true;
  }   
 
-
+//***************************************************
   #if (WiFi_Protocol == 2)  //  Display the remote UDP IP the first time we get it
   void DisplayRemoteIP() {
     if (FtRemIP)  {
@@ -3713,7 +3813,7 @@ float Total_mWh2() {                                     // Total energy consume
 }
 //*********************************************************************************
 uint32_t GetBaud(uint8_t rxPin) {
-  Debug.printf("AutoBaud - Sensing FC_Mav_rxPin %2d \n", FC_Mav_rxPin );
+  Debug.printf("AutoBaud - Sensing FC_Mav_rxPin %2d \n", rxPin );
   uint8_t i = 0;
   uint8_t col = 0;
   pinMode(rxPin, INPUT);       
@@ -3732,7 +3832,7 @@ uint32_t GetBaud(uint8_t rxPin) {
     }
     if (col > 60) {
       Debug.println(); 
-      Debug.printf("No telemetry found on pin %2d\n", FC_Mav_rxPin); 
+      Debug.printf("No telemetry found on pin %2d\n", rxPin); 
       col = 0;
       i = 0;
     }
@@ -3918,17 +4018,17 @@ esp_err_t uart_set_line_inverse(uart_port_t uart_num, uint32_t inverse_mask);
  */
   frSerial.begin(frBaud, SERIAL_8N1, Fr_rxPin, Fr_txPin); 
   
-  #ifndef Support_Mavlite && defined Ground_Mode 
+  #if defined Ground_Mode
     Debug.println("ESP32 S.Port pins inverted for Ground Mode");   
-    uart_set_line_inverse(UART_NUM_1, UART_INVERSE_RXD);  // not really needed
+    uart_set_line_inverse(UART_NUM_1, UART_INVERSE_RXD);  // only needed for bi-directional telemetry
     uart_set_line_inverse(UART_NUM_1, UART_INVERSE_TXD);  // line to Taranis or Horus etc
   #else
-    Debug.println("ESP32 S.Port pins NOT inverted for Air / Relay Modes / Mavlite. Must use a converter/inverter");  
+    Debug.println("ESP32 S.Port pins NOT inverted for Air or Relay Modes. Must use a converter");  
   #endif  
   
 #else
 
-  #if defined Debug_Air_Mode || defined Debug_Relay_Mode || defined Support_Mavlite
+  #if defined Debug_Air_Mode || defined Debug_Relay_Mode
     Debug.println("frSerial.begin"); 
   #endif
   
@@ -3956,211 +4056,54 @@ esp_err_t uart_set_line_inverse(uart_port_t uart_num, uint32_t inverse_mask);
 } 
 // ***********************************************************************
 
-#if defined Air_Mode || defined Relay_Mode || defined Support_Mavlite
-
+#if defined Air_Mode || defined Relay_Mode
 void ReadSPort(void) {
-  #if defined Debug_Air_Mode || defined Debug_Relay_Mode 
-    Debug.println("R SP"); 
+  #if defined Debug_Air_Mode || defined Debug_Relay_Mode
+  //  Debug.println("Reading S.Port "); 
   #endif
   uint8_t prevByt=0;
   #if (Target_Board == 0) // Teensy3x
     setSPortMode(rx);
   #endif  
   uint8_t Byt = 0;
-  
   while ( frSerial.available())   {  
     Byt =  frSerial.read();
-
-    #if defined Debug_Air_Mode || defined Debug_Relay_Mode || defined Debug_Mavlitexxxxxxxxxxxx
-      if (Byt == 0x7E) Debug.println();
-      if (Byt == 0x10) Debug.println();
+    #if defined Debug_Air_Mode || defined Debug_Relay_Mode
       DisplayByte(Byt);
     #endif
-  
-    if (prevByt == 0x7E) {  // Start/Stop byte
-      sp_start_stop = prevByt;
-      
-      if (Byt == 0x1B) {    // Sensor_id for injecting S.Port packets
-        
-        #if defined Debug_Air_Mode || defined Debug_Relay_Mode || defined Debug_Mavlitexxxx
-          Debug.println("Start byte & sensor id for injection found "); 
-        #endif
-        
-        #if defined Support_Mavlite
-          if (ml20_paramsReq == 2)  {       // mavlite available to inject
-            #if defined defined Debug_Mavlite         
-              Debug.println("Mavlite_Inject_Packet");
-            #endif
-            Mavlite_Inject_Packet();
-            ml20_paramsReq = 0;            // tri-state  0= none, 1=mavlink reply pending, 2 mav reply received
-        }
-        #endif
-        
-        if (FRS_available) {           // passthru available to inject
-          Passthru_Inject_Packet();
-          FRS_available = false; 
-          }
 
-      } 
+    if ((prevByt == 0x7E) && (Byt == 0x1B)) { 
+      #if defined Debug_Air_Mode || defined Debug_Relay_Mode
+        Debug.println("S/S "); 
+      #endif
+    FrSkySPort_Inject_Packet(); 
 
-    #if defined Support_Mavlite      
-      if (Byt == 0x0D){  // Sensor ID for Mavlite uplink
-        mlBytes[0] =  Byt; 
-        for (int i = 1 ; i < 8 ; i++) {
-          mlBytes[i] =  frSerial.read(); 
-          if ((i>2) && (mlBytes[i-1] == 0x7D) && (mlBytes[i] == 0x5E)) { // correct bytestuff
-             mlBytes[i-1] = 0x7E;
-             i--;
-          }
-          if ((i>2) && (mlBytes[i-1] == 0x7D) && (mlBytes[i] == 0x5D)) { // correct bytestuff
-             mlBytes[i-1] = 0x7D;
-             i--;
-          }        
-        }    
-        ml.sensor_id = mlBytes[0];
-        ml.frame_id = mlBytes[1];
-        if (ml.frame_id == 0x30) {
-          ml.data = *(uint16_t *)(mlBytes+2);
-          ml.value = *(uint32_t*)(mlBytes+4);
-        
-           #if defined Debug_Mavlite 
-             Debug.print("S.Port Read raw: ");
-             for (int i=0 ; i < 8 ; i++) {
-               DisplayByte(mlBytes[i]);
-              }
-             Debug.printf("\t0x%02X:0x%02X:%04X:%08X\n", ml.sensor_id, ml.frame_id, ml.data, ml.value);          
-           #endif   
-
-           if (DecodeMavLite()) {    // Uplink from Taranis/Horus
-                     
-             ml20_paramsReq = 1;     // 0=none pending, 1=waiting for FC, 2=received_from_fc
-             Param_Request_Read(-1, ap_param_id); //   Request Param Read using param_id, not index  //  Param_Request_Read_id(ap_param_id); 
-           }
-        }      
-      }
-    #endif
-      
-    }       
-    prevByt=Byt;
+    }     
+  prevByt=Byt;
   }
   // and back to main loop
 }  
 #endif
-
-// ***********************************************************************
-#if defined Support_Mavlite
-bool DecodeMavLite() {
-  ml20_seq = ml.raw[2];
-  if (ml20_seq == 0) {
-    ml20_msg_id = ml.raw[4];
-    ml20_paylth = ml.raw[3];
-    ml20_idx = 0;
-    }
-    switch (ml20_msg_id) {
-      case 20:    //  #20 or 0x14
-        if (Unpack_ml20()) {
-          #if defined Debug_Mavlite
-            Debug.printf("MavLITE #20 Param_Request_Read :%s:\n", ml20_param_id);  
-          #endif  
-          strncpy(ap_param_id, ml20_param_id, 16);
-          return true;           
-        }
-        return false;
-      case 21:         
-        return false;
-      case 22:  
-        return false;      
-    }  
-  return false;     
-}
-#endif
-// ***********************************************************************
-#if defined Support_Mavlite
-void EncodeMavlite()  {    // For  Downlink
-  ml22.sensor_id = 0x14;  
-  ml22.frame_id = 0x32;
-  ml22.seq = 0;
-  ml22.paylth = 20;
-  ml22.msg_id = 22;
-  ml22.value = ap_param_value;
-  strncpy(ml22.param_id, ap_param_id, 16);
-}
-#endif
-// ***********************************************************************
-#if defined Support_Mavlite
-bool Unpack_ml20 () {
-  if (ml20_seq == 0) {
-    for (int i = 5 ; i < 8 ; i++, ml20_idx++) {
-      ml20_param_id[ml20_idx] = ml.raw[i];
-      if (ml20_idx >= ml20_paylth) {
-        return true;
-      }        
-    }
-    return false;
-  }  
-        
-  if (ml20_seq > 0) {
-    for (int i = 3 ; i < 8 ; i++, ml20_idx++) {
-      ml20_param_id[ml20_idx] = ml.raw[i];
-      if (ml20_idx >= ml20_paylth) {
-        ml20_param_id[ml20_idx] = 0x00; // terminate string      
-        return true; 
-      }                
-     }
-   return false;
-  }
- return false;
-}
-#endif
 // ***********************************************************************
 
-#if not defined Support_Mavlite && defined Ground_Mode
+#if defined Ground_Mode
 void Emulate_ReadSPort() {
   #if (Target_Board == 0)      // Teensy3x
     setSPortMode(tx);
   #endif
  
-  Passthru_Inject_Packet();  
+  FrSkySPort_Inject_Packet();  
+
 
   // and back to main loop
 }
 #endif
 
 // ***********************************************************************
-#if defined Support_Mavlite
-void Mavlite_Inject_Packet() {
-
-  EncodeMavlite();  // To Downlink  
-  
-  uint8_t tot_lth = ml22.paylth + 5;
-  #if defined Debug_Mavlite         
-    Debug.print("Sending:");
-  #endif
-
-  for (int i = 0 ; i < tot_lth ; i++) {
-    if (i > 4) {
-      FrSkySPort_SendByte(ml22.raw[i], true);  // include for CRC
-      #if defined Debug_Mavlite   
-        DisplayByte(ml22.raw[i]);
-      #endif  
-      } else {
-      FrSkySPort_SendByte(ml22.raw[i], false); // don't include for CRC
-      #if defined Debug_Mavlite   
-        DisplayByte(ml22.raw[i]);
-      #endif  
-      }
-  }
-  #if defined Debug_Mavlite   
-    Debug.printf("CRC=%2X\n", crc);
-  #endif  
-  FrSkySPort_SendCrc();  //  CRC byte
-
-}
-#endif
 // ***********************************************************************
-void Passthru_Inject_Packet() {
+void FrSkySPort_Inject_Packet() {
 
-  #if defined Frs_Debug_All || defined Frs_Debug_Period
+  #if defined Frs_Debug_Period
     ShowPeriod();   
   #endif  
        
@@ -4174,13 +4117,13 @@ void Passthru_Inject_Packet() {
   int16_t sb_max_tier1 = 0; 
   int16_t sb_max_tier2 = 0; 
   int16_t sb_max       = 0;     
-  uint16_t idx_tier1   = 0;                 // row with oldest sensor data
-  uint16_t idx_tier2   = 0; 
-  uint16_t idx         = 0; 
+  uint16_t ptr_tier1   = 0;                 // row with oldest sensor data
+  uint16_t ptr_tier2   = 0; 
+  uint16_t ptr         = 0; 
 
   // 2 tier scheduling. Tier 1 gets priority, tier2 (0x5000) only sent when tier 1 empty 
   
-  // find the row with oldest sensor data = idx 
+  // find the row with oldest sensor data = ptr 
   sb_unsent = 0;  // how many slots in-use
 
   uint16_t i = 0;
@@ -4195,12 +4138,12 @@ void Passthru_Inject_Packet() {
       if (sb[i].id == 0x5000) {
         if (sb_subid_age >= sb_max_tier2) {
           sb_max_tier2 = sb_subid_age;
-          idx_tier2 = i;
+          ptr_tier2 = i;
         }
       } else {
       if (sb_subid_age >= sb_max_tier1) {
         sb_max_tier1 = sb_subid_age;
-        idx_tier1 = i;
+        ptr_tier1 = i;
         }   
       }
     } 
@@ -4209,11 +4152,11 @@ void Passthru_Inject_Packet() {
     
   if (sb_max_tier1 == 0) {            // if there are no tier 1 sensor entries
     if (sb_max_tier2 > 0) {           // but there are tier 2 entries
-      idx = idx_tier2;                // send tier 2 instead
+      ptr = ptr_tier2;                // send tier 2 instead
       sb_max = sb_max_tier2;
     }
   } else {
-    idx = idx_tier1;                  // if there are tier1 entries send them
+    ptr = ptr_tier1;                  // if there are tier1 entries send them
     sb_max = sb_max_tier1;
   }
   
@@ -4224,25 +4167,25 @@ void Passthru_Inject_Packet() {
 
      #ifdef Frs_Debug_Scheduler
        Debug.print(sb_unsent); 
-       Debug.printf("\tPop  row= %3d", idx );
-       Debug.print("  id=");  Debug.print(sb[idx].id, HEX);
-       if (sb[idx].id < 0x1000) Debug.print(" ");
-       Debug.printf("  subid= %2d", sb[idx].subid);       
-       Debug.printf("  payload=%12d", sb[idx].payload );
+       Debug.printf("\tPop  row= %3d", ptr );
+       Debug.print("  id=");  Debug.print(sb[ptr].id, HEX);
+       if (sb[ptr].id < 0x1000) Debug.print(" ");
+       Debug.printf("  subid= %2d", sb[ptr].subid);       
+       Debug.printf("  payload=%12d", sb[ptr].payload );
        Debug.printf("  age=%3d mS \n" , sb_max_tier1 );    
      #endif  
       
-    if (sb[idx].id == 0xF101) {
+    if (sb[ptr].id == 0xF101) {
       #ifdef Relay_Mode
         FrSkySPort_SendByte(0x7E, false);   
         FrSkySPort_SendByte(0x1B, false);  
       #endif
      }
                               
-    FrSkySPort_SendDataFrame(0x1B, sb[idx].id, sb[idx].payload);
+    FrSkySPort_SendDataFrame(0x1B, sb[ptr].id, sb[ptr].payload);
   
-    sb[idx].payload = 0;  
-    sb[idx].inuse = false; // free the row for re-use
+    sb[ptr].payload = 0;  
+    sb[ptr].inuse = false; // free the row for re-use
   }
   
  }
@@ -4403,7 +4346,7 @@ void FrSkySPort_SendDataFrame(uint8_t Instance, uint16_t Id, uint32_t value) {
   setSPortMode(tx); 
   #endif
   
-  #if defined Ground_Mode && not defined Support_Mavlite  // Only if ground mode send these bytes, else XSR sends them
+  #ifdef Ground_Mode   // Only if ground mode send these bytes, else XSR sends them
     FrSkySPort_SendByte(0x7E, false);       //  START/STOP don't add into crc
     FrSkySPort_SendByte(Instance, false);   //  don't add into crc  
   #endif 
@@ -4486,7 +4429,8 @@ void PackLat800(uint16_t id) {
   bit32Pack(ms2bits, 30, 2);
           
   #if defined Frs_Debug_All || defined Frs_Debug_LatLon
-    Debug.print("Frsky out LatLon 0x800: ");
+    ShowPeriod(); 
+    Debug.print("FrSky in LatLon 0x800: ");
     Debug.print(" ap_lat33="); Debug.print((float)ap_lat33 / 1E7, 7); 
     Debug.print(" fr_lat="); Debug.print(fr_lat);  
     Debug.print(" fr_payload="); Debug.print(fr_payload); Debug.print(" ");
@@ -4526,7 +4470,8 @@ void PackLon800(uint16_t id) {
   bit32Pack(ms2bits, 30, 2);
           
   #if defined Frs_Debug_All || defined Frs_Debug_LatLon
-    Debug.print("Frsky out LatLon 0x800: ");  
+    ShowPeriod(); 
+    Debug.print("FrSky in LatLon 0x800: ");  
     Debug.print(" ap_lon33="); Debug.print((float)ap_lon33 / 1E7, 7);     
     Debug.print(" fr_lon="); Debug.print(fr_lon); 
     Debug.print(" fr_payload="); Debug.print(fr_payload); Debug.print(" ");
@@ -4571,7 +4516,8 @@ void PackMultipleTextChunks_5000(uint16_t id) {
   fr_simple = ap_simple;
 
   #if defined Frs_Debug_All || defined Frs_Debug_StatusText
-    Debug.print("Frsky out AP_status 0x5000: ");  
+    ShowPeriod(); 
+    Debug.print("FrSky in AP_Text 0x5000: ");  
     Debug.print(" fr_severity="); Debug.print(fr_severity);
     Debug.print(" "); Debug.print(MavSeverity(fr_severity)); 
     Debug.print(" Text= ");  Debug.print(" |"); Debug.print(fr_text); Debug.println("| ");
@@ -4595,6 +4541,7 @@ void PackMultipleTextChunks_5000(uint16_t id) {
     bit32Pack(fr_chunk[3], 0, 7);  
     
     #if defined Frs_Debug_All || defined Frs_Debug_StatusText
+      ShowPeriod(); 
       Debug.print(" fr_chunk_num="); Debug.print(fr_chunk_num); 
       Debug.print(" fr_txtlth="); Debug.print(fr_txtlth); 
       Debug.print(" fr_chunk_pntr="); Debug.print(fr_chunk_pntr); 
@@ -4615,6 +4562,7 @@ void PackMultipleTextChunks_5000(uint16_t id) {
       bit32Pack(0, 31, 1);     // filler
       
       #if defined Frs_Debug_All || defined Frs_Debug_StatusText
+        ShowPeriod(); 
         Debug.print(" fr_chunk_num="); Debug.print(fr_chunk_num); 
         Debug.print(" fr_severity="); Debug.print(fr_severity);
         Debug.print(" "); Debug.print(MavSeverity(fr_severity)); 
@@ -4649,7 +4597,7 @@ void PackMultipleTextChunks_5000(uint16_t id) {
 // *****************************************************************
 void DisplayPayload(uint32_t pl)  {
   uint8_t *bytes;
-
+  Debug.print("//");
   bytes = (uint8_t*)&pl;
   DisplayByte(bytes[3]);
   Debug.print(" "); 
@@ -4663,7 +4611,8 @@ void DisplayPayload(uint32_t pl)  {
 void Pack_AP_status_5001(uint16_t id) {
   if (ap_type == 6) return;      // If GCS heartbeat ignore it  -  yaapu  - ejs also handled at #0 read
   fr_payload = 0;
-  fr_simple = ap_simple;         // Derived from "ALR SIMPLE mode on/off" text messages
+ // fr_simple = ap_simple;         // Derived from "ALR SIMPLE mode on/off" text messages
+  fr_simple = 0;  // stops repeated 'simple mode enabled' and flight mode messages
   fr_armed = ap_base_mode >> 7;  
   fr_land_complete = fr_armed;
   
@@ -4671,6 +4620,9 @@ void Pack_AP_status_5001(uint16_t id) {
     fr_flight_mode = PX4FlightModeNum(px4_main_mode, px4_sub_mode);
   else   //  APM Flight Stack
     fr_flight_mode = ap_custom_mode + 1; // AP_CONTROL_MODE_LIMIT - ls 5 bits
+
+  fr_imu_temp = ap26_temp;
+    
   
   bit32Pack(fr_flight_mode, 0, 5);      // Flight mode   0-32 - 5 bits
   bit32Pack(fr_simple ,5, 2);           // Simple/super simple mode flags
@@ -4679,10 +4631,11 @@ void Pack_AP_status_5001(uint16_t id) {
   bit32Pack(fr_bat_fs ,9, 1);           // Battery failsafe flag
   bit32Pack(fr_ekf_fs ,10, 2);          // EKF failsafe flag
   bit32Pack(px4_flight_stack ,12, 1);   // px4_flight_stack flag
+  bit32Pack(fr_imu_temp, 26, 6);        // imu temperature in cdegC
 
   #if defined Frs_Debug_All || defined Frs_Debug_APStatus
     ShowPeriod(); 
-    Debug.print("Frsky out AP_status 0x5001: ");   
+    Debug.print("FrSky in AP_status 0x5001: ");   
     Debug.print(" fr_flight_mode="); Debug.print(fr_flight_mode);
     Debug.print(" fr_simple="); Debug.print(fr_simple);
     Debug.print(" fr_land_complete="); Debug.print(fr_land_complete);
@@ -4690,6 +4643,7 @@ void Pack_AP_status_5001(uint16_t id) {
     Debug.print(" fr_bat_fs="); Debug.print(fr_bat_fs);
     Debug.print(" fr_ekf_fs="); Debug.print(fr_ekf_fs);
     Debug.print(" px4_flight_stack="); Debug.print(px4_flight_stack);
+    Debug.print(" fr_imu_temp="); Debug.print(fr_imu_temp);
     Debug.print(" fr_payload="); Debug.print(fr_payload); Debug.print(" ");
     DisplayPayload(fr_payload);
     Debug.println();
@@ -4721,7 +4675,7 @@ void Pack_GPS_status_5002(uint16_t id) {
           
   #if defined Frs_Debug_All || defined Frs_Debug_GPS_status
     ShowPeriod(); 
-    Debug.print("Frsky out GPS Status 0x5002: ");   
+    Debug.print("FrSky in GPS Status 0x5002: ");   
     Debug.print(" fr_numsats="); Debug.print(fr_numsats);
     Debug.print(" fr_gps_status="); Debug.print(fr_gps_status);
     Debug.print(" fr_gps_adv_status="); Debug.print(fr_gps_adv_status);
@@ -4760,7 +4714,7 @@ void Pack_Bat1_5003(uint16_t id) {   //  Into sensor table from #1 SYS_status on
   
   #if defined Frs_Debug_All || defined Debug_Batteries
     ShowPeriod(); 
-    Debug.print("Frsky out Bat1 0x5003: ");   
+    Debug.print("FrSky in Bat1 0x5003: ");   
     Debug.print(" fr_bat1_volts="); Debug.print(fr_bat1_volts);
     Debug.print(" fr_bat1_amps="); Debug.print(fr_bat1_amps);
     Debug.print(" fr_bat1_mAh="); Debug.print(fr_bat1_mAh);
@@ -4814,7 +4768,7 @@ void Pack_Home_5004(uint16_t id) {
         
    #if defined Frs_Debug_All || defined Frs_Debug_Home
      ShowPeriod(); 
-     Debug.print("Frsky out Home 0x5004: ");         
+     Debug.print("FrSky in Home 0x5004: ");         
      Debug.print("fr_home_dist=");  Debug.print(fr_home_dist);
      Debug.print(" fr_home_alt=");  Debug.print(fr_home_alt);
      Debug.print(" az=");  Debug.print(az);
@@ -4853,7 +4807,7 @@ void Pack_VelYaw_5005(uint16_t id) {
   
   #if defined Frs_Debug_All || defined Frs_Debug_YelYaw
     ShowPeriod(); 
-    Debug.print("Frsky out VelYaw 0x5005:");  
+    Debug.print("FrSky in VelYaw 0x5005:");  
     Debug.print(" fr_vy=");  Debug.print(fr_vy);       
     Debug.print(" fr_vx=");  Debug.print(fr_vx);
     Debug.print(" fr_yaw="); Debug.print(fr_yaw);
@@ -4872,7 +4826,6 @@ void Pack_VelYaw_5005(uint16_t id) {
   bit32Pack(fr_yaw ,17, 11);  
 
  #if defined Frs_Debug_All || defined Frs_Debug_YelYaw
-   ShowPeriod(); 
    Debug.print(" After prep:"); \
    Debug.print(" fr_vy=");  Debug.print((int)fr_vy);          
    Debug.print(" fr_vx=");  Debug.print((int)fr_vx);  
@@ -4900,11 +4853,11 @@ void Pack_Atti_5006(uint16_t id) {
   bit32Pack(prep_number(fr_range,3,1), 21, 11);
   #if defined Frs_Debug_All || defined Frs_Debug_Attitude
     ShowPeriod(); 
-    Debug.print("Frsky out Attitude 0x5006: ");         
+    Debug.print("FrSky in Attitude 0x5006: ");         
     Debug.print("fr_roll=");  Debug.print(fr_roll);
     Debug.print(" fr_pitch=");  Debug.print(fr_pitch);
     Debug.print(" fr_range="); Debug.print(fr_range);
-    Debug.print(" Frs_Attitude Payload="); Debug.println(fr_payload);  
+    Debug.print(" Frs_Attitude Payload="); Debug.print(fr_payload);  
   #endif
 
   sr.id = id;
@@ -4917,16 +4870,11 @@ void Pack_Atti_5006(uint16_t id) {
 void Pack_Parameters_5007(uint16_t id) {
 
   
-  if (paramsID >= 6) {
-    fr_paramsSent = true;          // get this done early on and then regularly thereafter
-    paramsID = 0;
-    return;
-  }
-  paramsID++;
+  app_count++;
     
-  switch(paramsID) {
+  switch(app_count) {
     case 1:                                    // Frame type
-      fr_param_id = paramsID;
+      fr_param_id = 1;
       fr_frame_type = ap_type;
       
       fr_payload = 0;
@@ -4938,7 +4886,7 @@ void Pack_Parameters_5007(uint16_t id) {
         Debug.print("Frsky out Params 0x5007: ");   
         Debug.print(" fr_param_id="); Debug.print(fr_param_id);
         Debug.print(" fr_frame_type="); Debug.print(fr_frame_type);  
-        Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.println(" "); 
+        Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.print(" "); 
         DisplayPayload(fr_payload);
         Debug.println();                
       #endif
@@ -4946,15 +4894,11 @@ void Pack_Parameters_5007(uint16_t id) {
       sr.id = id;     
       sr.subid = 1;
       sr.payload = fr_payload;
-      PushToEmptyRow(sr); 
-
-      break;
-    case 2:                                   // Previously used to send the battery failsafe voltage
-      break;
-    case 3:                                   // Previously used to send the battery failsafe capacity in mAh
-      break;
-    case 4:                                   // Battery pack 1 capacity
-      fr_param_id = paramsID;
+      PushToEmptyRow(sr);
+      break;    
+       
+    case 2:    // Battery pack 1 capacity
+      fr_param_id = 4;
       #if (Battery_mAh_Source == 2)    // Local
         fr_bat1_capacity = bat1_capacity;
       #elif  (Battery_mAh_Source == 1) //  FC
@@ -4978,11 +4922,11 @@ void Pack_Parameters_5007(uint16_t id) {
       sr.id = id;
       sr.subid = 4;
       sr.payload = fr_payload;
-      PushToEmptyRow(sr); 
-
-      break;
-    case 5:                                   // Battery pack 2 capacity
-      fr_param_id = paramsID;
+      PushToEmptyRow(sr);
+      break; 
+      
+    case 3:                 // Battery pack 2 capacity
+      fr_param_id = 5;
       #if (Battery_mAh_Source == 2)    // Local
         fr_bat2_capacity = bat2_capacity;
       #elif  (Battery_mAh_Source == 1) //  FC
@@ -4998,7 +4942,7 @@ void Pack_Parameters_5007(uint16_t id) {
         Debug.print("Frsky out Params 0x5007: ");   
         Debug.print(" fr_param_id="); Debug.print(fr_param_id);
         Debug.print(" fr_bat2_capacity="); Debug.print(fr_bat2_capacity); 
-        Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.println(" "); 
+        Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.print(" "); 
         DisplayPayload(fr_payload);
         Debug.println();           
       #endif
@@ -5006,10 +4950,10 @@ void Pack_Parameters_5007(uint16_t id) {
       sr.subid = 5;
       sr.payload = fr_payload;
       PushToEmptyRow(sr); 
-       
-      break;
-    case 6:                                   // Number of waypoints in mission
-      fr_param_id = paramsID;
+      break; 
+    
+     case 4:               // Number of waypoints in mission                       
+      fr_param_id = 6;
       fr_mission_count = ap_mission_count;
 
       fr_payload = 0;
@@ -5026,9 +4970,11 @@ void Pack_Parameters_5007(uint16_t id) {
         Debug.print(" fr_param_id="); Debug.print(fr_param_id);
         Debug.print(" fr_mission_count="); Debug.println(fr_mission_count);           
       #endif
-      
-      break;    
-    }  
+ 
+      fr_paramsSent = true;          // get this done early on and then regularly thereafter
+      app_count = 0;
+      break;
+  }    
 }
 // ***************************************************************** 
 void Pack_Bat2_5008(uint16_t id) {
@@ -5042,11 +4988,11 @@ void Pack_Bat2_5008(uint16_t id) {
   
   #if defined Frs_Debug_All || defined Debug_Batteries
     ShowPeriod();  
-    Debug.print("Frsky out Bat1 0x5003: ");   
+    Debug.print("FrSky in Bat2 0x5008: ");   
     Debug.print(" fr_bat2_volts="); Debug.print(fr_bat2_volts);
     Debug.print(" fr_bat2_amps="); Debug.print(fr_bat2_amps);
     Debug.print(" fr_bat2_mAh="); Debug.print(fr_bat2_mAh);
-    Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.println(" "); 
+    Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.print(" "); 
     DisplayPayload(fr_payload);
     Debug.println();                  
   #endif        
@@ -5093,14 +5039,14 @@ void Pack_WayPoint_5009(uint16_t id) {
    */
   #if defined Frs_Debug_All || defined Frs_Debug_Mission
     ShowPeriod();  
-    Debug.print("Frsky out RC 0x5009: ");   
+    Debug.print("FrSky in RC 0x5009: ");   
     Debug.print(" fr_ms_seq="); Debug.print(fr_ms_seq);
     Debug.print(" fr_ms_dist="); Debug.print(fr_ms_dist);
     Debug.print(" fr_ms_xtrack="); Debug.print(fr_ms_xtrack, 3);
     Debug.print(" fr_ms_target_bearing="); Debug.print(fr_ms_target_bearing, 0);
     Debug.print(" fr_ms_cog="); Debug.print(fr_ms_cog, 0);  
     Debug.print(" fr_ms_offset="); Debug.print(fr_ms_offset);
-    Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.println(" "); 
+    Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.print(" "); 
     DisplayPayload(fr_payload);         
     Debug.println();      
   #endif
@@ -5170,7 +5116,7 @@ uint8_t sv_chcnt = 8;
 
   #if defined Frs_Debug_All || defined Frs_Debug_Servo
     ShowPeriod();  
-    Debug.print("Frsky out Servo_Raw 0x5009: ");  
+    Debug.print("FrSky in Servo_Raw 0x50F1: ");  
     Debug.print(" sv_chcnt="); Debug.print(sv_chcnt); 
     Debug.print(" sv_count="); Debug.print(sv_count); 
     Debug.print(" chunk="); Debug.print(chunk);
@@ -5178,10 +5124,9 @@ uint8_t sv_chcnt = 8;
     Debug.print(" fr_sv2="); Debug.print(fr_sv[2]);
     Debug.print(" fr_sv3="); Debug.print(fr_sv[3]);   
     Debug.print(" fr_sv4="); Debug.print(fr_sv[4]); 
-    Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.println(" "); 
+    Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.print(" "); 
     DisplayPayload(fr_payload);
-    Debug.println();      
-          
+    Debug.println();             
   #endif
 
   sv_count += 4; 
@@ -5196,11 +5141,11 @@ void Pack_VFR_Hud_50F2(uint16_t id) {
 
   #if defined Frs_Debug_All || defined Frs_Debug_Hud
     ShowPeriod();  
-    Debug.print("Frsky out RC 0x50F2: ");   
+    Debug.print("FrSky in Hud 0x50F2: ");   
     Debug.print(" fr_air_spd="); Debug.print(fr_air_spd);
     Debug.print(" fr_throt="); Debug.print(fr_throt);
     Debug.print(" fr_bar_alt="); Debug.print(fr_bar_alt);
-    Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.println(" "); 
+    Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.print(" "); 
     DisplayPayload(fr_payload);
     Debug.println();             
   #endif
@@ -5234,7 +5179,7 @@ void Pack_Rssi_F101(uint16_t id) {          // data id 0xF101 RSSI tell LUA scri
   if (rssiGood)
     fr_rssi = ap_rssi;            // always %
   else
-    fr_rssi = 255;     // We may have a connection but don't yet know how strong. Prevents spurious "Telemetry lost" announcement
+    fr_rssi = 254;     // We may have a connection but don't yet know how strong. Prevents spurious "Telemetry lost" announcement
   #ifdef RSSI_Override   // dummy rssi override for debugging
     fr_rssi = 70;
   #endif
@@ -5243,9 +5188,9 @@ void Pack_Rssi_F101(uint16_t id) {          // data id 0xF101 RSSI tell LUA scri
 
   #if defined Frs_Debug_All || defined Debug_Rssi
     ShowPeriod();    
-    Debug.print("Frsky out RC 0x5F101: ");   
+    Debug.print("FrSky in Rssi 0x5F101: ");   
     Debug.print(" fr_rssi="); Debug.print(fr_rssi);
-    Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.println(" "); 
+    Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.print(" "); 
     DisplayPayload(fr_payload);
     Debug.println();             
   #endif
@@ -5397,5 +5342,4 @@ uint16_t prep_number(int32_t number, uint8_t digits, uint8_t power)
         }
     }
     return res;
-} 
-//********************************************************************************
+}  

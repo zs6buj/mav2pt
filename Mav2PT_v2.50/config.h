@@ -53,7 +53,7 @@ v2.50 2020-01-12 AutoAP: Activate udp broadcast on AP dhcp allocated IP subnet.
 #define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 or ESP8266 only
 
-// NOTE: The Bluetooth class library uses a great deal of application memory. During Compile/Flash
+// NOTE: The Bluetooth class library uses a lot of application memory. During Compile/Flash
 //  you may need to select Tools/Partition Scheme: "Minimal SPIFFS (1.9MB APP ...)
 
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with other GCS I/O
