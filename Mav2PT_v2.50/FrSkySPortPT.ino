@@ -60,15 +60,17 @@ void FrSkySPort_Init(void)  {
 esp_err_t uart_set_line_inverse(uart_port_t uart_num, uint32_t inverse_mask);
 
  */
-  frSerial.begin(frBaud, SERIAL_8N1, Fr_rxPin, Fr_txPin); 
+  #if (not defined inhibit_SPort) 
+    frSerial.begin(frBaud, SERIAL_8N1, Fr_rxPin, Fr_txPin); 
   
-  #if defined Ground_Mode
-    Debug.println("ESP32 S.Port pins inverted for Ground Mode");   
-    uart_set_line_inverse(UART_NUM_1, UART_INVERSE_RXD);  // only needed for bi-directional telemetry
-    uart_set_line_inverse(UART_NUM_1, UART_INVERSE_TXD);  // line to Taranis or Horus etc
-  #else
-    Debug.println("ESP32 S.Port pins NOT inverted for Air or Relay Modes. Must use a converter");  
-  #endif  
+    #if defined Ground_Mode
+      Debug.println("ESP32 S.Port pins inverted for Ground Mode");   
+      uart_set_line_inverse(UART_NUM_1, UART_INVERSE_RXD);  // only needed for bi-directional telemetry
+      uart_set_line_inverse(UART_NUM_1, UART_INVERSE_TXD);  // line to Taranis or Horus etc
+    #else
+      Debug.println("ESP32 S.Port pins NOT inverted for Air or Relay Modes. Must use a converter");  
+    #endif  
+  #endif
   
 #else
 
@@ -343,34 +345,40 @@ void PackSensorTable(uint16_t id, uint8_t subid) {
 // ***********************************************************************
 
 void FrSkySPort_SendByte(uint8_t byte, bool addCrc) {
-  #if (Target_Board == 0)      // Teensy3x
-   setSPortMode(tx); 
- #endif  
- if (!addCrc) { 
-   frSerial.write(byte);  
-   return;       
- }
+  #if (not defined inhibit_SPort) 
+  
+    #if (Target_Board == 0)      // Teensy3x
+     setSPortMode(tx); 
+   #endif  
+   if (!addCrc) {
+      frSerial.write(byte);    
+     return;       
+   }
 
- CheckByteStuffAndSend(byte);
+   CheckByteStuffAndSend(byte);
  
-  // update CRC
-  crc += byte;       //0-1FF
-  crc += crc >> 8;   //0-100
-  crc &= 0x00ff;
-  crc += crc >> 8;   //0-0FF
-  crc &= 0x00ff;
+    // update CRC
+    crc += byte;       //0-1FF
+    crc += crc >> 8;   //0-100
+    crc &= 0x00ff;
+    crc += crc >> 8;   //0-0FF
+    crc &= 0x00ff;
+    
+  #endif    
 }
 // ***********************************************************************
 void CheckByteStuffAndSend(uint8_t byte) {
- if (byte == 0x7E) {
-   frSerial.write(0x7D);
-   frSerial.write(0x5E);
- } else if (byte == 0x7D) {
-   frSerial.write(0x7D);
-   frSerial.write(0x5D);  
- } else {
-   frSerial.write(byte);
-   }
+  #if (not defined inhibit_SPort) 
+   if (byte == 0x7E) {
+     frSerial.write(0x7D);
+     frSerial.write(0x5E);
+   } else if (byte == 0x7D) {
+     frSerial.write(0x7D);
+     frSerial.write(0x5D);  
+   } else {
+     frSerial.write(byte);
+     }
+  #endif     
 }
 // ***********************************************************************
 void FrSkySPort_SendCrc() {

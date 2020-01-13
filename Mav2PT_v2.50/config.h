@@ -584,6 +584,8 @@ uint32_t mvBaudFC_var     =       mvBaudFC;
 
 // ******************************** D E B U G G I N G   O P T I O N S ***************************************
 
+//#define inhibit_SPort     // Use me to send only debug messages out of GPIO1/TX0 on ESP32_Variant 3, DL V3 internal ESP32
+
 //#define Mav_Debug_All
 //#define Frs_Debug_All
 //#define Frs_Debug_Period
