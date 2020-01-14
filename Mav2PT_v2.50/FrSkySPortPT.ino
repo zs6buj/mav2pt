@@ -1236,6 +1236,10 @@ void Pack_Rssi_F101(uint16_t id) {          // data id 0xF101 RSSI tell LUA scri
     fr_rssi = 70;
   #endif
 
+  if(fr_rssi < 1){
+    fr_rssi = 69;
+  }
+
   bit32Pack(fr_rssi ,0, 32);
 
   #if defined Frs_Debug_All || defined Debug_Rssi
