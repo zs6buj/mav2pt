@@ -2551,7 +2551,7 @@ void DecodeOneMavFrame() {
             #if defined Rssi_In_Percent
               ap_rssi = ap_rssi109;          //  Percent
             #else
-              ap_rssi = ap_rssi109 / 2.54;   //  254 -> 100%            
+              ap_rssi = ap_rssi109 / 2.42;   //  254 -> 100%            
             #endif
             
             #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
