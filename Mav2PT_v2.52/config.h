@@ -110,7 +110,7 @@ const uint16_t bat2_capacity = 0;
 //#define Data_Streams_Enabled        // Requests data streams from FC. Requires both rx and tx lines to FC. Rather set SRn in Mission Planner
 #define Max_Waypoints  256          // Note. This is a global RAM trade-off. If exceeded then Debug message and shut down
 
-//#define WebOTA                      // Enable web_based Over_The_Air firmware updating. Browse to IP.
+#define WebOTA                      // Enable web_based Over_The_Air firmware updating. Browse to IP.
                                     
 //**********************   S E L E C T   E S P   B O A R D   V A R I A N T   ******************
 
