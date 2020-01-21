@@ -3,25 +3,19 @@
 
   Complete change log and debugging options are at the bottom of this tab
      
-
-v2.51 2020-01-18 Make default rssi 69% for SiK radios, like RFD900x. PR by Hasi123                          
+v2.52 2020-01-21 Support web OTA. Rehash STA to AP failover using reboot - now stable.                         
                     
 */
 //*****************************************************************************************************************
 //*****************************************************************************************************************
 //*****************************************************************************************************************
-// ******************************* Please select your options here before compiling *******************************
+//******************************* Please select your options here before compiling ********************************
 
 
 //#define AutoBaud                  // Auto detect Mavlink serial-in baud rate
 #define mvBaudFC              115200   //  Mavlink to/from the flight controller - max 921600 - must match FC or long range radio
+#define frBaud                 57600   // S.Port baud setting - default 57600 
 
-#define frBaud                57600    // S.Port baud setting - default 57600 
-
-/*
-   "EZ-WifiBroadcast" /  "wifibroadcast"         
-   "TXMOD-54-DD-FE"   /  "txmod123"
-*/
 
 // Do not enable for FlightDeck
 #define PlusVersion  // Added support for 0x5009 Mission WPs, 0x50F1 Servo_Channels, 0x50F2 VFR_Hud
@@ -45,10 +39,9 @@ v2.51 2020-01-18 Make default rssi 69% for SiK radios, like RFD900x. PR by Hasi1
 // Choose only one of these GCS-side I/O channels
 // How does Mavlink telemetry leave this translator?
 // These are optional, and in addition to the S.Port telemetry output
-//#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
+#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 or ESP8266 only
 
 // NOTE: The Bluetooth class library uses a lot of application memory. During Compile/Flash
@@ -57,12 +50,16 @@ v2.51 2020-01-18 Make default rssi 69% for SiK radios, like RFD900x. PR by Hasi1
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with other GCS I/O
 
 
-#define BT_Name               "Mav2PT"         // The Bluetooth name that we advertise
-#define Start_WiFi         // Start WiFi at startup, override startWiFi Pin
-//#define BT_Master_Mode true    // Master connects to BT_Slave_Name --- false for BT Slave Mode
+
+// ********************************  B L U E T O O T H  *******************************************
+#define BT_Name               "Mav2PT"     // The Bluetooth name that we advertise
+#define Start_WiFi                         // Start WiFi at startup, override startWiFi Pin
+//#define BT_Master_Mode true              // Master connects to BT_Slave_Name --- false for BT Slave Mode
 const char* BT_Slave_Name   =   "Crossfire 0277";  // Example
+// ************************************************************************************************
 
 
+// ********************************  W  I  F  I  ************************************************
 #define AP_Name               "Mav2Passthru"    // The AP SSID that we advertise   ====>
 #define AP_Pw                 "password"        // Change me!
 #define STA_Name              "OmegaOffice"     // Target AP to connect to         <====
@@ -70,19 +67,21 @@ const char* BT_Slave_Name   =   "Crossfire 0277";  // Example
 
 // Choose one mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
 //#define WiFi_Mode   1  //AP            
-#define WiFi_Mode   2  // STA
+//#define WiFi_Mode   2  // STA
+#define WiFi_Mode   3  // STA failover to AP
 
-#define AutoAP                      // If we fail to connect in STA mode, start AP instead
 // Choose one protocol - for ESP32 only
 //#define WiFi_Protocol 1    // TCP/IP
 #define WiFi_Protocol 2    // UDP   
+// ************************************************************************************************
+
+
 
 //#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both rx and tx lines must be connected      
 //#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
 const uint16_t bat1_capacity = 5200;       
 const uint16_t bat2_capacity = 0;
 #define Battery_mAh_Source  3         // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
-
 
 
 #define SPort_Serial        1         // Teensy port1=pin1, port3=pin8. The default is Serial 1, but 3 is possible 
@@ -111,7 +110,8 @@ const uint16_t bat2_capacity = 0;
 //#define Data_Streams_Enabled        // Requests data streams from FC. Requires both rx and tx lines to FC. Rather set SRn in Mission Planner
 #define Max_Waypoints  256          // Note. This is a global RAM trade-off. If exceeded then Debug message and shut down
 
-
+#define WebOTA                      // Enable web_based Over_The_Air firmware updating. Browse to IP.
+                                    
 //**********************   S E L E C T   E S P   B O A R D   V A R I A N T   ******************
 
 #define ESP32_Variant     1    //  ESP32 Dev Module - there are several sub-variants that work
@@ -348,7 +348,7 @@ bool daylightSaving = false;
   #if (ESP8266_Variant == 1)        // Node MFU 12F
 
     #define D2            04      // equate to GPIO pins
-    #define D4            02                
+    #define D4            02      // TXD1 for printing debug log              
     #define D5            14
     #define D6            12
     #define D7            13
@@ -428,7 +428,7 @@ bool daylightSaving = false;
 ///************************************************************************** 
 //***************************** WiFi - ESP32 or ES8266 Only ***************************
 
-  #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)) || (GCS_Mavlink_IO == 3) // WiFi
+  #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)) || (GCS_Mavlink_IO == 3) || defined WebOTA // WiFi
 
     // Define link variables
     #ifndef BT_Setup
@@ -445,10 +445,18 @@ bool daylightSaving = false;
        uint32_t      hb_last_heartbeat = 0;
        linkStatus    link_status;
     #endif
+
+    #include <EEPROM.h>     // To store AP_Failover_Flag only
+    #define EEPROM_SIZE 1
    
     #if (Target_Board == 3) // ESP32
       #include <WiFi.h>  
       #include <WiFiClient.h>
+      #if defined WebOTA
+        #include <ArduinoOTA.h>
+        #include <WebServer.h>  
+        WebServer server(80);          
+      #endif      
       #if (WiFi_Mode == 1)  // AP
         #include <WiFiAP.h>  
       #endif   
@@ -457,12 +465,18 @@ bool daylightSaving = false;
     #if (Target_Board == 4) // ESP8266
       #include <ESP8266WiFi.h>   // Includes AP class
       #include <WiFiClient.h>
+      #if defined WebOTA
+        #include <ArduinoOTA.h>
+        #include <ESP8266WebServer.h>  
+        ESP8266WebServer server(80);
+      #endif      
     #endif
     
     #if (WiFi_Protocol == 2)  //  UDP
-      #include <WiFiUDP.h>    // ESP32 or ESP8266
+      #include <WiFiUdp.h>    // ESP32 or ESP8266
     #endif   
 
+    const char*   host            =    "mav2pt";
     const char    *APssid         =    AP_Name;     
     const char    *APpw           =    AP_Pw;     
     const uint8_t  APchannel      =    9;            // The WiFi channel to use
@@ -472,24 +486,17 @@ bool daylightSaving = false;
    // AP and STA below
 
     WiFiClient wifi;   
-    
+     
     #if (WiFi_Protocol == 1)     // TCP
       uint16_t tcp_localPort = 5760;  
-      WiFiServer server(tcp_localPort);
+      WiFiServer TCPserver(tcp_localPort);
     #endif 
     
     #if (WiFi_Protocol == 2)     //  UDP
-   
       uint16_t udp_localPort = 14555;     // This ESP32 or ESP8266
       uint16_t udp_remotePort = 14550;    // GCS like QGC      
       bool FtRemIP = true;
-      #if   (WiFi_Mode == 1)  // AP
-        IPAddress udp_localIP(192, 168, 4, 1); 
-        IPAddress udp_remoteIP(192, 168, 4, 255);    // UDP broadcast on your 192.168.4. subnet
-      #elif (WiFi_Mode == 2)  // STA
-        IPAddress udp_remoteIP(192, 168, 1, 255);    // UDP broadcast on your likely LAN subnet
-      #endif       
-
+      IPAddress udp_remoteIP(192, 168, 1, 255);    // Declare UDP broadcast on your likely LAN subnet
       WiFiUDP udp;       // Create udp object    
         
     #endif   
@@ -716,5 +723,6 @@ v2.49 2020-01-07 Move baud, ssid and BT settings to top of config.h for convenie
 v2.50 2020-01-12 AutoAP: Activate udp broadcast on AP dhcp allocated IP subnet.
                  Eliminate annoying periodic "Stabilized Flight Mode" announcements.
                  Further localise options in to logical groups.     
-      2020-01-13 Revert max rssi to 254. 255 is invalid/unknown in ardupilot                                                
+      2020-01-13 Revert max rssi to 254. 255 is invalid/unknown in ardupilot  
+v2.51 2020-01-18 Make default rssi 69% for SiK radios, like RFD900x. PR by Hasi123                                                     
 */

@@ -704,6 +704,7 @@ void setup()  {
  
   Debug.begin(115200);
   delay(2500);
+  Debug.println();
   Debug.print("Starting .... ");    
   
   String sketch_path = __FILE__;
@@ -838,7 +839,7 @@ void setup()  {
     OledPrintln("Mavlink WiFi Out");
  #endif
 
- #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3)) 
+ #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3) || (defined WebOTA)) 
    #if (WiFi_Protocol == 1)
      Debug.println("Protocol is TCP/IP");
      OledPrintln("Protocol is TCP/IP");
@@ -857,9 +858,6 @@ void setup()  {
     Debug.println("Mavlink SD Out");
     OledPrintln("Mavlink SD Out");
  #endif
-
- Debug.println("Waiting for telemetry"); 
- OledPrintln("Waiting for telem");
 
 // **************************** Setup Bluetooth *******************************  
   #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1)  || (GCS_Mavlink_IO == 3) // Bluetooth
@@ -1015,7 +1013,7 @@ void loop() {            // For WiFi only
 
   #if (WiFi_Protocol == 1)  // TCP  
     if (wifiSuGood) {
-      wifi = server.available();              // listen for incoming clients 
+      wifi = TCPserver.available();              // listen for incoming clients 
       if(wifi) {
         Debug.println("New client connected"); 
         OledPrintln("New client ok!");      
@@ -1047,7 +1045,7 @@ void loop() {            // For WiFi only
 void main_loop() {
   
   SenseWiFiPin();
-  
+
   if (!Read_FC_To_RingBuffer()) {  //  check for SD eof
     if (sdStatus == 5) {
       Debug.println("End of SD file");
@@ -1055,7 +1053,6 @@ void main_loop() {
       sdStatus = 0;  // closed after reading   
     }
   }
-
 
   if (ap_rssi > 0) {
     if (ap_rssi_ft) {  // first time we have an rc connection
@@ -1071,7 +1068,7 @@ void main_loop() {
       PackSensorTable(0x5007, 0);
     }
   }
-  
+
   bool rssiOverride = false;
   #ifdef RSSI_Override
     rssiOverride = true;
@@ -1088,7 +1085,6 @@ void main_loop() {
     RB_To_Decode_To_SPort_and_GCS();
   }
 
-  
   Read_From_GCS();  
 
   if (GCS_available) {
@@ -1103,7 +1099,7 @@ void main_loop() {
     OledPrintln("Mavlink lost!");       
     hb_count = 0;
    } 
-   
+
   #ifdef Data_Streams_Enabled 
   if(mavGood) {                      // If we have a link, request data streams from MavLink every 5s
     if(millis()-rds_millis > 5000) {
@@ -1123,7 +1119,6 @@ void main_loop() {
     Send_FC_Heartbeat();   // must have Mav2PT tx pin connected to Telem radio rx pin  
   }
 
-  
   #if defined Request_Missions_From_FC || defined Request_Mission_Count_From_FC
   if (mavGood) {
     if (!ap_ms_list_req) {
@@ -1153,7 +1148,7 @@ void main_loop() {
     } 
   }
   #endif 
-  
+
   #ifdef Mav_List_Params
     if(mavGood && (!ap_paramsList)) {
       Request_Param_List();
@@ -1165,16 +1160,19 @@ void main_loop() {
     void OpenSDForWrite();  // fwd define
     if ((timeGood) && (sdStatus == 2)) OpenSDForWrite();
   #endif
-  
+
   ServiceStatusLeds();
-  
+ 
+  #if defined WebOTA
+    server.handleClient();
+  #endif
+ 
 }
 // *******************************************************************************
 //********************************************************************************
 
 bool Read_FC_To_RingBuffer() {
 
- 
   #if (FC_Mavlink_IO == 0) // Serial
   mavlink_status_t status;
   while(mvSerialFC.available()) { 
@@ -1187,7 +1185,7 @@ bool Read_FC_To_RingBuffer() {
       MavToRingBuffer();       
     }
   }
-  return true;  // moot 
+  return true;  
   #endif 
 
   #if (FC_Mavlink_IO == 1) // Bluetooth
@@ -3196,11 +3194,16 @@ uint8_t PX4FlightModeNum(uint8_t main, uint8_t sub) {
    }
 }
 //***************************************************
-void ShowPeriod() {
+void ShowPeriod(bool LF) {
   Debug.print("Period ms=");
   now_millis=millis();
   Debug.print(now_millis-prev_millis);
-  Debug.print("\t");
+  if (LF) {
+    Debug.print("\t\n");
+  } else {
+   Debug.print("\t");
+  }
+    
   prev_millis=now_millis;
 }
 //***************************************************
@@ -3289,21 +3292,34 @@ void OledPrint(String S) {
 }
 
 //************************************************************
- #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3)) //  WiFi
+#if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)) || (GCS_Mavlink_IO == 3) || (defined WebOTA) // WiFi
  
   void SetupWiFi() { 
 
-    bool apMode = false;  // used when STA fails to connect
+    bool apFailover = false;  // used when STA fails to connect
     
-     //*******************************  S T A T I O N   *****************************
-    #if (WiFi_Mode == 2)  // STA
-      uint8_t retry = 0;
+   #if (Target_Board == 3) // ESP832     
+     if (!EEPROM.begin(EEPROM_SIZE))  {
+       Debug.println("EEPROM failed to initialise"); 
+       }
+   #endif       
+    
+   #if (Target_Board == 4) // ESP8266
+     EEPROM.begin(EEPROM_SIZE);
+   #endif
+  
+  apFailover = byte(EEPROM.read(0));  //  Read first eeprom byte
 
+  
+     //*******************************  S T A T I O N   *****************************
+
+  #if (WiFi_Mode == 2) || (WiFi_Mode == 3) // STA mode or STA failover to AP mode
+    if (!apFailover) {   
+      uint8_t retry = 0;
 
       WiFi.disconnect(true);   // To circumvent "wifi: Set status to INIT" error bug
       delay(500);
-      Serial.printf("Wi-Fi mode set to WIFI_STA %s\n", WiFi.mode(WIFI_STA) ? "" : "Failed!");
-   //   WiFi.mode(WIFI_STA);
+      Debug.printf("Wi-Fi mode set to WIFI_STA %s\n", WiFi.mode(WIFI_STA) ? "" : "Failed!");
       Debug.print("Trying to connect to ");  
       Debug.print(STAssid); 
       OledPrintln("WiFi trying ..");
@@ -3315,21 +3331,17 @@ void OledPrint(String S) {
         if (retry > 10) {
           Debug.println();
           Debug.println("Failed to connect in STA mode");
-          OledPrintln("Failed in STA Mode");
-     //     wifiSuDone = true;
-          
-          #ifdef AutoAP  
-            apMode = true;            // Rather go establish an AP instead
-            Debug.println("Starting AP instead");
-            OledPrintln("Starting AP instead");  
-            //new from Target0815:
-            Debug.println("WiFi-Reset ...");
-            #if defined Target_Board ==  3
-              WiFi.mode(WIFI_MODE_NULL);
-            #else
-              WiFi.mode(WIFI_OFF);  // esp8266 target board 4
-            #endif                 
-            delay(1000);      
+          OledPrintln("No connect STA Mode");
+
+          #if (WiFi_Mode == 3)         // STA failover to AP mode
+            apFailover = true;         
+            Debug.println("Failover to AP");
+            OledPrintln("Failover to AP");  
+            apFailover = 1;                // set STA failover to AP flag
+            EEPROM.write(0, apFailover);   // (addr, val)  
+            EEPROM.commit();
+            delay(1000);
+            ESP.restart();                 // esp32 and esp8266
           #endif  
           
           break;
@@ -3344,14 +3356,13 @@ void OledPrint(String S) {
         Debug.println("WiFi connected!");
         Debug.print("Local IP address: ");
         Debug.print(localIP);
-
         #if   (WiFi_Protocol == 1)   // TCP
           Debug.print("  port: ");
           Debug.println(tcp_localPort);    //  UDP port is printed lower down
         #else 
           Debug.println();
         #endif 
-         
+ 
         wifi_rssi = WiFi.RSSI();
         Debug.print("WiFi RSSI:");
         Debug.print(wifi_rssi);
@@ -3361,7 +3372,7 @@ void OledPrint(String S) {
         OledPrintln(localIP.toString());
         
         #if (WiFi_Protocol == 1)   // TCP
-          server.begin();                     //  tcp socket started
+          TCPserver.begin();                     //  tcp socket started
           Debug.println("TCP server started");  
           OledPrintln("TCP server started");
         #endif
@@ -3372,18 +3383,23 @@ void OledPrint(String S) {
           OledPrint("UDP port = ");  OledPrintln(String(udp_localPort));
         #endif
         
-        wifiSuDone = true;
         wifiSuGood = true;
+        
       } 
-    #endif
+    }  else {   // if apFailover clear apFailover flag
+        apFailover = 0;
+        EEPROM.write(0, apFailover);   // (addr, val)  
+        EEPROM.commit();
+      }
 
-     //*******************************  Access Point   *****************************
-    #if (WiFi_Mode == 1)  // AP
-      apMode = true;
-    #endif
-
-    if (apMode)   {
-      WiFi.mode(WIFI_AP);
+  #endif
+ 
+  
+  //*******************************  Access Point   *****************************
+  #if (WiFi_Mode == 1) || (WiFi_Mode == 3)  // AP mode or STA failover to AP mode
+    if (!wifiSuGood) {  // not already setup in STA above  
+    
+      Debug.printf("Wi-Fi mode set to WIFI_AP %s\n", WiFi.mode(WIFI_AP) ? "" : "Failed!");
       WiFi.softAP(APssid, APpw, APchannel);
       localIP = WiFi.softAPIP();   // tcp and udp
       Debug.print("AP IP address: ");
@@ -3394,34 +3410,42 @@ void OledPrint(String S) {
       OledPrintln(String(APssid));
       
       #if (WiFi_Protocol == 1)      // TCP
-        server.begin();             //  Server for TCP/IP traffic
-        Debug.printf("TCP/IP started, listening on IP %s, TCP port %d\n", localIP.toString().c_str(), tcp_localPort);
-        OledPrint("TCP port = ");  OledPrintln(String(tcp_localPort));
+          TCPserver.begin();             //  Server for TCP/IP traffic
+          Debug.printf("TCP/IP started, listening on IP %s, TCP port %d\n", localIP.toString().c_str(), tcp_localPort);
+          OledPrint("TCP port = ");  OledPrintln(String(tcp_localPort));
       #endif  
 
       #if (WiFi_Protocol == 2)      // UDP
-        udp.begin(udp_localPort);
-        Debug.printf("UDP started, listening on IP %s, UDP port %d\n", WiFi.softAPIP().toString().c_str(), udp_localPort);
-        OledPrint("UDP port = ");  OledPrintln(String(udp_localPort));
-        udp_remoteIP[2] = 4;
-        udp_remoteIP[3] = 255;    // UDP broadcast on the AP 192.168.4/ subnet
+          udp.begin(udp_localPort);
+          Debug.printf("UDP started, listening on IP %s, UDP port %d\n", WiFi.softAPIP().toString().c_str(), udp_localPort);
+          OledPrint("UDP port = ");  OledPrintln(String(udp_localPort));
+          udp_remoteIP[2] = 4;
+          udp_remoteIP[3] = 255;    // UDP broadcast on the AP 192.168.4/ subnet
       #endif 
+    }
       
-      wifiSuGood = true;
- 
-    }           
+    wifiSuGood = true;  
+  #endif         // end of AP ******************************************         
 
+    #if defined WebOTA
+      WebServerSetup();  
+      Debug.printf("Over-The-Air update active on http:\\\%s \n", localIP.toString().c_str());
+      OledPrintln("WeOTA active");      
+    #endif
       
     #ifndef Start_WiFi  // if not button override
       delay(2000);      // debounce button press
     #endif  
 
     wifiSuDone = true;
- }   
+ } 
+   
+#endif 
 
 //***************************************************
+#if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)) || (GCS_Mavlink_IO == 3) || (defined WebOTA) // WiFi
   #if (WiFi_Protocol == 2)  //  Display the remote UDP IP the first time we get it
-  void DisplayRemoteIP() {
+   void DisplayRemoteIP() {
     if (FtRemIP)  {
       FtRemIP = false;
       Debug.print("Client connected: Remote UDP IP: "); Debug.print(udp_remoteIP);
@@ -3432,10 +3456,9 @@ void OledPrint(String S) {
       OledPrintln("Remote UDP port =");
       OledPrintln(String(udp_remotePort));
      }
-  }
-  #endif
-  
- #endif  
+   }
+  #endif 
+#endif  
 
 
 //***************************************************
@@ -3622,7 +3645,7 @@ void OpenSDForWrite() {
 #endif
 // *********************************************************************
 void SenseWiFiPin() {
- #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3)) //  WiFi
+ #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3)) || (defined WebOTA) //  WiFi
  
    #if defined Start_WiFi
     if (!wifiSuDone) {
@@ -3880,4 +3903,118 @@ const uint32_t su_timeout = 5000; // uS !
 
  return su_baud;
 } 
+
+
 //*************************************************************
+#if defined WebOTA
+
+/* Style */
+String style =
+"<style>#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
+"input{background:#f1f1f1;border:0;padding:0 15px}body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
+"#file-input{padding:0;border:1px solid #ddd;line-height:44px;text-align:left;display:block;cursor:pointer}"
+"#bar,#prgbar{background-color:#f1f1f1;border-radius:10px}#bar{background-color:#3498db;width:0%;height:10px}"
+"form{background:#fff;max-width:258px;margin:75px auto;padding:30px;border-radius:5px;text-align:center}"
+".btn{background:#3498db;color:#fff;cursor:pointer}</style>";
+
+/* Login page */
+String loginIndex = 
+"<form name=loginForm>"
+"<h1>MAV2PT Login</h1>"
+"<input name=userid placeholder='User ID'> "
+"<input name=pwd placeholder=Password type=Password> "
+"<input type=submit onclick=check(this.form) class=btn value=Login></form>"
+"<script>"
+"function check(form) {"
+"if(form.userid.value=='admin' && form.pwd.value=='mav2pt')"
+"{window.open('/serverIndex')}"
+"else"
+"{alert('Error Password or Username')}"
+"}"
+"</script>" + style;
+ 
+/* Server Index Page */
+String serverIndex = 
+"<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>"
+"<form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>"
+"<input type='file' name='update' id='file' onchange='sub(this)' style=display:none>"
+"<label id='file-input' for='file'>   Choose file...</label>"
+"<input type='submit' class=btn value='Update'>"
+"<br><br>"
+"<div id='prg'></div>"
+"<br><div id='prgbar'><div id='bar'></div></div><br></form>"
+"<script>"
+"function sub(obj){"
+"var fileName = obj.value.split('\\\\');"
+"document.getElementById('file-input').innerHTML = '   '+ fileName[fileName.length-1];"
+"};"
+"$('form').submit(function(e){"
+"e.preventDefault();"
+"var form = $('#upload_form')[0];"
+"var data = new FormData(form);"
+"$.ajax({"
+"url: '/update',"
+"type: 'POST',"
+"data: data,"
+"contentType: false,"
+"processData:false,"
+"xhr: function() {"
+"var xhr = new window.XMLHttpRequest();"
+"xhr.upload.addEventListener('progress', function(evt) {"
+"if (evt.lengthComputable) {"
+"var per = evt.loaded / evt.total;"
+"$('#prg').html('progress: ' + Math.round(per*100) + '%');"
+"$('#bar').css('width',Math.round(per*100) + '%');"
+"}"
+"}, false);"
+"return xhr;"
+"},"
+"success:function(d, s) {"
+"console.log('success!') "
+"},"
+"error: function (a, b, c) {"
+"}"
+"});"
+"});"
+"</script>" + style;
+
+void WebServerSetup() {
+
+  /*return index page which is stored in serverIndex */
+  server.on("/", HTTP_GET, []() {
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/html", loginIndex);
+  });
+  server.on("/serverIndex", HTTP_GET, []() {
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/html", serverIndex);
+  });
+  /*handling uploading firmware file */
+  server.on("/update", HTTP_POST, []() {
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+    ESP.restart();
+  }, []() {
+    HTTPUpload& upload = server.upload();
+    if (upload.status == UPLOAD_FILE_START) {
+      Debug.printf("Update: %s\n", upload.filename.c_str());
+      if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
+        Update.printError(Debug);
+      }
+    } else if (upload.status == UPLOAD_FILE_WRITE) {
+      /* flashing firmware to ESP*/
+      if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+        Update.printError(Debug);
+      }
+    } else if (upload.status == UPLOAD_FILE_END) {
+      if (Update.end(true)) { //true to set the size to the current progress
+        Debug.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+        delay(5000);
+      } else {
+        Update.printError(Debug);
+      }
+    }
+  });
+  server.begin();
+}
+#endif  
