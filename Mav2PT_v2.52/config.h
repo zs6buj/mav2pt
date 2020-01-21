@@ -41,7 +41,7 @@ v2.52 2020-01-21 Support web OTA. Rehash STA to AP failover using reboot - now s
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 or ESP8266 only
 
 // NOTE: The Bluetooth class library uses a lot of application memory. During Compile/Flash
@@ -110,7 +110,7 @@ const uint16_t bat2_capacity = 0;
 //#define Data_Streams_Enabled        // Requests data streams from FC. Requires both rx and tx lines to FC. Rather set SRn in Mission Planner
 #define Max_Waypoints  256          // Note. This is a global RAM trade-off. If exceeded then Debug message and shut down
 
-#define WebOTA                      // Enable web_based Over_The_Air firmware updating. Browse to IP.
+//#define WebOTA                      // Enable web_based Over_The_Air firmware updating. Browse to IP.
                                     
 //**********************   S E L E C T   E S P   B O A R D   V A R I A N T   ******************
 
@@ -207,8 +207,8 @@ bool daylightSaving = false;
   #endif
 
   #if (Target_Board != 3) && (Target_Board != 4) 
-     #if (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3)
-       #error WiFi works only on an ESP32 or ESP8266 board
+     #if (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3) || (defined WebOTA)
+       #error WiFi and OTA works only on an ESP32 or ESP8266 board
      #endif  
   #endif
   
