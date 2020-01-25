@@ -47,7 +47,7 @@ v2.51 2020-01-18 Make default rssi 69% for SiK radios, like RFD900x. PR by Hasi1
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  9    // NONE (default)
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
-//#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
+#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 or ESP8266 only
 
