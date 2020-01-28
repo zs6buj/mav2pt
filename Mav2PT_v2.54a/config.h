@@ -5,7 +5,8 @@
      
 
 v2.54 2020-01-27 ESP8266 inverted single-wire enabled, like Teensy. 
-      No hardware invert/convert required.                        
+      No hardware invert/convert required.                     
+v2.54a 2020-01-28 Setup OTA password in config.h         
                     
 */
 //*****************************************************************************************************************
@@ -25,7 +26,7 @@ v2.54 2020-01-27 ESP8266 inverted single-wire enabled, like Teensy.
 
 
 #define WebOTA              // ESP only. Enable wifi web Over_The_Air firmware updating. Browse to IP.
-
+char *otaPw                 = "mav2pt";  // OTA password - change me!
        
 
 // Choose only one of these three modes
@@ -71,7 +72,7 @@ const char* BT_Slave_Name   =   "Crossfire 0277";  // Example
 #define AP_Name               "Mav2Passthru"    // The AP SSID that we advertise   ====>
 #define AP_Pw                 "password"        // Change me!
 #define STA_Name              "OmegaOffice"     // Target AP to connect to         <====
-#define STA_Pw                "Navara@98"         
+#define STA_Pw                ""         
 
 // Choose one mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
 //#define WiFi_Mode   1  //AP            
