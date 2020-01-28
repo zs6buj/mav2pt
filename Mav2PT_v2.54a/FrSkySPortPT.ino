@@ -42,13 +42,15 @@ void FrSkySPort_Init(void)  {
     sb[i].inuse = false;
   }
 
+#if (Target_Board == 3) || (Target_Board == 4) // ESP only
   int8_t frRx;
   int8_t frTx;
   bool   frInvert;
 
   frRx = Fr_rxPin;
   frTx = Fr_txPin;
-  
+#endif
+ 
 #if (Target_Board == 3)
   #if defined Ground_Mode
     frInvert = true;

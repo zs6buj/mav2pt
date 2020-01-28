@@ -25,7 +25,7 @@ v2.54a 2020-01-28 Setup OTA password in config.h
 
 
 
-#define WebOTA              // ESP only. Enable wifi web Over_The_Air firmware updating. Browse to IP.
+//#define WebOTA              // ESP only. Enable wifi web Over_The_Air firmware updating. Browse to IP.
 char *otaPw                 = "mav2pt";  // OTA password - change me!
        
 
@@ -50,7 +50,7 @@ char *otaPw                 = "mav2pt";  // OTA password - change me!
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 or ESP8266 only
 
 // NOTE: The Bluetooth class library uses a lot of application memory. During Compile/Flash
@@ -551,19 +551,21 @@ static DateTime_t dt_tm;
 #if (Target_Board == 3)   // ESP32 
   #define Debug               Serial         // USB
   #define mvSerialFC          Serial2        //  RXD0 and TXD0 
-#endif
-
-#if (Target_Board == 4)  // ESP8266
+#elif (Target_Board == 4)  // ESP8266
   #define Debug               Serial1        //  D4   TXD1 debug out  - no RXD1 !
   #define mvSerialFC          Serial         //  RXD0 and TXD0
   #include <SoftwareSerial.h>
   SoftwareSerial frSerial;  
-#endif
+#else                      // Non ESP
+  #define Debug               Serial         // USB  
+  #define mvSerialFC          Serial2   
+#endif 
 
 uint32_t mvBaudFC_var     =       mvBaudFC; 
  
 
 #if (Target_Board == 0)      //  Teensy 3.1
+
   #if (SPort_Serial == 1) 
     #define frSerial              Serial1        // S.Port 
   #elif (SPort_Serial == 3)
