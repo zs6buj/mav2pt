@@ -7,7 +7,7 @@
 v2.54 2020-01-27 ESP8266 inverted single-wire enabled, like Teensy. 
       No hardware invert/convert required.                     
 v2.54a 2020-01-28 Setup OTA password in config.h   
-v2.25b 2020-01-30 Correct irritating warnings      
+v2.54b 2020-01-30 Correct irritating warnings      
                     
 */
 //*****************************************************************************************************************
@@ -458,7 +458,6 @@ bool daylightSaving = false;
       #include <WiFi.h>  
       #include <WiFiClient.h>
       #if defined WebOTA
-    //    #include <ArduinoOTA.h>
         #include <WebServer.h> 
         #include <Update.h> 
         WebServer server(80);          
@@ -472,8 +471,7 @@ bool daylightSaving = false;
       #include <ESP8266WiFi.h>   // Includes AP class
       #include <WiFiClient.h>
       #if defined WebOTA
-        #include <ESP8266WebServer.h> 
-     //   #include <UpdateX.h>        
+        #include <ESP8266WebServer.h>    
         ESP8266WebServer server(80);
       #endif      
     #endif
