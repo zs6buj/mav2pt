@@ -1,0 +1,7 @@
+
+EMERGENCY SERIAL/USB FLASH, WHEN OTA FLASH IS NOT POSSIBLE
+
+Start the  flash process
+Hold the Flash button down.
+Wait until the IDE or flash utility is trying to connect, and press the Reset button momentarily.
+The serial port will connect and flashing begins
