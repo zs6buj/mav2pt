@@ -1,40 +1,41 @@
-
 /*
-
 Complete change log and debugging options are at the bottom of this tab
      
-
-v2.55  2020-02-04 Add RFD900X TXMOD ESP8266 variant      
-                    
+v2.56  2020-02-21 Add web interface to allow change of mode, wifi and bt settings                
 */
-//*****************************************************************************************************************
-//*****************************************************************************************************************
-//*****************************************************************************************************************
-//******************************* Please select your options here before compiling ********************************
+//===========================================================================================
+//
+//                   PLEASE SELECT YOUR DEFAULT OPTIONS BELOW BEFORE COMPILING
+//
+//===========================================================================================
+
+#define webSupport                     // ESP only. Enable wifi web support, including OTA firmware updating. Browse to IP.
+#define webPassword      "changeme"    // Web password 
+//#define Reset_Web_Defaults            // Settings in eeprom
 
 
-//#define AutoBaud                  // Auto detect Mavlink serial-in baud rate
-#define mvBaudFC               57600   //  Mavlink to/from the flight controller - max 921600 - must match FC or long range radio
-#define frBaud                 57600   // S.Port baud setting - default 57600 
+//#define AutoBaud                      // Auto detect Mavlink serial-in baud rate
+                                        // NOTE: Set Baud = 57600 for Dragonlink and RFD900X
+#define mvBaudFC               57600    // Mavlink to/from the flight controller - max 921600 - must match FC or long range radio
+#define frBaud                 57600    // S.Port baud setting - default 57600 
 
 
 // Do not enable for FlightDeck
 #define PlusVersion  // Added support for 0x5009 Mission WPs, 0x50F1 Servo_Channels, 0x50F2 VFR_Hud
 
-
-
-#define WebOTA                        // ESP only. Enable wifi web Over_The_Air firmware updating. Browse to IP.
-#define otaPassword      "mav2pt";    // OTA password - change me!
-       
-
-// Choose only one of these three modes
-#define Ground_Mode          // Translator between Taranis and LRS tranceiver (like Dragonlink, ULRS, RFD900...)
+//=================================================================================================
+//           D E F A U L T   T R A N S L A T I O N   M O D E   S E T T I N G S   
+//=================================================================================================       
+// Choose only one of these three translation modes
+#define Ground_Mode          // Translator between Taranis and LRS transceiver (like Dragonlink, ULRS, RFD900...)
 //#define Air_Mode             // Translator between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Translator between LRS tranceiver (like Dragonlink) and FrSky receiver (like XRS) in relay box on the ground
 
 
-
-// Choose only one of these Flight-Controller-side I/O channels 
+//=================================================================================================
+//           D E F A U L T   F L I G H T   C O M P U T E R    I / O   S E T T I N G S   
+//=================================================================================================
+// Choose only one of these default Flight-Controller-side I/O channels 
 // How does Mavlink telemetry enter this translator?
 #define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
@@ -42,47 +43,63 @@ v2.55  2020-02-04 Add RFD900X TXMOD ESP8266 variant
 //#define FC_Mavlink_IO  3    // SD Card / TF - ESP32 only
 
 
-
-// Choose only one of these GCS-side I/O channels
+//=================================================================================================
+//           D E F A U L T   G R O U N D S T A T I O N    I / O   S E T T I N G S   
+//=================================================================================================
+// Choose only one of these default GCS-side I/O channels
 // How does Mavlink telemetry leave this translator?
 // These are optional, and in addition to the S.Port telemetry output
-//#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
+//#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
-//#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 or ESP8266 only
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
+//#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 only
 
-// NOTE: The Bluetooth class library uses a lot of application memory. During Compile/Flash
-//  you may need to select Tools/Partition Scheme: "Minimal SPIFFS (1.9MB APP ...)
+  #ifndef GCS_Mavlink_IO
+    #define GCS_Mavlink_IO  9    // NONE (default)
+  #endif
+
+// NOTE2: The Bluetooth class library uses a lot of application memory. During Compile/Flash
+//        You may need to select Tools/Partition Scheme: "Minimal SPIFFS (1.9MB APP ...) or similar
 
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with other GCS I/O
 
+
+
+//=================================================================================================
+//                      D E F A U L T   B L U E T O O T H   S E T T I N G S   
+//=================================================================================================
+
+//#define BT_Mode  1           // Master Mode - we advertise the "host" name and slave connects to us
+#define BT_Mode  2           // Slave Mode - we connect as slave to a master
+#define BT_ConnectToName     "Crossfire 0277"  // Example
+
+
+//=================================================================================================
+//                            D E F A U L T   W  I  F  I   S E T T I N G S   
+//=================================================================================================
+
+#define HostName             "MavToPass"        // This translator's host name
+#define APssid               "MavToPassthru"    // The AP SSID that we advertise   ====>
+#define APpw                 "password"         // Change me!
+#define APchannel            9                  // The wifi channel to use for our AP
+#define STAssid              "OmegaOffice"      // Target AP to connect to         <====
+#define STApw                "Navara@98"        //"changeme"         
+
 #define ESP8266_Invert_SPort_To_Onewire  // activated = default
+#define Start_WiFi                       // Start WiFi at startup, override startWiFi Pin
 
-// ********************************  B L U E T O O T H  *******************************************
-#define BT_Name               "Mav2PT"     // The Bluetooth name that we advertise
-#define Start_WiFi                         // Start WiFi at startup, override startWiFi Pin
-//#define BT_Master_Mode true              // Master connects to BT_Slave_Name --- false for BT Slave Mode
-const char* BT_Slave_Name   =   "Crossfire 0277";  // Example
-// ************************************************************************************************
-
-
-// ********************************  W  I  F  I  ************************************************
-#define AP_Name               "Mav2Passthru"    // The AP SSID that we advertise   ====>
-#define AP_Pw                 "password"        // Change me!
-#define STA_Name              "OmegaOffice"     // Target AP to connect to         <====
-#define STA_Pw                "Navara@98"         
-
-// Choose one mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
+// Choose one default mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
 //#define WiFi_Mode   1  //AP            
-#define WiFi_Mode   2  // STA
-//#define WiFi_Mode   3  // STA failover to AP
+//#define WiFi_Mode   2  // STA
+#define WiFi_Mode   3  // STA failover to AP
 
-// Choose one protocol - for ESP32 only
+// Choose one default protocol - for ESP32 only
 //#define WiFi_Protocol 1    // TCP/IP
 #define WiFi_Protocol 2    // UDP   
-// ************************************************************************************************
 
-
+//=================================================================================================
+//                              O T H E R   O P T I O N S  
+//=================================================================================================
 
 //#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both rx and tx lines must be connected      
 //#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
@@ -116,53 +133,53 @@ const uint16_t bat2_capacity = 0;
 
 //#define Data_Streams_Enabled        // Requests data streams from FC. Requires both rx and tx lines to FC. Rather set SRn in Mission Planner
 #define Max_Waypoints  256          // Note. This is a global RAM trade-off. If exceeded then Debug message and shut down
-                             
-//**********************   S E L E C T   E S P   B O A R D   V A R I A N T   ******************
 
-#define ESP32_Variant     1    //  ESP32 Dev Module - there are several sub-variants that work
+//=================================================================================================                             
+//                          S E L E C T   E S P   B O A R D   V A R I A N T   
+//=================================================================================================
+//#define ESP32_Variant     1    //  ESP32 Dev Module - there are several sub-variants that work
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi
-//#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - contributed by Noircogi
+#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - contributed by Noircogi
 
-#define ESP8266_Variant   1   // NodeMCU ESP 12F
-#define ESP8266_Variant   2   // RFD900X TX-MOD use generic ESP82660  board
+#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
+//#define ESP8266_Variant   2   // ESP-F Use me for RFD900X TX-MOD - choose generic ESP8266 board on IDE
 
-// ****************************** Set your time zone here ******************************************
+//================================== Set your time zone here ======================================
 // Date and time determines the TLog file name only
 //const float Time_Zone = 10.5;    // Adelaide, Australia
 const float Time_Zone = 2.0;    // Jo'burg
 bool daylightSaving = false;
 
-//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
-
-// ****************************************** Auto Determine Target Platform **************************************
+//=================================================================================================   
+//                              Auto Determine Target Platform
+//================================================================================================= 
 //
 //                Don't change anything here
 //
 #if defined (__MK20DX128__) || defined(__MK20DX256__)
-  #define Target_Board   0      // Teensy 3.1 and 3.2    
+  #define Target_Board   0      // Teensy 3.1 and 3.2 
+  #define TEENSY3X   
       
 #elif defined (__BluePill_F103C8__) ||  defined (MCU_STM32F103RB)
-  #define Target_Board   1      // Blue Pill STM32F103C  
+  #define Target_Board   1      // Blue Pill STM32F103C 
+  #define BLUE_PILL 
          
 #elif defined (STM32_MEDIUM_DENSITY) 
-  #define Target_Board   2      // Maple_Mini STM32F103C  
+  #define Target_Board   2      // Maple_Mini STM32F103C 
+  #define MAPLE_MINI 
      
 #elif defined (_BOARD_MAPLE_MINI_H_)
   // LeafLabs high density
   #define Target_Board   2      // Maple_Mini 
-
+  #define MAPLE_MINI 
+  
 #elif defined STM32_HIGH_DENSITY
   // LeafLabs high density
   #define Target_Board   2      // Maple_Mini 
-   
+  #define MAPLE_MINI 
+  
 #elif defined ESP32
   #define Target_Board   3      // Espressif ESP32 Dev Module
 
@@ -173,17 +190,21 @@ bool daylightSaving = false;
   #error "No board type defined!"
 #endif
 
-
-
-
-
-// Check #defines options logic  
+//=================================================================================================   
+//                              CHECK #define OPTIONS LOGIC
+//================================================================================================= 
 
 #if defined PlusVersion
   #define Request_Mission_Count_From_FC // Needed for yaapu's mission/waypoint script
 #endif
 
-#if (Target_Board == 3) 
+#if (not defined ESP32) && (not defined ESP8266)
+  #if defined webSupport
+    #error Web support only available of ESP32 or ESP8266
+  #endif
+#endif
+  
+#if defined ESP32
   #include <iostream> 
   #include <sstream> 
   #include <driver/uart.h>  // In Arduino ESP32 install repo 
@@ -195,14 +216,14 @@ bool daylightSaving = false;
     #error Please choose at least one target board
   #endif
   
-  #if (Target_Board == 1) || (Target_Board == 3) || (Target_Board == 4)  // Blue Pill or ESP32 or ESP8266 (UART0, UART1, and UART2)
+  #if (defined BLUE_PILL) || (defined ESP32) || (defined ESP8266)  // Blue Pill or ESP32 or ESP8266 (UART0, UART1, and UART2)
     #if (SPort_Serial  == 3)    
       #error Board does not have Serial3. This configuration is not possible.
     #endif
   #endif
 
-  #if (Target_Board == 0) || (Target_Board == 1) || (Target_Board == 2) 
-    #if (FC_Mavlink_IO == 3) || defined GCS_Mavlink_SD
+  #if (defined TEENSY3X) || (defined BLUE_PILL) || (defined MAPLE_MINI)
+    #if (FC_Mavlink_IO == 3) || (defined GCS_Mavlink_SD)  
       #error SD card not currently implemented for Teensy or STM32
     #endif
   #endif
@@ -211,56 +232,115 @@ bool daylightSaving = false;
     #error Please choose at least one Battery_mAh_Source
   #endif
 
-  #if (Target_Board != 3) && (Target_Board != 4) 
-     #if (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3) || (defined WebOTA)
-       #error WiFi and OTA works only on an ESP32 or ESP8266 board
+  #if (not defined ESP32) && (not defined ESP8266) 
+     #if (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3) || (defined webSupport)
+       #error WiFi and webSupport only works on an ESP32 or ESP8266 board
      #endif  
   #endif
   
-  #if (Target_Board != 3) 
+  #if (not defined ESP32) 
      #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1) || (GCS_Mavlink_IO == 3)
        #error Bluetooth works only on an ESP32 board
      #endif  
   #endif
   
-    #ifndef GCS_Mavlink_IO
-      #define GCS_Mavlink_IO  9    // NONE (default)
+  #ifndef FC_Mavlink_IO
+    #error Please choose at least one Mavlink FC IO channel
+  #endif
+
+  #if (defined ESP32)
+    #ifndef WiFi_Mode 
+      #error Please define WiFi_Mode
     #endif
+  #endif  
+
+  #if (defined ESP32)
+    #ifndef WiFi_Protocol
+      #error Please define WiFi_Protocol
+    #endif
+  #endif
+
+  #if (defined ESP32)         
+    #ifndef ESP32_Variant 
+      #error Please define an ESP32 board variant
+    #endif
+  #endif
+    
+//=================================================================================================   
+//                S E T T I NG S   A N D   O P T I O N S   S T R U C T U R E
+//=================================================================================================
+
+    typedef enum trmode_set { ground = 1 , air = 2, relay = 3 } trmode_t;                    // translator operation mode
+    typedef enum fc_io_set { fc_ser = 0, fc_bt = 1 , fc_wifi = 2, fc_sd = 3 } fc_io_t;
+    typedef enum gs_io_set { gs_ser = 0, gs_bt = 1 , gs_wifi = 2, gs_wifi_bt = 3, gs_none = 9} gs_io_t; 
+    typedef enum gs_sd_set { gs_off = 0 , gs_on = 1} gs_sd_t; 
+    typedef enum wfmode_set { ap = 1 , sta = 2, sta_ap = 3 } wfmode_t;   
+    typedef enum wf_proto_set { tcp = 1 , udp = 2, } wf_proto_t; 
+    typedef enum btmode_set { master = 1, slave = 2 } btmode_t;
+
+    typedef struct  {
+      byte          validity_check;  // 0xdc 
+      trmode_t      trmode;         
+      fc_io_t       fc_io;
+      gs_io_t       gs_io;   
+      gs_sd_t       gs_sd;
+      wfmode_t      wfmode;
+      wf_proto_t    wfproto;
+      uint32_t      baud;
+      uint8_t       channel;
+      char          apSSID[30];
+      char          apPw[20];
+      char          staSSID[30];
+      char          staPw[20];
+      char          host[20];     
+      uint16_t      tcp_localPort;
+      uint16_t      udp_localPort;
+      uint16_t      udp_remotePort;
+      btmode_t      btmode;
+      char          btSlaveConnectTo[20];
+      uint8_t       rssi_override;
+      bool          web_support;  // this flag is not saved in eeprom
+      char*         trmode1;      //ground
+      char*         trmode2;      //air
+      char*         trmode3;      //relay      
+      char*         fc_io0;       //ser
+      char*         fc_io1;       //bt
+      char*         fc_io2;       //wifi 
+      char*         fc_io3;       //sd       
+      char*         gs_io0;       //ser
+      char*         gs_io1;       //bt
+      char*         gs_io2;       // wifi
+      char*         gs_io3;       // wifi_bt 
+      char*         gs_io9;       // none     
+      char*         gs_sd0;       // off 
+      char*         gs_sd1;       // on      
+      char*         wfmode1;      // ap 
+      char*         wfmode2;      // sta
+      char*         wfmode3;      // sta_ap     
+      char*         wfproto1;     // tcp
+      char*         wfproto2;     // udp       
+      char*         btmode1;      // master
+      char*         btmode2;      // slave 
+      char*         rssioverride; //rssi override  
+      
+      } settings_struct_t;
+      
+    settings_struct_t set;  
+
+
+//=================================================================================================   
+//                          P L A T F O R M   D E P E N D E N T   S E T U P S
+//================================================================================================= 
+
   
-    #ifndef FC_Mavlink_IO
-      #error Please choose at least one Mavlink FC IO channel
-    #endif
-
-    #if (Target_Board == 3)
-      #ifndef WiFi_Mode 
-        #error Please define WiFi_Mode
-      #endif
-    #endif  
-
-    #if (Target_Board == 3)
-      #ifndef WiFi_Protocol
-        #error Please define WiFi_Protocol
-      #endif
-    #endif
-
-    #if (Target_Board == 3)         // ESP32 Platform
-      #ifndef ESP32_Variant 
-        #error Please define an ESP32 board variant
-      #endif
-    #endif
-
-// ************************* P L A T F O R M   D E P E N D E N T   S E T U P S **********************************
-//********************************************* LEDS, OLED SSD1306, rx pin **************************************
-
-  
-#if (Target_Board == 0)           // Teensy3x
+#if defined TEENSY3X               // Teensy3x
   #define MavStatusLed  13
   #define BufStatusLed  14
   #define FC_Mav_rxPin  9  
   #define FC_Mav_txPin  10
  // Fr_txPin (SPort)    1            Hard wired single wire to Taranis/Horus or XSR receiver
  
-#elif (Target_Board == 1)         // Blue Pill
+#elif defined BLUE_PILL               // Blue Pill
   #define MavStatusLed  PC13
   #define BufStatusLed  PC14
   #define FC_Mav_rxPin  PB11  
@@ -268,7 +348,7 @@ bool daylightSaving = false;
  // Fr_txPin (SPort)    PA2          SPort hard wired tx to inverter/single wire converter
  // Fr_txPin (SPort)    PA3          SPort hard wired rx to inverter/single wire converter
  
-#elif (Target_Board == 2)         // Maple Mini
+#elif defined MAPLE_MINI             // Maple Mini
   #define MavStatusLed  33        // PB1
   #define BufStatusLed  34 
   #define FC_Mav_rxPin  8         // PA3  
@@ -276,7 +356,7 @@ bool daylightSaving = false;
  // Fr_txPin (SPort)    PA10         SPort hard wired tx to inverter/single wire converter
  // Fr_txPin (SPort)    PA9          SPort hard wired rx to inverter/single wire converter
    
-#elif (Target_Board == 3)         // ESP32 Platform
+#elif defined ESP32                  // ESP32 Platform
   #if (ESP32_Variant == 1)          // ESP32 Dev Module
     #define MavStatusLed  02        // Onboard LED
     #define BufStatusLed  27        // untested pin
@@ -290,12 +370,12 @@ bool daylightSaving = false;
     int16_t wifi_rssi;    
     uint8_t startWiFiPin = 15;      // D15
     uint8_t WiFiPinState = 0;
- /*  
-   SPI/CS                       Pin 05   For optional TF/SD Card Adapter
-   SPI/MOSI                     Pin 23   For optional TF/SD Card Adapter
-   SPI/MISO                     Pin 19   For optional TF/SD Card Adapter
-   SPI/SCK                      Pin 18   For optional TF/SD Card Adapter  
-*/
+    /*  
+      SPI/CS                       Pin 05   For optional TF/SD Card Adapter
+      SPI/MOSI                     Pin 23   For optional TF/SD Card Adapter
+      SPI/MISO                     Pin 19   For optional TF/SD Card Adapter
+      SPI/SCK                      Pin 18   For optional TF/SD Card Adapter  
+    */
 
   #endif
 
@@ -333,7 +413,7 @@ bool daylightSaving = false;
     uint8_t WiFiPinState = 0;
   #endif
   
-  #if (ESP32_Variant == 4)          // Heltec Wifi Kit 32
+  #if (ESP32_Variant == 4)          // Heltec Wifi Kit 32 (NOTE! 8MB) 
     #define MavStatusLed  25        // Onboard LED
     #define BufStatusLed  99          
     #define FC_Mav_rxPin  27        // Mavlink to FC
@@ -349,7 +429,7 @@ bool daylightSaving = false;
     uint8_t WiFiPinState = 0;
   #endif
   
-#elif (Target_Board == 4)         // ESP8266 Platform
+#elif defined ESP8266                    // ESP8266 Platform
 
   #if (ESP8266_Variant == 1)        // Node MFU 12F
     #define MavStatusLed  D0        // Mavlink Status LED
@@ -368,24 +448,24 @@ bool daylightSaving = false;
     uint8_t WiFiPinState = 0;
   #endif
   
-  #if (ESP8266_Variant == 2)        // RFD900X TX-MOD - use generic esp8266
+  #if (ESP8266_Variant == 2)        // ESP-F RFD900X TX-MOD - use generic esp8266
 
-  //                         GPIO as per node mfu
-  static const uint8_t D0   = 16;   // SCL - optional
-  static const uint8_t D1   = 5;    // SDA - optional
-  static const uint8_t D2   = 4;    // SPort half-duplex
-  static const uint8_t D3   = 0;    // Flash
-  static const uint8_t D4   = 2;    // TXD1 optional debug out
-  static const uint8_t D5   = 14;   // SPort rx (unused in half-duplex)
-  static const uint8_t D6   = 12;   // P2-3 exposed dual row of pins
-  static const uint8_t D7   = 13;   // CTS
-  static const uint8_t D8   = 15;   // RTS
-  static const uint8_t D9   = 3;    // RXD0
-  static const uint8_t D10  = 1;    // TXD0
+    //                         GPIO as per node mfu
+    static const uint8_t D0   = 16;   // SCL - optional
+    static const uint8_t D1   = 5;    // SDA - optional
+    static const uint8_t D2   = 4;    // SPort half-duplex
+    static const uint8_t D3   = 0;    // Flash
+    static const uint8_t D4   = 2;    // TXD1 optional debug out
+    static const uint8_t D5   = 14;   // SPort rx (unused in half-duplex)
+    static const uint8_t D6   = 12;   // P2-3 exposed dual row of pins
+    static const uint8_t D7   = 13;   // CTS
+    static const uint8_t D8   = 15;   // RTS
+    static const uint8_t D9   = 3;    // RXD0
+    static const uint8_t D10  = 1;    // TXD0
 
     #define MavStatusLed  D7        // Mavlink Status LED
     #define BufStatusLed  99        // None
-   //                     D4        // TXD1 - Serial1 default debug log out                            
+    //                    D4        // TXD1 - Serial1 default debug log out                            
     #define FC_Mav_rxPin  D9        // RXD0 default  
     #define FC_Mav_txPin  D10       // TXD0 default    
     #define Fr_rxPin      D5        // SPort - Not used in single wire mode
@@ -398,187 +478,184 @@ bool daylightSaving = false;
     uint8_t startWiFiPin = D8;      
     uint8_t WiFiPinState = 0;
   #endif  
+  
 #endif
 
-#if (Target_Board == 3)|| (Target_Board == 4)   // ESP32 and ESP8266
-  #include <SPI.h>                // for SD card and/or OLED
-  #include <Wire.h>
-  #include <Adafruit_SSD1306.h> 
+  //=================================================================================================   
+  //                            E E P R O M    S U P P O R T   -   ESP Only - for now
+  //================================================================================================= 
 
-  /*
-  // Optional SPI interface pins for SD card adapter or SSD1306 OLED display
-  #define CS            5        
-  #define MOSI          23 
-  #define MISO          19 
-  #define SCK           18 
-  */  
-  
- //************************************************************************** 
-//*********************** O L E D  ESP32 and ESP8266 Only *******************
+  #if (defined ESP32) || (defined ESP8266)
+    #include <EEPROM.h>       // To store AP_Failover_Flag and webSupport Settings
+    #define EEPROM_SIZE 160   // 1 + 159 bytes, addr range 0 thru 160
+  #endif
+    
+  //=================================================================================================   
+  //                             S D   C A R D   S U P P O R T   -   ESP Only - for now
+  //================================================================================================= 
+  #if (defined ESP32)  || (defined ESP8266)
 
-  #define SCREEN_WIDTH 128 // OLED display width, in pixels
-  #define SCREEN_HEIGHT 64 // OLED display height, in pixels
-  // 8 rows of 21 characters
+    #include <FS.h>
+    #include <SD.h>
+    #include <SPI.h>
+    #define SD_Libs_Loaded 
 
-  // Declaration for an SSD1306 I2C display
-  #ifndef OLED_RESET
-    #define OLED_RESET    -1 // Reset pin # (or -1 if sharing Arduino reset pin)
+    /*
+    // Optional SPI interface pins for SD card adapter or SSD1306 OLED display
+    #define CS            5        
+    #define MOSI          23 
+    #define MISO          19 
+    #define SCK           18 
+    */  
+
+    // Pins generally   CS=5    MOSI=23   MISO=19   SCK=18    3.3V   GND   Dev Board, LilyGO/TTGO
+ 
+ 
+     
+    // Rememeber to change SPI frequency from 4E6 to 25E6, i.e 4MHz to 25MHz in SD.h otherwise MavRingBuff fills up 
+    // C:\Users\YourUserName\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.2\libraries\SD\src  
+    // bool begin(uint8_t ssPin=SS, SPIClass &spi=SPI, uint32_t frequency=25000000, const char * mountpoint="/sd", uint8_t max_files=5);  
+
+    char     cPath[40];
+    std::string   fnPath[30];
+    uint8_t  fnCnt;
+    uint16_t sdReadDelay = 10;  // mS   Otherwise the reads run through unnaturally quickly
+
+    File     file;  // Create global object from File class for general use
+
+    static  const uint8_t mthdays[]={31,28,31,30,31,30,31,31,30,31,30,31}; 
+
+    typedef struct  { 
+      uint16_t yr;   // relative to 1970;  
+      uint8_t mth;
+      uint8_t day;
+      uint8_t dow;   // sunday is day 1 
+      uint8_t hh; 
+      uint8_t mm; 
+      uint8_t ss; 
+    }   DateTime_t;
+
+    static DateTime_t dt_tm; 
+
   #endif  
-  Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+  //=================================================================================================   
+  //                                 O L E D   S U P P O R T    E S P  O N L Y - for now
+  //================================================================================================= 
+  #if (defined ESP32 || defined ESP8266)  
   
-#endif
+    #if not defined SD_Libs_Loaded   //  by SD block
+      #include <SPI.h>                // for SD card and/or OLED
+      #include <Wire.h>
+    #endif  
 
-//************************************************************************** 
-//**************************** Bluetooth - ESP32 Only **********************
+    #include <Adafruit_SSD1306.h> 
+    
+    #define max_col  22
+    #define max_row   8
+    // 8 rows of 21 characters
 
-  #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1)|| (GCS_Mavlink_IO == 3)  // Bluetooth
-    #if (Target_Board == 3) // ESP32
+    struct OLED_line {
+      char OLx[max_col];
+      };
+  
+     OLED_line OL[max_row]; 
 
-    #define BT_Setup   // so that WiFi setup does not define these shared variables again
+    uint8_t row = 0;
+    uint8_t col = 0;
+  
+    #define SCREEN_WIDTH 128 // OLED display width, in pixels
+    #define SCREEN_HEIGHT 64 // OLED display height, in pixels
+    // 8 rows of 21 characters
+
+    // Declaration for an SSD1306 I2C display
+    #ifndef OLED_RESET
+      #define OLED_RESET    -1 // Reset pin # (or -1 if sharing Arduino reset pin)
+    #endif  
+    Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+  #endif
+
+  //=================================================================================================   
+  //                          B L U E T O O T H   S U P P O R T - ESP32 Only
+  //================================================================================================= 
+
+  #if (defined ESP32) 
+
+    #include "BluetoothSerial.h"
+    #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
+      #error Bluetooth is not enabled! Please run `make menuconfig in ESP32 IDF` 
+    #endif
+
+    BluetoothSerial SerialBT;
+
+  #endif  
+
+  //=================================================================================================   
+  //                           W I F I   S U P P O R T - ESP32 and ES8266 Only
+  //================================================================================================= 
+
+    uint16_t TCP_localPort = 5760;
+    uint16_t UDP_localPort = 14555;     
+    uint16_t UDP_remotePort = 14550;      
+    bool FtRemIP = true;
+
+  #if (defined ESP32 || defined ESP8266) 
+
     // Define link variables
     struct linkStatus {
       uint32_t    packets_received;
       uint32_t    packets_lost;
       uint32_t    packets_sent;
-     };
-
-      bool          hb_heard_from = false;;
-      uint8_t       hb_system_id = 0;
-      uint8_t       hb_comp_id = 0;
-      uint8_t       hb_seq_expected = 0;
-      uint32_t      hb_last_heartbeat = 0;
-      linkStatus    link_status;
-
-      #include "BluetoothSerial.h"
-      #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
-        #error Bluetooth is not enabled! Please run `make menuconfig in ESP32 IDF` 
-      #endif
-    #else
-      #error Bluetooth only available on ESP32
-    #endif    
-#endif
-
-///************************************************************************** 
-//***************************** WiFi - ESP32 or ES8266 Only ***************************
-
-  #if ((FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2)) || (GCS_Mavlink_IO == 3) || defined WebOTA // WiFi
-
-    // Define link variables
-    #ifndef BT_Setup
-      struct linkStatus {
-        uint32_t    packets_received;
-        uint32_t    packets_lost;
-        uint32_t    packets_sent;
-      };
-
-       bool          hb_heard_from = false;;
-       uint8_t       hb_system_id = 0;
-       uint8_t       hb_comp_id = 0;
-       uint8_t       hb_seq_expected = 0;
-       uint32_t      hb_last_heartbeat = 0;
-       linkStatus    link_status;
-    #endif
-
-    #include <EEPROM.h>     // To store AP_Failover_Flag only
-    #define EEPROM_SIZE 1
-   
-    #if (Target_Board == 3) // ESP32
+    };
+    bool          hb_heard_from = false;
+    uint8_t       hb_system_id = 0;
+    uint8_t       hb_comp_id = 0;
+    uint8_t       hb_seq_expected = 0;
+    uint32_t      hb_last_heartbeat = 0;
+    linkStatus    link_status;
+  
+    #if defined ESP32 
       #include <WiFi.h>  
       #include <WiFiClient.h>
-      #if defined WebOTA
+      #if defined webSupport
         #include <WebServer.h> 
         #include <Update.h> 
         WebServer server(80);          
       #endif      
-      #if (WiFi_Mode == 1)  // AP
-        #include <WiFiAP.h>  
-      #endif   
+      #include <WiFiAP.h>  
     #endif
 
-    #if (Target_Board == 4) // ESP8266
+    #if defined ESP8266
       #include <ESP8266WiFi.h>   // Includes AP class
       #include <WiFiClient.h>
-      #if defined WebOTA
+      #if defined webSupport
         #include <ESP8266WebServer.h>    
         ESP8266WebServer server(80);
       #endif      
     #endif
     
-    #if (WiFi_Protocol == 2)  //  UDP
-      #include <WiFiUdp.h>    // ESP32 or ESP8266
-    #endif   
 
-    const char*   host            =    "mav2pt";
-    const char    *APssid         =    AP_Name;     
-    const char    *APpw           =    AP_Pw;     
-    const uint8_t  APchannel      =    9;            // The WiFi channel to use
-    const char    *STAssid        =    STA_Name;    
-    const char    *STApw          =    STA_Pw;    
-    const char    *otaPw          =    otaPassword;
-   // AP and STA below
+    #include <WiFiUdp.h>    
 
-    WiFiClient wifi;   
-     
-    #if (WiFi_Protocol == 1)     // TCP
-      uint16_t tcp_localPort = 5760;  
-      WiFiServer TCPserver(tcp_localPort);
-    #endif 
-    
-    #if (WiFi_Protocol == 2)     //  UDP
-      uint16_t udp_localPort = 14555;     // This ESP32 or ESP8266
-      uint16_t udp_remotePort = 14550;    // GCS like QGC      
-      bool FtRemIP = true;
-      IPAddress udp_remoteIP(192, 168, 1, 255);    // Declare UDP broadcast on your likely LAN subnet
-      WiFiUDP udp;       // Create udp object    
-        
-    #endif   
-    
+    WiFiClient WiFiSTA;   
+       
+    WiFiServer TCPserver(set.tcp_localPort);
+
+    IPAddress udp_remoteIP(192, 168, 1, 255);    // Declare UDP broadcast on your likely LAN subnet
+    WiFiUDP UDP;       // Create UDP object    
+         
     IPAddress localIP;   // tcp and udp
-  #endif  
+    
+  #endif  // end of ESP32 and ESP8266
   
-//************************************************************************** 
-//******************************* SD Card **********************************
+//=================================================================================================   
+//                                 S E R I A L
+//=================================================================================================
 
-  #if ((FC_Mavlink_IO == 3) || defined GCS_Mavlink_SD)  // SD Card
-
-  // Pins generally   CS=5    MOSI=23   MISO=19   SCK=18    3.3V   GND   Dev Board, LilyGO/TTGO
- 
-  #include "FS.h"
-  #include "SD.h"
-  #include "SPI.h"
-// Rememeber to change SPI frequency from 4E6 to 25E6, i.e 4MHz to 25MHz in SD.h otherwise MavRingBuff fills up 
-// C:\Users\YourUserName\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.2\libraries\SD\src  
-// bool begin(uint8_t ssPin=SS, SPIClass &spi=SPI, uint32_t frequency=25000000, const char * mountpoint="/sd", uint8_t max_files=5);  
-
-char     cPath[40];
-std::string   fnPath[30];
-uint8_t  fnCnt;
-uint16_t sdReadDelay = 10;  // mS   Otherwise the reads run through unnaturally quickly
-
-File     file;  // Create global object from File class for general use
-
-static  const uint8_t mthdays[]={31,28,31,30,31,30,31,31,30,31,30,31}; 
-
-typedef struct  { 
-  uint16_t yr;   // relative to 1970;  
-  uint8_t mth;
-  uint8_t day;
-  uint8_t dow;   // sunday is day 1 
-  uint8_t hh; 
-  uint8_t mm; 
-  uint8_t ss; 
-}   DateTime_t;
-
-static DateTime_t dt_tm; 
-
-#endif 
-//************************************************************************** 
-//********************************** Serial ********************************
-
-#if (Target_Board == 3)   // ESP32 
+#if (defined ESP32)  
   #define Debug               Serial         // USB
   #define mvSerialFC          Serial2        //  RXD0 and TXD0 
-#elif (Target_Board == 4)  // ESP8266
+#elif (defined ESP8266)
   #define Debug               Serial1        //  D4   TXD1 debug out  - no RXD1 !
   #define mvSerialFC          Serial         //  RXD0 and TXD0
   #include <SoftwareSerial.h>
@@ -588,10 +665,7 @@ static DateTime_t dt_tm;
   #define mvSerialFC          Serial2   
 #endif 
 
-uint32_t mvBaudFC_var     =       mvBaudFC; 
- 
-
-#if (Target_Board == 0)      //  Teensy 3.1
+#if (defined TEENSY3X)      //  Teensy 3.1
 
   #if (SPort_Serial == 1) 
     #define frSerial              Serial1        // S.Port 
@@ -602,26 +676,33 @@ uint32_t mvBaudFC_var     =       mvBaudFC;
   #endif 
 #endif 
 
-#if (Target_Board != 0) && (Target_Board != 4)     //  Not Teensy 3.1 or ESP8266 , i.e. other boards
-  #define frSerial              Serial1        // S.Port 
+#if (not defined TEENSY3X) && (not defined ESP8266)     //  Not Teensy 3.1 or ESP8266 , i.e. other boards
+  #define frSerial              Serial1                 // S.Port 
 #endif 
 
-#if (GCS_Mavlink_IO == 0) // Mavlink_GCS optional feature available for Teensy 3.1/2 and Maple Mini
+
+#if (defined TEENSY3X) || (defined MAPLE_MINI)  //  only these have 4 uarts at present
+  //#define Enable_GCS_Serial  //  OPTION SET HERE   OPTION SET HERE   OPTION SET HERE 
+#endif
+
+#if defined Enable_GCS_Serial  // only Teensy and maple mini have 4 uarts at present
 
   #if (SPort_Serial == 3) 
    #error Mavlink_GCS and SPort both configured for Serial3. Please correct.
   #endif 
   
-  #if (Target_Board == 0) || (Target_Board == 2) // Teensy 3.x or Maple Mini
+  #if (defined TEENSY3X) || (defined MAPLE_MINI) // Teensy 3.x or Maple Mini
     #define mvSerialGCS             Serial3 
     #define mvBaudGCS               57600        // Use 57600
   #else
     #error Mavlink_GCS Serial not available for ESP32 or Blue Pill - no Serial3. Please correct.
   #endif
+ 
 #endif
 
-
-// ******************************** D E B U G G I N G   O P T I O N S ***************************************
+//=================================================================================================   
+//                                 D E B U G G I N G   O P T I O N S
+//=================================================================================================
 
 //#define inhibit_SPort     // Use me to send only debug messages out of GPIO1/TX0 on ESP32_Variant 3, DL V3 internal ESP32
 
@@ -647,7 +728,7 @@ uint32_t mvBaudFC_var     =       mvBaudFC;
 //#define Frs_Debug_RC
 //#define Mav_Debug_FC_Heartbeat
 //#define Mav_Debug_GCS_Heartbeat
-//#define Mav_Debug_Mav2PT_Heartbeat
+//#define Mav_Debug_MavToPass_Heartbeat
 //#define Frs_Debug_APStatus
 //#define Mav_Debug_SysStatus
 //#define Debug_Batteries
@@ -679,10 +760,13 @@ uint32_t mvBaudFC_var     =       mvBaudFC;
 //#define Mav_Show_Unknown_Msgs
 //#define Mav_Print_All_Msgid
 //#define Debug_Eeprom
-// *****************************************************************************************************************
+//#define Debug_Web_Settings
 
+//=================================================================================================   
+//                                   C H A N G E   L O G
+//=================================================================================================
 /*
-*****************************************************************************************************************  
+
 Change log:
                                     
 v2.00 2019-06-07 Plus version firmware ported to ESP32 Dev Module V1 successfully - no improvements  
@@ -765,5 +849,6 @@ v2.53 2020-01-25 ESP8266 (Node MFU 12F) debugged, tested. ESP8266 OTA included.
 v2.54 2020-01-27 ESP8266 inverted single-wire enabled, like Teensy. 
       No hardware invert/convert required.                     
 v2.54a 2020-01-28 Setup OTA password in config.h   
-v2.54b 2020-01-30 Correct irritating warnings                                                  
+v2.54b 2020-01-30 Correct irritating warnings  
+v2.55  2020-02-04 Add RFD900X TXMOD ESP8266 variant                                                
 */
