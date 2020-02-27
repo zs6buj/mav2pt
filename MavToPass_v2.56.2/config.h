@@ -1,7 +1,8 @@
 /*
 Complete change log and debugging options are at the bottom of this tab
      
-v2.56.1  2020-02-26 Add web interface to allow settings/parameter changes               
+v2.56.1  2020-02-26 Add web interface to allow settings/parameter changes 
+v2.56.2  2020-02-27 STM32F103C / Blue Pill / Maple Mini deprecated. Tidy up Teensy3.x warnings.             
 */
 //===========================================================================================
 //
@@ -9,8 +10,8 @@ v2.56.1  2020-02-26 Add web interface to allow settings/parameter changes
 //
 //===========================================================================================
 
-#define webSupport                     // ESP only. Enable wifi web support, including OTA firmware updating. Browse to IP.
-#define webPassword      "changeme"    // Web password 
+#define webSupport                      // ESP only. Enable wifi web support, including OTA firmware updating. Browse to IP.
+#define webPassword      "changeme!"    // Web password 
 //#define Reset_Web_Defaults            // Settings in eeprom
 
 
@@ -83,7 +84,7 @@ v2.56.1  2020-02-26 Add web interface to allow settings/parameter changes
 #define APpw                 "password"         // Change me!
 #define APchannel            9                  // The wifi channel to use for our AP
 #define STAssid              "OmegaOffice"      // Target AP to connect to         <====
-#define STApw                "Navara@98"        //"changeme"         
+#define STApw                "changeme!"        // Target AP password        
 
 #define ESP8266_Invert_SPort_To_Onewire  // activated = default
 #define Start_WiFi                       // Start WiFi at startup, override startWiFi Pin
@@ -142,8 +143,8 @@ const uint16_t bat2_capacity = 0;
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi
 #define ESP32_Variant     4    //  Heltec Wifi Kit 32 - contributed by Noircogi
 
-#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
-//#define ESP8266_Variant   2   // ESP-F Use me for RFD900X TX-MOD - choose generic ESP8266 board on IDE
+//#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
+#define ESP8266_Variant   2   // ESP-F Use me for RFD900X TX-MOD - use generic ESP8266 board on IDE
 
 //================================== Set your time zone here ======================================
 // Date and time determines the TLog file name only
@@ -159,27 +160,8 @@ bool daylightSaving = false;
 //                Don't change anything here
 //
 #if defined (__MK20DX128__) || defined(__MK20DX256__)
-  #define Target_Board   0      // Teensy 3.1 and 3.2 
   #define TEENSY3X   
       
-#elif defined (__BluePill_F103C8__) ||  defined (MCU_STM32F103RB)
-  #define Target_Board   1      // Blue Pill STM32F103C 
-  #define BLUE_PILL 
-         
-#elif defined (STM32_MEDIUM_DENSITY) 
-  #define Target_Board   2      // Maple_Mini STM32F103C 
-  #define MAPLE_MINI 
-     
-#elif defined (_BOARD_MAPLE_MINI_H_)
-  // LeafLabs high density
-  #define Target_Board   2      // Maple_Mini 
-  #define MAPLE_MINI 
-  
-#elif defined STM32_HIGH_DENSITY
-  // LeafLabs high density
-  #define Target_Board   2      // Maple_Mini 
-  #define MAPLE_MINI 
-  
 #elif defined ESP32
   #define Target_Board   3      // Espressif ESP32 Dev Module
 
@@ -187,7 +169,7 @@ bool daylightSaving = false;
   #define Target_Board   4      // Espressif ESP8266
   
 #else
-  #error "No board type defined!"
+  #error "Unsupported board type!"
 #endif
 
 //=================================================================================================   
@@ -200,7 +182,8 @@ bool daylightSaving = false;
 
 #if (not defined ESP32) && (not defined ESP8266)
   #if defined webSupport
-    #error Web support only available of ESP32 or ESP8266
+    #undef webSupport
+    //    #error webSupport only available on ESP32 or ESP8266
   #endif
 #endif
   
@@ -211,20 +194,16 @@ bool daylightSaving = false;
   //C:\Users\<YourName>\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\tools\sdk\include\driver
 
 #endif
-
-  #ifndef Target_Board
-    #error Please choose at least one target board
-  #endif
   
-  #if (defined BLUE_PILL) || (defined ESP32) || (defined ESP8266)  // Blue Pill or ESP32 or ESP8266 (UART0, UART1, and UART2)
+  #if (defined ESP32) || (defined ESP8266)  // ESP32 or ESP8266 (UART0, UART1, and UART2)
     #if (SPort_Serial  == 3)    
       #error Board does not have Serial3. This configuration is not possible.
     #endif
   #endif
 
-  #if (defined TEENSY3X) || (defined BLUE_PILL) || (defined MAPLE_MINI)
+  #if (defined TEENSY3X) 
     #if (FC_Mavlink_IO == 3) || (defined GCS_Mavlink_SD)  
-      #error SD card not currently implemented for Teensy or STM32
+      #error SD card not currently implemented for Teensy
     #endif
   #endif
 
@@ -234,7 +213,7 @@ bool daylightSaving = false;
 
   #if (not defined ESP32) && (not defined ESP8266) 
      #if (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3) || (defined webSupport)
-       #error WiFi and webSupport only works on an ESP32 or ESP8266 board
+       #error WiFi and webSupport only work on an ESP32 or ESP8266 board
      #endif  
   #endif
   
@@ -265,7 +244,24 @@ bool daylightSaving = false;
       #error Please define an ESP32 board variant
     #endif
   #endif
-    
+
+  #if (defined ESP8266)
+    #ifndef ESP8266_Variant
+         #error Please define an ESP8266 board variant
+    #endif
+  #endif     
+
+  #if (ESP8266_Variant == 1)       // NodeMCU ESP 12F 
+    #ifndef D3
+        #error Please choose the NodeMCU 1.0(ESP-12E Module) board in the IDE
+    #endif
+  #endif  
+
+    #if (ESP8266_Variant == 2)     // ESP-F for RFD900X TX-MOD
+    #ifdef D3
+        #error Please choose the Generic ESP8266 Module board in the IDE
+    #endif
+  #endif  
 //=================================================================================================   
 //                S E T T I NG S   A N D   O P T I O N S   S T R U C T U R E
 //=================================================================================================
@@ -340,23 +336,7 @@ bool daylightSaving = false;
   #define FC_Mav_txPin  10
  // Fr_txPin (SPort)    1            Hard wired single wire to Taranis/Horus or XSR receiver
  
-#elif defined BLUE_PILL               // Blue Pill
-  #define MavStatusLed  PC13
-  #define BufStatusLed  PC14
-  #define FC_Mav_rxPin  PB11  
-  #define FC_Mav_txPin  PB10  
- // Fr_txPin (SPort)    PA2          SPort hard wired tx to inverter/single wire converter
- // Fr_txPin (SPort)    PA3          SPort hard wired rx to inverter/single wire converter
- 
-#elif defined MAPLE_MINI             // Maple Mini
-  #define MavStatusLed  33        // PB1
-  #define BufStatusLed  34 
-  #define FC_Mav_rxPin  8         // PA3  
-  #define FC_Mav_txPin  9         // PA2 
- // Fr_txPin (SPort)    PA10         SPort hard wired tx to inverter/single wire converter
- // Fr_txPin (SPort)    PA9          SPort hard wired rx to inverter/single wire converter
-   
-#elif defined ESP32                  // ESP32 Platform
+#elif defined ESP32                 // ESP32 Platform
   #if (ESP32_Variant == 1)          // ESP32 Dev Module
     #define MavStatusLed  02        // Onboard LED
     #define BufStatusLed  27        // untested pin
@@ -676,7 +656,7 @@ bool daylightSaving = false;
   #endif 
 #endif 
 
-#if (not defined TEENSY3X) && (not defined ESP8266)     //  Not Teensy 3.1 or ESP8266 , i.e. other boards
+#if (not defined TEENSY3X) && (not defined ESP8266)     //  Not Teensy 3.1 and not ESP8266 , i.e. other boards
   #define frSerial              Serial1                 // S.Port 
 #endif 
 
@@ -691,11 +671,11 @@ bool daylightSaving = false;
    #error Mavlink_GCS and SPort both configured for Serial3. Please correct.
   #endif 
   
-  #if (defined TEENSY3X) || (defined MAPLE_MINI) // Teensy 3.x or Maple Mini
+  #if (defined TEENSY3X)          
     #define mvSerialGCS             Serial3 
     #define mvBaudGCS               57600        // Use 57600
   #else
-    #error Mavlink_GCS Serial not available for ESP32 or Blue Pill - no Serial3. Please correct.
+    #error Mavlink_GCS Serial not available for ESP32 or ESP8266  - no Serial3. Please correct.
   #endif
  
 #endif
