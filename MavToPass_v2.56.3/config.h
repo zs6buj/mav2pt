@@ -8,9 +8,8 @@
 
 /*
 Complete change log and debugging options are at the bottom of this tab
-     
-v2.56.1  2020-02-26 Add web interface to allow settings/parameter changes 
-v2.56.2  2020-02-27 STM32F103C / Blue Pill / Maple Mini deprecated. Tidy up Teensy3.x warnings.             
+       
+v2.56.3  2020-03-03 Minor ESP8266 variants logic check           
 */
 //===========================================================================================
 //
@@ -257,8 +256,6 @@ bool daylightSaving = false;
     #ifndef ESP8266_Variant
          #error Please define an ESP8266 board variant
     #endif
-
-
 
     #if (ESP8266_Variant == 1)       // NodeMCU ESP 12F 
       #ifndef D3
@@ -840,5 +837,7 @@ v2.54 2020-01-27 ESP8266 inverted single-wire enabled, like Teensy.
       No hardware invert/convert required.                     
 v2.54a 2020-01-28 Setup OTA password in config.h   
 v2.54b 2020-01-30 Correct irritating warnings  
-v2.55  2020-02-04 Add RFD900X TXMOD ESP8266 variant                                                
+v2.55  2020-02-04 Add RFD900X TXMOD ESP8266 variant    
+v2.56.1  2020-02-26 Add web interface to allow settings/parameter changes 
+v2.56.2  2020-02-27 STM32F103C / Blue Pill / Maple Mini deprecated. Tidy up Teensy3.x warnings.                                            
 */
