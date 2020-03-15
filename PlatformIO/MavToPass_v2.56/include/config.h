@@ -72,7 +72,7 @@ v2.56.2  2020-02-27 STM32F103C / Blue Pill / Maple Mini deprecated. Tidy up Teen
 
 //#define BT_Mode  1           // Master Mode - we advertise the "host" name and slave connects to us
 #define BT_Mode  2           // Slave Mode - we connect as slave to a master
-#define BT_ConnectToName     "Crossfire 0277"  // Example
+#define BT_SlaveConnectTo     "Crossfire 0277"  // Example
 
 
 //=================================================================================================

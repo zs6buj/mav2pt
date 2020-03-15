@@ -137,8 +137,8 @@ int32_t String_long(String S) {
     loginPage += temp;
     loginPage += "<input name=userid  placeholder='User ID' size='10'> ";
     loginPage += "<input name=pwd placeholder=Password type=Password> <br> <br>";
-    loginPage += "<input type='radio' class='big' name='_nextFn' value='ota' checked > Update Firmware &nbsp &nbsp";
-    loginPage += "<input type='radio' class='big' name='_nextFn' value='set' > Settings <br> <br>"; 
+    loginPage += "<input type='radio' class='big' name='_nextFn' value='ota'> Update Firmware &nbsp &nbsp";
+    loginPage += "<input type='radio' class='big' name='_nextFn' value='set' checked > Settings <br> <br>"; 
     loginPage += "<input type=submit onclick=check(this.form) class=btn value=Login></form>";
     loginPage += "<script>";
     loginPage += "function check(form) {";

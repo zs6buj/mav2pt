@@ -679,8 +679,8 @@ void setup()  {
   pgm_name = pgm_name.substring(0, pgm_name.lastIndexOf('.'));  // remove the extension
   Debug.print("Starting "); Debug.print(pgm_name); Debug.println(" .....");
   
- //   Debug.setDebugOutput(true);   //  ESP only  
-  
+ //   Debug.setDebugOutput(true);   //  ESP only   Debug.print("nodemcu.build.variant "); Debug.println(nodemcu.build.variant); 
+
 //=================================================================================================   
 //                                 S E T U P   O L E D
 //=================================================================================================

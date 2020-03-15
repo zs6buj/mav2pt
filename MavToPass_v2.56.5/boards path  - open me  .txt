@@ -1,0 +1,6 @@
+For Heltec WiFi Kit 32 8MB board only. Copy the boards.txt to the folder below. You might want to first save a 
+copy of boards.txt
+
+This makes the full 8MB option available in the Arduino IDE
+
+C:\Users\Eric\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\

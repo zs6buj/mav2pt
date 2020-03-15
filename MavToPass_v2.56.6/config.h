@@ -10,7 +10,8 @@
 Complete change log and debugging options are at the bottom of this tab
        
 v2.56.3 2020-03-03 Minor ESP8266 variants logic check 
-v2.56.4 2020-03-04 Remove spurious debugging code affecting S.Port Thanks pascale dragos.          
+v2.56.4 2020-03-04 Remove spurious debugging code affecting S.Port Thanks pascale dragos. 
+v2.56.5 2020-03-09 Reduce rssi timing cycle to 350mS from 700mS.         
 */
 //===========================================================================================
 //
@@ -21,6 +22,9 @@ v2.56.4 2020-03-04 Remove spurious debugging code affecting S.Port Thanks pascal
 #define webSupport                      // ESP only. Enable wifi web support, including OTA firmware updating. Browse to IP.
 #define webPassword      "changeme!"    // Web password 
 //#define Reset_Web_Defaults            // Settings in eeprom
+
+//#define SD_Support                    // Activate if you have an SD card reader attached
+//#define OLED_Support                  // Activate if you have an OLED display attached
 
 
 //#define AutoBaud                      // Auto detect Mavlink serial-in baud rate
@@ -334,21 +338,29 @@ bool daylightSaving = false;
 #if defined TEENSY3X               // Teensy3x
   #define MavStatusLed  13
   #define BufStatusLed  14
+  const bool ledPolarity = HIGH;      // Normal 
+  uint8_t   MavLedState = LOW; 
+  uint8_t   BufLedState = LOW;        
   #define FC_Mav_rxPin  9  
   #define FC_Mav_txPin  10
- // Fr_txPin (SPort)    1            Hard wired single wire to Taranis/Horus or XSR receiver
+  // Fr_txPin (SPort)    1            Hard wired single wire to Taranis/Horus or XSR receiver
+  #if (defined SD_Support) || (defined OLED_Support)
+  #endif
  
 #elif defined ESP32                 // ESP32 Platform
   #if (ESP32_Variant == 1)          // ESP32 Dev Module
     #define MavStatusLed  02        // Onboard LED
     #define BufStatusLed  27        // untested pin
+    const bool ledPolarity = HIGH   // Normal        
     #define FC_Mav_rxPin  16        // Mavlink to FC
     #define FC_Mav_txPin  17        // Mavlink from FC
     #define Fr_rxPin      13        // SPort - Not used in single wire mode
     #define Fr_txPin      4        // SPort - Use me  
-    #define SDA           21        // I2C OLED board
-    #define SCL           22        // I2C OLED board
-    #define i2cAddr      0x3C       // I2C OLED board
+    #if (defined SD_Support) || (defined OLED_Support)   
+      #define SDA           21        // I2C OLED board
+      #define SCL           22        // I2C OLED board
+      #define i2cAddr      0x3C       // I2C OLED board
+    #endif   
     int16_t wifi_rssi;    
     uint8_t startWiFiPin = 15;      // D15
     uint8_t WiFiPinState = 0;
@@ -364,13 +376,18 @@ bool daylightSaving = false;
   #if (ESP32_Variant == 2)          // Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
     #define MavStatusLed  15        // No Onboard LED
     #define BufStatusLed  99        // None  
+    const bool ledPolarity = HIGH;  // Normal  
+    uint8_t   MavLedState = LOW; 
+    uint8_t   BufLedState = LOW;            
     #define FC_Mav_rxPin  25        // Mavlink to FC
     #define FC_Mav_txPin  26        // Mavlink from FC
     #define Fr_rxPin      12        // SPort - Not used in single wire mode
     #define Fr_txPin      14        // SPort - Use me
-    #define SDA           05        // I2C OLED board
-    #define SCL           04        // I2C OLED board
-    #define i2cAddr      0x3C       // I2C OLED board
+    #if (defined SD_Support) || (defined OLED_Support)
+      #define SDA           05        // I2C OLED board
+      #define SCL           04        // I2C OLED board
+      #define i2cAddr      0x3C       // I2C OLED board
+    #endif  
     int16_t wifi_rssi;    
     uint8_t startWiFiPin = 13;     
     uint8_t WiFiPinState = 0;
@@ -383,13 +400,18 @@ bool daylightSaving = false;
     #endif
     #define MavStatusLed  18        // Blue LED
     #define BufStatusLed  19        // Green LED
+    const bool ledPolarity = HIGH;  // Normal 
+    uint8_t   MavLedState = LOW; 
+    uint8_t   BufLedState = LOW;             
     #define FC_Mav_rxPin  16        // Mavlink to FC
     #define FC_Mav_txPin  17        // Mavlink from FC
     #define Fr_rxPin      12        // SPort - Not used in single wire mode
     #define Fr_txPin      01        // SPort - Use me 
-    #define SDA           05        // I2C OLED board
-    #define SCL           04        // I2C OLED board
-    #define i2cAddr      0x3C       // I2C OLED board
+    #if (defined SD_Support) || (defined OLED_Support)
+      #define SDA           05        // I2C OLED board
+      #define SCL           04        // I2C OLED board 
+      #define i2cAddr      0x3C       // I2C OLED board
+    #endif  
     int16_t wifi_rssi;    
     uint8_t startWiFiPin = 13;     
     uint8_t WiFiPinState = 0;
@@ -397,14 +419,19 @@ bool daylightSaving = false;
   
   #if (ESP32_Variant == 4)          // Heltec Wifi Kit 32 (NOTE! 8MB) 
     #define MavStatusLed  25        // Onboard LED
-    #define BufStatusLed  99          
+    #define BufStatusLed  99   
+    const bool ledPolarity = HIGH;  // Normal 
+    uint8_t   MavLedState = HIGH; 
+    uint8_t   BufLedState = LOW;    
     #define FC_Mav_rxPin  27        // Mavlink to FC
     #define FC_Mav_txPin  17        // Mavlink from FC
     #define Fr_rxPin      12        // SPort - Not used in single wire mode
     #define Fr_txPin      14        // SPort - Use me 
-    #define SDA           04        // I2C OLED board
-    #define SCL           15        // I2C OLED board
-    #define i2cAddr      0x3C       // I2C OLED board
+    #if (defined SD_Support) || (defined OLED_Support)    
+      #define SDA           04        // I2C OLED board
+      #define SCL           15        // I2C OLED board
+      #define i2cAddr      0x3C       // I2C OLED board
+    #endif  
     #define OLED_RESET    16        // RESET here so no rest lower down
     int16_t wifi_rssi;    
     uint8_t startWiFiPin = 15;      // D15
@@ -416,15 +443,18 @@ bool daylightSaving = false;
   #if (ESP8266_Variant == 1)        // NodeMCU 12F
     #define MavStatusLed  D0        // Mavlink Status LED
     #define BufStatusLed  99        // None
+    const bool ledPolarity = LOW;  // Inverted  
+    uint8_t   MavLedState = HIGH;        
    //                     D4        // TXD1 - Debug log out                            
     #define FC_Mav_rxPin  D9        // RXD0 default  
     #define FC_Mav_txPin  D10       // TXD0 default    
     #define Fr_rxPin      D5        // GP10 SPort - Not used in single wire mode
     #define Fr_txPin      D6        // GPIO SPort - Use me 
-    #define SCL           D1        // I2C OLED board   
-    #define SDA           D2        // I2C OLED board
-
-    #define i2cAddr      0x3C       // I2C OLED board
+    #if (defined SD_Support) || (defined OLED_Support)  
+      #define SCL           D1        // I2C OLED board   
+      #define SDA           D2        // I2C OLED board
+      #define i2cAddr      0x3C       // I2C OLED board
+    #endif     
     int16_t wifi_rssi;   
     uint8_t startWiFiPin = D3;      
     uint8_t WiFiPinState = 0;
@@ -437,25 +467,29 @@ bool daylightSaving = false;
     static const uint8_t D1   = 5;    // SDA - optional
     static const uint8_t D2   = 4;    // SPort half-duplex
     static const uint8_t D3   = 0;    // Flash
-    static const uint8_t D4   = 2;    // TXD1 optional debug out
+    static const uint8_t D4   = 2;    // BoardLED & TXD1 optional debug out
     static const uint8_t D5   = 14;   // SPort rx (unused in half-duplex)
     static const uint8_t D6   = 12;   // P2-3 exposed dual row of pins
     static const uint8_t D7   = 13;   // CTS
     static const uint8_t D8   = 15;   // RTS
     static const uint8_t D9   = 3;    // RXD0
     static const uint8_t D10  = 1;    // TXD0
-
-    #define MavStatusLed  D7        // Mavlink Status LED
+    
+    #define MavStatusLed  D4        // Mavlink Status LED / shared with debugging
     #define BufStatusLed  99        // None
+    const bool ledPolarity = LOW;   // Inverted
+    uint8_t   MavLedState = HIGH; 
+    uint8_t   BufLedState = HIGH;   
     //                    D4        // TXD1 - Serial1 default debug log out                            
     #define FC_Mav_rxPin  D9        // RXD0 default  
     #define FC_Mav_txPin  D10       // TXD0 default    
     #define Fr_rxPin      D5        // SPort - Not used in single wire mode
     #define Fr_txPin      D2        // SPort half-duplex inverted - Use me 
-    #define SCL           D0        // I2C OLED board   
-    #define SDA           D1        // I2C OLED board
-
-    #define i2cAddr      0x3C       // I2C OLED board
+    #if (defined SD_Support) || (defined OLED_Support)
+      #define SCL           D0        // I2C OLED board   
+      #define SDA           D1        // I2C OLED board
+      #define i2cAddr      0x3C       // I2C OLED board
+    #endif       
     int16_t wifi_rssi;   
     uint8_t startWiFiPin = D8;      
     uint8_t WiFiPinState = 0;
@@ -473,9 +507,9 @@ bool daylightSaving = false;
   #endif
     
   //=================================================================================================   
-  //                             S D   C A R D   S U P P O R T   -   ESP Only - for now
+  //                             S D   C A R D   S U P P O R T   -   ESP32 Only - for now
   //================================================================================================= 
-  #if (defined ESP32)  || (defined ESP8266)
+  #if (defined ESP32) && (defined SD_Support)  
 
     #include <FS.h>
     #include <SD.h>
@@ -523,7 +557,7 @@ bool daylightSaving = false;
   //=================================================================================================   
   //                                 O L E D   S U P P O R T    E S P  O N L Y - for now
   //================================================================================================= 
-  #if (defined ESP32 || defined ESP8266)  
+  #if ((defined ESP32 || defined ESP8266)) && (defined OLED_Support)  
   
     #if not defined SD_Libs_Loaded   //  by SD block
       #include <SPI.h>                // for SD card and/or OLED

@@ -16,7 +16,7 @@ v2.50 2020-01-12 AutoAP: Activate udp broadcast on AP dhcp allocated IP subnet.
 
 
 //#define AutoBaud                  // Auto detect Mavlink serial-in baud rate
-#define mvBaudFC              115200   //  Mavlink to/from the flight controller - max 921600 - must match FC or long range radio
+#define mvBaudFC              57600   //  Mavlink to/from the flight controller - max 921600 - must match FC or long range radio
 
 #define frBaud                57600    // S.Port baud setting - default 57600 
 

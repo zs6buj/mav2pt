@@ -10,7 +10,8 @@
 Complete change log and debugging options are at the bottom of this tab
        
 v2.56.3 2020-03-03 Minor ESP8266 variants logic check 
-v2.56.4 2020-03-04 Remove spurious debugging code affecting S.Port Thanks pascale dragos.          
+v2.56.4 2020-03-04 Remove spurious debugging code affecting S.Port Thanks pascale dragos. 
+v2.56.5 2020-03-09 Reduce rssi timing cycle to 350mS from 700mS.         
 */
 //===========================================================================================
 //

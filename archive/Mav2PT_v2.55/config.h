@@ -23,13 +23,13 @@ v2.55  2020-02-04 Add RFD900X TXMOD ESP8266 variant
 
 
 
-#define WebOTA                        // ESP only. Enable wifi web Over_The_Air firmware updating. Browse to IP.
+//#define WebOTA                        // ESP only. Enable wifi web Over_The_Air firmware updating. Browse to IP.
 #define otaPassword      "mav2pt";    // OTA password - change me!
        
 
 // Choose only one of these three modes
-#define Ground_Mode          // Translator between Taranis and LRS tranceiver (like Dragonlink, ULRS, RFD900...)
-//#define Air_Mode             // Translator between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
+//#define Ground_Mode          // Translator between Taranis and LRS tranceiver (like Dragonlink, ULRS, RFD900...)
+#define Air_Mode             // Translator between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Translator between LRS tranceiver (like Dragonlink) and FrSky receiver (like XRS) in relay box on the ground
 
 
@@ -48,7 +48,7 @@ v2.55  2020-02-04 Add RFD900X TXMOD ESP8266 variant
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 or ESP8266 only
 
 // NOTE: The Bluetooth class library uses a lot of application memory. During Compile/Flash
@@ -630,7 +630,7 @@ uint32_t mvBaudFC_var     =       mvBaudFC;
 //#define Frs_Debug_Period
 //#define Frs_Debug_Payload
 //#define Mav_Debug_RingBuff
-//#define Debug_Air_Mode
+#define Debug_Air_Mode
 //#define Debug_Relay_Mode
 //#define Mav_List_Params      // Use this to test uplink to Flight Controller 
 //#define Mav_Debug_Params
