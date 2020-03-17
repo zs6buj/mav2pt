@@ -28,8 +28,8 @@ v2.55  2020-02-04 Add RFD900X TXMOD ESP8266 variant
        
 
 // Choose only one of these three modes
-//#define Ground_Mode          // Translator between Taranis and LRS tranceiver (like Dragonlink, ULRS, RFD900...)
-#define Air_Mode             // Translator between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
+#define Ground_Mode          // Translator between Taranis and LRS tranceiver (like Dragonlink, ULRS, RFD900...)
+//#define Air_Mode             // Translator between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Translator between LRS tranceiver (like Dragonlink) and FrSky receiver (like XRS) in relay box on the ground
 
 
@@ -628,9 +628,9 @@ uint32_t mvBaudFC_var     =       mvBaudFC;
 //#define Mav_Debug_All
 //#define Frs_Debug_All
 //#define Frs_Debug_Period
-//#define Frs_Debug_Payload
+#define Frs_Debug_Payload
 //#define Mav_Debug_RingBuff
-#define Debug_Air_Mode
+//#define Debug_Air_Mode
 //#define Debug_Relay_Mode
 //#define Mav_List_Params      // Use this to test uplink to Flight Controller 
 //#define Mav_Debug_Params
