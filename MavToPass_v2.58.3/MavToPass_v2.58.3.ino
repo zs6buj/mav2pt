@@ -781,7 +781,7 @@ void main_loop() {
  
 }
 //================================================================================================= 
-//                               E N D   O F   M  A  I  N    L  O  O  P
+//                               E N D   O F    M  A  I  N    L  O  O  P
 //================================================================================================= 
 
 bool Read_FC_To_RingBuffer() {
@@ -791,13 +791,13 @@ bool Read_FC_To_RingBuffer() {
 
     while(mvSerialFC.available()) { 
       byte c = mvSerialFC.read();
-   //   PrintByte(c);
+     // PrintByte(c);
       if(mavlink_parse_char(MAVLINK_COMM_0, c, &F2Rmsg, &status)) {  // Read a frame
          #ifdef  Debug_FC_Down
            Debug.println("Serial passed to RB from FC side :");
            PrintMavBuffer(&F2Rmsg);
         #endif              
-        MavToRingBuffer();       
+        MavToRingBuffer();    
       }
     }
     return true;  

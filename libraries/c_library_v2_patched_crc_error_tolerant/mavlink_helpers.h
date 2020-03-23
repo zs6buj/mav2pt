@@ -969,7 +969,7 @@ MAVLINK_HELPER unsigned int mavlink_get_proto_version(uint8_t chan)
 MAVLINK_HELPER uint8_t mavlink_parse_char(uint8_t chan, uint8_t c, mavlink_message_t* r_message, mavlink_status_t* r_mavlink_status)
 {
     uint8_t msg_received = mavlink_frame_char(chan, c, r_message, r_mavlink_status);
-	#ifdef Mav_Tolerate_Bad_CRC
+	#ifndef Mav_Tolerate_Bad_CRC
     if (msg_received == MAVLINK_FRAMING_BAD_CRC ||
 	msg_received == MAVLINK_FRAMING_BAD_SIGNATURE) {
 	    // we got a bad CRC. Treat as a parse failure

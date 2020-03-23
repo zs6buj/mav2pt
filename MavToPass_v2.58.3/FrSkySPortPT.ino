@@ -136,8 +136,6 @@ void SPort_Init(void)  {
         modeNow=mode;
         pb_rx = false;
         #if (defined ESP_Onewire) && (defined ESP32_SoftwareSerial)        
-       //   frSerial.enableRx(false);  // disable interrupts on rx pin
-       delay(2);
           frSerial.enableTx(true);  // Switch S.Port into send mode
         #endif
         #if defined Debug_SPort
@@ -149,8 +147,6 @@ void SPort_Init(void)  {
         pb_rx = true; 
         #if (defined ESP_Onewire) && (defined ESP32_SoftwareSerial)                  
           frSerial.enableTx(false);  // disable interrupts on tx pin     
-       //   frSerial.enableRx(true);   // Switch S.Port into receive mode
-           delay(2);
         #endif
         #if defined Debug_SPort
           Debug.println("rx <======");

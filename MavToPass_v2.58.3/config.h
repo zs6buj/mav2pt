@@ -746,7 +746,7 @@ bool daylightSaving = false;
 //#define Mav_Debug_Params
 //#define Frs_Debug_Params
 //#define Debug_BT    
-//#define Debug_FC_Down        // traffic down from FC to Ring Buffer
+#define Debug_FC_Down        // traffic down from FC to Ring Buffer
 //#define Debug_FC_Up          // traffic up to FC from GCS
 //#define Debug_GCS_Down       // traffic from RB to GCS
 //#define Debug_GCS_Up         // traffic up from GCS to FC
@@ -791,7 +791,7 @@ bool daylightSaving = false;
 //#define Debug_Eeprom
 //#define Debug_Web_Settings
 //#define Debug_SPort
-//#define Mav_Debug_RPM
+#define Mav_Debug_RPM
 
 //=================================================================================================   
 //                                   C H A N G E   L O G
