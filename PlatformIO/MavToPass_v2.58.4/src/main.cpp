@@ -860,7 +860,7 @@ bool Read_FC_To_RingBuffer() {
     }
   #endif 
   
-  #if defined ESP32 || defined ESP8266
+  #if ((defined ESP32)  || (defined ESP8266)) && (defined SD_Support) 
     if (set.fc_io == fc_sd)  {   //  SD
       mavlink_status_t status;
       if (sdStatus == 4) {      //  if open for read

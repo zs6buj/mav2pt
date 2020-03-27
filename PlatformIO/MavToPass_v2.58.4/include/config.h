@@ -361,8 +361,7 @@ bool daylightSaving = false;
     define Fr_txPin        8      // Not soft configurable. Change wiring   
   #endif  
     
-  #if (defined SD_Support) || (defined OLED_Support)
-  #endif
+
  
 #elif defined ESP32                 // ESP32 Platform
 
@@ -526,7 +525,7 @@ bool daylightSaving = false;
   //=================================================================================================   
   //                             S D   C A R D   S U P P O R T   -   ESP Only - for now
   //================================================================================================= 
-  #if (defined ESP32)  || (defined ESP8266)
+  #if ((defined ESP32)  || (defined ESP8266)) && (defined SD_Support)  
 
     #include <FS.h>
     #include <SD.h>
