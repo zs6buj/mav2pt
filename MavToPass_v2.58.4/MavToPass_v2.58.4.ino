@@ -473,7 +473,7 @@ void setup()  {
  //=================================================================================================   
  //                                  S E T U P   S D   C A R D  -  E S P 3 2  O N L Y  for now
  //=================================================================================================
-  #if (defined ESP32) && (defined SD_Support)  
+  #if (defined ESP32) || (defined ESP8266)) (&& (defined SD_Support)
   
     Debug.println("SD Support activated");
     OledPrintln("SD support activated");
@@ -859,7 +859,7 @@ bool Read_FC_To_RingBuffer() {
     }
   #endif 
   
-  #if defined ESP32 || defined ESP8266
+ #if ((defined ESP32)  || (defined ESP8266)) && (defined SD_Support)
     if (set.fc_io == fc_sd)  {   //  SD
       mavlink_status_t status;
       if (sdStatus == 4) {      //  if open for read

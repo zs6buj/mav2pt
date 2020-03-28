@@ -474,7 +474,7 @@ void setup()  {
  //=================================================================================================   
  //                                  S E T U P   S D   C A R D  -  E S P 3 2  O N L Y  for now
  //=================================================================================================
-  #if (defined ESP32) && (defined SD_Support)  
+  #if ((defined ESP32) || (defined ESP8266)) && (defined SD_Support)
   
     Debug.println("SD Support activated");
     OledPrintln("SD support activated");
@@ -860,7 +860,7 @@ bool Read_FC_To_RingBuffer() {
     }
   #endif 
   
-  #if ((defined ESP32)  || (defined ESP8266)) && (defined SD_Support) 
+ #if ((defined ESP32)  || (defined ESP8266)) && (defined SD_Support)
     if (set.fc_io == fc_sd)  {   //  SD
       mavlink_status_t status;
       if (sdStatus == 4) {      //  if open for read
@@ -1329,7 +1329,7 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
     }
   #endif
 
-  #if defined ESP32 
+  #if ((defined ESP32) || (defined ESP8266)) && (defined SD_Support) 
     if  (set.gs_sd == gs_on) {   //  SD Card
       if (sdStatus == 3) {     //  if open for write
           File file = SD.open(cPath, FILE_APPEND);
@@ -4607,7 +4607,7 @@ void OledPrint(String S) {
 //                             S D   C A R D   S U P P O R T   -   ESP32 Only - for now
 //================================================================================================= 
 
-#if defined ESP32 
+#if ((defined ESP32) || (defined ESP8266)) && (defined SD_Support)
 
   void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
     Debug.printf("Listing directory: %s\n", dirname);
@@ -6006,7 +6006,3 @@ void RawSettingsToStruct() {
 }
 
 //=================================================================================
-
-
-
-

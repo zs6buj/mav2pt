@@ -134,9 +134,9 @@ int32_t String_long(String S) {
     loginPage  =  styleLogin;
     loginPage += "<form name=loginForm>";
     sprintf(temp,  "<h1>%s Login</h1>", set.host);
-    loginPage += temp;    
-    loginPage += "<br><input type='radio' class='big' name='_nextFn' value='ota' > Update Firmware &nbsp &nbsp";
-    loginPage += "<input type='radio' class='big' name='_nextFn' value='set' checked> Settings <br> <br>";   
+    loginPage += temp;
+    loginPage += "<br><input type='radio' class='big' name='_nextFn' value='set' checked> Settings &nbsp &nbsp &nbsp";          
+    loginPage += "<input type='radio' class='big' name='_nextFn' value='ota' > Update Firmware<br> <br>";
     loginPage += "<input name=userid  placeholder='User ID' size='10'> ";
     loginPage += "<input name=pwd placeholder=Password type=Password> <br> <br>";
     loginPage += "<input type=submit onclick=check(this.form) class=btn value=Login></form>";

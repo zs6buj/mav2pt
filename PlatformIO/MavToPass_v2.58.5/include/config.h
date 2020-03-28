@@ -9,8 +9,9 @@
 /*
 Complete change log and debugging options are at the bottom of this tab
            
-v2.57   2020-03-15 Fix RFD900/TXMOD status LED. SoftwareSerial for ESP32. 
-v2.57.1 2020-03-16 Tidy up      
+v2.58.4 2020-03-25 RPM fixed (library path). 
+v2.58.5 2020-03-28 Add //#define SD_Support to optionally remove all SD support at compile time.
+                   This is especially useful for PlatformIO on ESP8266.         
 */
 //===========================================================================================
 //
@@ -20,11 +21,10 @@ v2.57.1 2020-03-16 Tidy up
 
 #define webSupport                      // ESP only. Enable wifi web support, including OTA firmware updating. Browse to IP.
 #define webPassword      "changeme!"    // Web password 
-//#define Reset_Web_Defaults            // Settings in eeprom
+//#define Reset_Web_Defaults            // Settings in eeprom. Do this if eeprom settings are corrupt or wrong.
 
 //#define SD_Support                    // Activate if you have an SD card reader attached
 //#define OLED_Support                  // Activate if you have an OLED display attached
-
 
 //#define AutoBaud                      // Auto detect Mavlink serial-in baud rate
                                         // NOTE: Set mvBaudFC = 57600 for Dragonlink and RFD900X
@@ -39,7 +39,7 @@ v2.57.1 2020-03-16 Tidy up
 //           D E F A U L T   T R A N S L A T I O N   M O D E   S E T T I N G S   
 //=================================================================================================       
 // Choose only one of these three translation modes
-#define Ground_Mode          // Translator between Taranis and LRS transceiver (like Dragonlink, ULRS, RFD900...)
+#define Ground_Mode          // Translator between Taranis et al and LRS transceiver (like Dragonlink, ULRS, RFD900...)
 //#define Air_Mode             // Translator between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Translator between LRS tranceiver (like Dragonlink) and FrSky receiver (like XRS) in relay box on the ground
 
@@ -64,17 +64,28 @@ v2.57.1 2020-03-16 Tidy up
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini have Serial3     
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
-//#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 only
+#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 only
 
-  #ifndef GCS_Mavlink_IO
-    #define GCS_Mavlink_IO  9    // NONE (default)
-  #endif
+#ifndef GCS_Mavlink_IO
+  #define GCS_Mavlink_IO  9    // NONE (default)
+#endif
 
-// NOTE2: The Bluetooth class library uses a lot of application memory. During Compile/Flash
-//        You may need to select Tools/Partition Scheme: "Minimal SPIFFS (1.9MB APP ...) or similar
+// NOTE: The Bluetooth class library uses a lot of application memory. During Compile/Flash
+//       you may need to select Tools/Partition Scheme: "Minimal SPIFFS (1.9MB APP ...) or similar
 
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with other GCS I/O
 
+//=================================================================================================                             
+//                          S E L E C T   E S P   B O A R D   V A R I A N T   
+//=================================================================================================
+
+//#define ESP32_Variant     1    //  ESP32 Dev Module - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
+//#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
+//#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi
+#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS ith OTA)" - contributed by Noircogi
+
+#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
+//#define ESP8266_Variant   2   // ESP-F Use me for RFD900X TX-MOD - use generic ESP8266 board on IDE
 
 
 //=================================================================================================
@@ -95,7 +106,7 @@ v2.57.1 2020-03-16 Tidy up
 #define APpw                 "password"         // Change me!
 #define APchannel            9                  // The wifi channel to use for our AP
 #define STAssid              "OmegaOffice"      // Target AP to connect to         <====
-#define STApw                "Navara@98"        // Target AP password        
+#define STApw                "changeme"        // Target AP password        
 
 #define Start_WiFi                       // Start WiFi at startup, override startWiFi Pin
 
@@ -106,31 +117,27 @@ v2.57.1 2020-03-16 Tidy up
 
 // Choose one default protocol - for ESP32 only
 //#define WiFi_Protocol 1    // TCP/IP
-#define WiFi_Protocol 2    // UDP   
+#define WiFi_Protocol 2    // UDP 
+
 
 //=================================================================================================
-//                              O T H E R   O P T I O N S  
+//                            O T H E R   U S E R   O P T I O N S  
 //=================================================================================================
 
-#define ESP_Invert               // = default, otherwise conventional two-wire uninverted (normally high)
-//#define ESP_Onewire              // enable half_duplex on single (tx) pin and wire 
 //#define Battery_mAh_Source  1  // Get battery mAh from the FC - note both rx and tx lines must be connected      
 //#define Battery_mAh_Source  2  // Define bat1_capacity and bat2_capacity below and use those 
 const uint16_t bat1_capacity = 5200;       
 const uint16_t bat2_capacity = 0;
 #define Battery_mAh_Source  3         // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
 
-
 #define SPort_Serial        1         // Teensy port1=pin1, port3=pin8. The default is Serial 1, but 3 is possible 
 
-
-
-// RSSI_Source is Automatic. Order of precedence: 
+// RSSI_Source is now automatic. Order of precedence: 
 //      First:  #109 SiK style RADIO_STATUS
 //      Second: #65 RC_CHANNELS
 //      Third:  #35 RC_CHANNELS_RAW
 
-#define RSSI_Override                // Dummy RSSI - fixed at 70%                                                                                                                    
+//#define RSSI_Override                // Dummy RSSI - fixed at 70%                                                                                                                    
 
 //#define Rssi_In_Percent             // Un-comment if RSSI is already %, not relative to (254/100)
 
@@ -147,23 +154,20 @@ const uint16_t bat2_capacity = 0;
 //#define Data_Streams_Enabled        // Requests data streams from FC. Requires both rx and tx lines to FC. Rather set SRn in Mission Planner
 #define Max_Waypoints  256          // Note. This is a global RAM trade-off. If exceeded then Debug message and shut down
 
-//=================================================================================================                             
-//                          S E L E C T   E S P   B O A R D   V A R I A N T   
-//=================================================================================================
-//#define ESP32_Variant     1    //  ESP32 Dev Module - there are several sub-variants that work
-//#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
-//#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi
-#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - contributed by Noircogi
-
-//#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
-#define ESP8266_Variant   2   // ESP-F Use me for RFD900X TX-MOD - use generic ESP8266 board on IDE
-
 //================================== Set your time zone here ======================================
+// Only for SD / TF Card adapter option
 // Date and time determines the TLog file name only
 //const float Time_Zone = 10.5;    // Adelaide, Australia
 const float Time_Zone = 2.0;    // Jo'burg
 bool daylightSaving = false;
 
+//=================================================================================================
+//                        E X P E R I M E N T A L    O P T I O N S  
+//    Don't change anything here unless you are confident you know the outcome
+
+//#define ESP32_SoftwareSerial    // otherwise HardwareSerial is used 
+//#define ESP_Onewire             // enable half_duplex on single (tx) pin and wire - Air/Relay
+//#define ESP_Air_Relay_Blind_Inject_OK  // Blind inject instead of interleaving
 
 //=================================================================================================   
 //                              Auto Determine Target Platform
@@ -225,13 +229,29 @@ bool daylightSaving = false;
 
   #if (not defined ESP32) && (not defined ESP8266) 
      #if (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3) || (defined webSupport)
-       #error WiFi and webSupport only work on an ESP32 or ESP8266 board
+    //   #error WiFi and webSupport only work on an ESP32 or ESP8266 board
+       #if defined FC_Mavlink
+         #undef FC_Mavlink
+       #endif  
+       #define FC_Mavlink_IO  0
+       #if defined GCS_Mavlink_IO
+         #undef GCS_Mavlink_IO
+       #endif   
+       #define GCS_Mavlink_IO 9
+       #if defined webSupport
+         #undef  webSupport
+       #endif  
      #endif  
   #endif
-  
+
+  #if (defined ESP8266)  && ((GCS_Mavlink_IO == 1) || (GCS_Mavlink_IO == 3))  // Can't do BT on 8266
+      #undef GCS_Mavlink_IO
+      #define GCS_Mavlink_IO  2    // WiFi Only
+  #endif
+         
   #if (not defined ESP32) 
      #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1) || (GCS_Mavlink_IO == 3)
-       #error Bluetooth works only on an ESP32 board
+       #error Bluetooth works only on an ESP32 board      
      #endif  
   #endif
   
@@ -261,12 +281,7 @@ bool daylightSaving = false;
     #ifndef ESP8266_Variant
          #error Please define an ESP8266 board variant
     #endif
-
-    #if (ESP8266_Variant == 2)     // ESP-F for RFD900X TX-MOD
-      #ifdef D3
-          #error Please choose the Generic ESP8266 Module board in the IDE
-      #endif
-    #endif  
+ 
   #endif         
 //=================================================================================================   
 //                S E T T I N G S   A N D   O P T I O N S   S T R U C T U R E
@@ -341,19 +356,27 @@ bool daylightSaving = false;
   #define BufStatusLed  14        
   #define FC_Mav_rxPin  9  
   #define FC_Mav_txPin  10
-  // Fr_txPin (SPort)    1            Hard wired single wire to Taranis/Horus or XSR receiver
+  #if (SPort_Serial == 1)
+    #define Fr_txPin       1      // Not soft configurable. Change wiring 
+    #define GC_Mav_rxPin   7    
+    #define GC_Mav_txPin   8   
+  #elif (SPort_Serial == 3)
+    define Fr_txPin        8      // Not soft configurable. Change wiring   
+  #endif  
+    
   #if (defined SD_Support) || (defined OLED_Support)
   #endif
  
 #elif defined ESP32                 // ESP32 Platform
+
   #if (ESP32_Variant == 1)          // ESP32 Dev Module
     #define MavStatusLed  02        // Onboard LED
     #define InvertMavLed false      
     #define BufStatusLed  27        // untested pin      
     #define FC_Mav_rxPin  16        // Mavlink to FC
     #define FC_Mav_txPin  17        // Mavlink from FC
-    #define Fr_rxPin      13        // SPort - Not used in single wire mode
-    #define Fr_txPin      4        // SPort - Use me  
+    #define Fr_rxPin      13        // SPort - Not used in 1-wire mode
+    #define Fr_txPin      4         // SPort - Use me  
     #if (defined SD_Support) || (defined OLED_Support)   
       #define SDA           21        // I2C OLED board
       #define SCL           22        // I2C OLED board
@@ -420,14 +443,18 @@ bool daylightSaving = false;
     #define Fr_rxPin      12        // SPort - Not used in single wire mode
     #define Fr_txPin      14        // SPort - Use me 
     
-    #if not defined OLED_Support    // I2C OLED board is built in
+    #if !defined OLED_Support    // I2C OLED board is built into Heltec WiFi Kit 32
       #define OLED_Support
     #endif
-    #define SDA           04        // I2C OLED board 
-    #define SCL           15        // I2C OLED board
-    #define i2cAddr      0x3C       // I2C OLED board
 
-    #define OLED_RESET    16        // RESET here so no rest lower down
+    #if (defined SD_Support) || (defined OLED_Support)   
+      #define SDA           04        // I2C OLED board 
+      #define SCL           15        // I2C OLED board
+      #define i2cAddr      0x3C       // I2C OLED board
+      #define OLED_RESET    16        // RESET here so no rest lower down    
+    #endif   
+
+
     int16_t wifi_rssi;    
     uint8_t startWiFiPin = 15;      // D15
     uint8_t WiFiPinState = 0;
@@ -435,15 +462,16 @@ bool daylightSaving = false;
   
 #elif defined ESP8266                    // ESP8266 Platform
 
-  #if (ESP8266_Variant == 1)        // NodeMCU 12F
-    #define MavStatusLed  D0        // Mavlink Status LED
+  #if (ESP8266_Variant == 1)        // NodeMCU 12F board
+  
+    #define MavStatusLed  D4        // D4 Board LED - Mav Status LED inverted logic - use 99 while debug
     #define InvertMavLed true      
     #define BufStatusLed  99        // None     
-   //                     D4        // TXD1 - Debug log out                            
+   //                     D4        // TXD1 - Serial1 debug log out SHARED WITH BOARD LED                         
     #define FC_Mav_rxPin  D9        // RXD0 default  
     #define FC_Mav_txPin  D10       // TXD0 default    
     #define Fr_rxPin      D5        // GP10 SPort - Not used in single wire mode
-    #define Fr_txPin      D6        // GPIO SPort - Use me 
+    #define Fr_txPin      D6        // GPIO SPort - Use me in single wire mode
     #if (defined SD_Support) || (defined OLED_Support)  
       #define SCL           D1        // I2C OLED board   
       #define SDA           D2        // I2C OLED board
@@ -469,14 +497,14 @@ bool daylightSaving = false;
     static const uint8_t D9   = 3;    // RXD0
     static const uint8_t D10  = 1;    // TXD0
     
-    #define MavStatusLed  D4        // Mavlink Status LED / shared with debugging
+    #define MavStatusLed  D4        // D4 Board LED - Mav Status LED inverted logic - use 99 while debug
     #define InvertMavLed true    
     #define BufStatusLed  99        // None
-    //                    D4        // TXD1 - Serial1 default debug log out                            
+    //                    D4        // TXD1 - Serial1 default debug log out SHARED WITH BOARD LED                           
     #define FC_Mav_rxPin  D9        // RXD0 default  
     #define FC_Mav_txPin  D10       // TXD0 default    
     #define Fr_rxPin      D5        // SPort - Not used in single wire mode
-    #define Fr_txPin      D2        // SPort half-duplex inverted - Use me 
+    #define Fr_txPin      D2        // SPort half-duplex inverted - Use me in single wire mode
     #if (defined SD_Support) || (defined OLED_Support)
       #define SCL           D0        // I2C OLED board   
       #define SDA           D1        // I2C OLED board
@@ -501,7 +529,7 @@ bool daylightSaving = false;
   //=================================================================================================   
   //                             S D   C A R D   S U P P O R T   -   ESP Only - for now
   //================================================================================================= 
-  #if (defined ESP32)  || (defined ESP8266)
+  #if ((defined ESP32)  || (defined ESP8266)) && (defined SD_Support) 
 
     #include <FS.h>
     #include <SD.h>
@@ -662,20 +690,25 @@ bool daylightSaving = false;
 
 #if (defined ESP32)  
   #define Debug               Serial         // USB
-  #define mvSerialFC          Serial2        //  RXD0 and TXD0 
-  #include <SoftwareSerial.h>
-  SoftwareSerial frSerial;    
+  #define mvSerialFC          Serial2        //  RXD0 and TXD0
+   
+  #if defined ESP32_SoftwareSerial
+    #include <SoftwareSerial.h>
+    SoftwareSerial frSerial; 
+  #else     // default HW Serial
+    #define frSerial          Serial1     
+  #endif   
+    
 #elif (defined ESP8266)
   #define Debug               Serial1        //  D4   TXD1 debug out  - no RXD1 !
   #define mvSerialFC          Serial         //  RXD0 and TXD0
   #include <SoftwareSerial.h>
   SoftwareSerial frSerial;  
-#else                      // Non ESP
-  #define Debug               Serial         // USB  
-  #define mvSerialFC          Serial2   
 #endif 
 
 #if (defined TEENSY3X)      //  Teensy 3.1
+  #define Debug               Serial         // USB  
+  #define mvSerialFC          Serial2   
   #if (SPort_Serial == 1) 
     #define frSerial              Serial1        // S.Port 
   #elif (SPort_Serial == 3)
@@ -725,7 +758,7 @@ bool daylightSaving = false;
 //#define Debug_GCS_Up         // traffic up from GCS to FC
 //#define Mav_Debug_Servo
 //#define Frs_Debug_Servo
-#define Debug_Rssi
+//#define Debug_Rssi
 //#define Mav_Debug_RC
 //#define Frs_Debug_RC
 //#define Mav_Debug_FC_Heartbeat
@@ -764,6 +797,8 @@ bool daylightSaving = false;
 //#define Debug_Eeprom
 //#define Debug_Web_Settings
 //#define Debug_SPort
+//#define Mav_Debug_RPM
+
 
 //=================================================================================================   
 //                                   C H A N G E   L O G
@@ -858,5 +893,12 @@ v2.56.1  2020-02-26 Add web interface to allow settings/parameter changes
 v2.56.2  2020-02-27 STM32F103C / Blue Pill / Maple Mini deprecated. Tidy up Teensy3.x warnings. 
 v2.56.3 2020-03-03 Minor ESP8266 variants logic check 
 v2.56.4 2020-03-04 Remove spurious debugging code affecting S.Port Thanks pascale dragos.     
-v2.56.5 2020-03-09 Reduce rssi timing cycle to 350mS from 700mS.                                            
+v2.56.5 2020-03-09 Reduce rssi timing cycle to 350mS from 700mS. 
+v2.57   2020-03-15 Fix RFD900/TXMOD status LED. SoftwareSerial for ESP32.  
+v2.58   2020-03-17 Option to work around apparent bug in Mavlink V2 Library. Tolerate crc errors.
+                   This fixes failure to parse certain mavlink messages, including #226 RPM 
+                   Needs more investigation. Use with caution!
+v2.58.1 2020-03-18 Improve user options on hw/sw serial 
+v2.58.2 2020-03-20 Stable. Lots of nice, small tweaks. Exp. code for inherent 1-wire on ESP
+v2.58.3 2020-03-22 Deactivate experimental CRC error tolerance for general use. My bad, sorry!                                           
 */

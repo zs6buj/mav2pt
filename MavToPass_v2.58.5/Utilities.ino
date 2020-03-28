@@ -5,27 +5,11 @@
 //
 //================================================================================================= 
 //=================================================================================================
-struct Battery {
-  float    mAh;
-  float    tot_mAh;
-  float    avg_dA;
-  float    avg_mV;
-  uint32_t prv_millis;
-  uint32_t tot_volts;      // sum of all samples
-  uint32_t tot_mW;
-  uint32_t samples;
-  bool ft;
-  };
-  
-struct Battery bat1     = {
-  0, 0, 0, 0, 0, 0, 0, true};   
-
-struct Battery bat2     = {
-  0, 0, 0, 0, 0, 0, 0, true};   
-
-//=================================================================================================  
+ 
 void ServiceStatusLeds() {
-  ServiceMavStatusLed();
+  if (MavStatusLed != 99) {
+    ServiceMavStatusLed();
+  }
   if (BufStatusLed != 99) {
     ServiceBufStatusLed();
   }
@@ -63,18 +47,24 @@ void BlinkMavLed(uint32_t period) {
 
 //=================================================================================================  
 void PrintByte(byte b) {
-  if ((b == 0x7E) && (mode == tx)) {
+  if (b == 0x7E) {
     Debug.println();
     clm = 0;
   }
   if (b<=0xf) Debug.print("0");
   Debug.print(b,HEX);
-  Debug.print(" ");
-  if(mode == tx) clm++;
+  if (pb_rx) {
+    Debug.print("<");
+  } else {
+    Debug.print(">");
+  }
+  /*
+  clm++;
   if (clm > 30) {
     Debug.println();
-    clm = 0;
+    clm=0;
   }
+  */
 }
 //=================================================================================================  
 
@@ -694,7 +684,7 @@ void OledPrint(String S) {
 //                             S D   C A R D   S U P P O R T   -   ESP32 Only - for now
 //================================================================================================= 
 
-#if defined ESP32 
+#if ((defined ESP32) || (defined ESP8266)) && (defined SD_Support)
 
   void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
     Debug.printf("Listing directory: %s\n", dirname);
@@ -1104,3 +1094,18 @@ const uint32_t su_timeout = 5000; // uS !
 
  return su_baud;
 } 
+//=================================================================================================
+void ReportSportStatusChange() {
+  
+   if (spGood != spPrev) {  // report on change of state
+     spPrev = spGood;
+     if (spGood) {
+      Debug.println("SPort read good!");
+      OledPrintln("SPort read good!");         
+     } else {
+      Debug.println("SPort read timeout!");
+      OledPrintln("SPort read timeout!");         
+     }
+   }
+}
+//================================================================================================= 

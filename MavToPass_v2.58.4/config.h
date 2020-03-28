@@ -243,9 +243,10 @@ bool daylightSaving = false;
   #endif
 
   #if (defined ESP8266)  && ((GCS_Mavlink_IO == 1) || (GCS_Mavlink_IO == 3))  // Can't do BT on 8266
-       #define GCS_Mavlink_IO  2    // WiFi Only
+      #undef GCS_Mavlink_IO
+      #define GCS_Mavlink_IO  2    // WiFi Only
   #endif
-       
+         
   #if (not defined ESP32) 
      #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1) || (GCS_Mavlink_IO == 3)
        #error Bluetooth works only on an ESP32 board      
@@ -526,7 +527,7 @@ bool daylightSaving = false;
   //=================================================================================================   
   //                             S D   C A R D   S U P P O R T   -   ESP Only - for now
   //================================================================================================= 
-  #if (defined ESP32)  || (defined ESP8266)
+  #if ((defined ESP32)  || (defined ESP8266)) && (defined SD_Support) 
 
     #include <FS.h>
     #include <SD.h>

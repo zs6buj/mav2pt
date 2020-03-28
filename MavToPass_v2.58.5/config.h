@@ -9,7 +9,9 @@
 /*
 Complete change log and debugging options are at the bottom of this tab
            
-v2.58.4 2020-03-25 RPM fixed (library path).           
+v2.58.4 2020-03-25 RPM fixed (library path). 
+v2.58.5 2020-03-28 Add //#define SD_Support to optionally remove all SD support at compile time.
+                   This is especially useful for PlatformIO on ESP8266.         
 */
 //===========================================================================================
 //
@@ -68,8 +70,8 @@ v2.58.4 2020-03-25 RPM fixed (library path).
   #define GCS_Mavlink_IO  9    // NONE (default)
 #endif
 
-// NOTE2: The Bluetooth class library uses a lot of application memory. During Compile/Flash
-//        You may need to select Tools/Partition Scheme: "Minimal SPIFFS (1.9MB APP ...) or similar
+// NOTE: The Bluetooth class library uses a lot of application memory. During Compile/Flash
+//       you may need to select Tools/Partition Scheme: "Minimal SPIFFS (1.9MB APP ...) or similar
 
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with other GCS I/O
 
@@ -82,8 +84,8 @@ v2.58.4 2020-03-25 RPM fixed (library path).
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi
 #define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS ith OTA)" - contributed by Noircogi
 
-#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
-//#define ESP8266_Variant   2   // ESP-F Use me for RFD900X TX-MOD - use generic ESP8266 board on IDE
+//#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
+#define ESP8266_Variant   2   // ESP-F Use me for RFD900X TX-MOD - use generic ESP8266 board on IDE
 
 
 //=================================================================================================
@@ -243,9 +245,10 @@ bool daylightSaving = false;
   #endif
 
   #if (defined ESP8266)  && ((GCS_Mavlink_IO == 1) || (GCS_Mavlink_IO == 3))  // Can't do BT on 8266
-       #define GCS_Mavlink_IO  2    // WiFi Only
+      #undef GCS_Mavlink_IO
+      #define GCS_Mavlink_IO  2    // WiFi Only
   #endif
-       
+         
   #if (not defined ESP32) 
      #if (FC_Mavlink_IO == 1) || (GCS_Mavlink_IO == 1) || (GCS_Mavlink_IO == 3)
        #error Bluetooth works only on an ESP32 board      
@@ -361,7 +364,8 @@ bool daylightSaving = false;
     define Fr_txPin        8      // Not soft configurable. Change wiring   
   #endif  
     
-
+  #if (defined SD_Support) || (defined OLED_Support)
+  #endif
  
 #elif defined ESP32                 // ESP32 Platform
 
@@ -525,7 +529,7 @@ bool daylightSaving = false;
   //=================================================================================================   
   //                             S D   C A R D   S U P P O R T   -   ESP Only - for now
   //================================================================================================= 
-  #if ((defined ESP32)  || (defined ESP8266)) && (defined SD_Support)  
+  #if ((defined ESP32)  || (defined ESP8266)) && (defined SD_Support) 
 
     #include <FS.h>
     #include <SD.h>

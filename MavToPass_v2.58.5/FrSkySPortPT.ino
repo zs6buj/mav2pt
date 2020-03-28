@@ -1,15 +1,15 @@
 //================================================================================================= 
 //================================================================================================= 
 //
-//                                       F  R  S  K  Y  S  P  O  R  T
+//                                    F  R  S  K  Y  S  P  O  R  T
 //
 //================================================================================================= 
 //================================================================================================= 
 
+// Local FrSky variables
 
-// Frsky variables
 byte     nb, lb;                      // NextByt, LastByt of ByteStuff pair     
-short    crc;                         // of frsky-packet
+short    crc;                         // RCR of frsky packet
 uint8_t  time_slot_max = 16;              
 uint32_t time_slot = 1;
 float a, az, c, dis, dLat, dLon;
@@ -20,7 +20,7 @@ uint8_t sv_count = 0;
   SPortMode mode, modeNow;
   
 //=================================================================================================  
-void FrSkySPort_Init(void)  {
+void SPort_Init(void)  {
 
   for (int i=0 ; i < sb_rows ; i++) {  // initialise sensor table
     sb[i].id = 0;
@@ -36,36 +36,57 @@ void FrSkySPort_Init(void)  {
 
   frRx = Fr_rxPin;
   frTx = Fr_txPin;
-  #if defined ESP_Invert
-    frInvert = true;
-    Debug.println("ESP S.Port inverted");
-    #else
-      frInvert = false;
-    Debug.print("ESP S.Port NOT inverted. Hardware inverter required.");
-  #endif
-  #if defined ESP_Onewire
-    /*
-    void SoftwareSerial::begin(uint32_t baud, SoftwareSerialConfig config,
-      int8_t rxPin, int8_t txPin,
-      bool invert, int bufCapacity, int isrBufCapacity);
-      if (-1 != rxPin) m_rxPin = rxPin;
-      if (-1 != txPin) m_txPin = txPin;
-      m_oneWire = (m_rxPin == m_txPin);
-     */ 
 
-    frRx = frTx;     //  Share tx pin. Enable oneWire (half duplex)
-    Debug.printf("ESP S.Port half-duplex single wire on pin %d \n", frTx); 
+  #if defined ESP_Onewire 
+    bool oneWire = true;
   #else
-    Debug.printf("ESP S.Port rxpin=%d and txpin=%d need a hardware single-wire converter", frRx, frTx);
+     bool oneWire = false;
   #endif
+       
+  if ((oneWire) || (set.trmode == ground)) {
+    frInvert = true;
+    Debug.print("S.Port on ESP is inverted and is ");
+  } else {
+    frInvert = false;
+    Debug.print("S.PORT NOT INVERTED! Hw inverter to 1-wire required. S.Port on ESP is "); 
+  }
+
+  #if ((defined ESP8266) || (defined ESP32) && (defined ESP32_SoftwareSerial))
   
-  frSerial.begin(frBaud, SWSERIAL_8N1, frRx, frTx, frInvert);     // SoftwareSerial
-  // modeNow = tx;  // force mode set to rx
-  //frSerial.enableIntTx(true);
+      if (oneWire) {
+        frRx = frTx;     //  Share tx pin. Enable oneWire (half duplex)
+        Debug.printf("1-wire half-duplex on pin %d \n", frTx); 
+      } else {
+      if (set.trmode == ground) {
+        Debug.printf("1-wire simplex on tx pin = %d\n", frTx);
+      } else { 
+        Debug.printf("2-wire on pins rx = %d and tx = %d\n", frRx, frTx);
+        if ((set.trmode == air) || (set.trmode == relay)) {
+          Debug.println("Use a 2-wire to 1-wire converter for Air and Relay Modes");
+        }  
+       }  
+      }
+      frSerial.begin(frBaud, SWSERIAL_8N1, frRx, frTx, frInvert);     // SoftwareSerial
+      Debug.println("Using SoftwareSerial for S.Port");
+      if (oneWire) {
+        frSerial.enableIntTx(true);
+      }  
+  #else  // HardwareSerial
+    
+      frSerial.begin(frBaud, SERIAL_8N1, frRx, frTx, frInvert); 
+      if (set.trmode == ground)  {
+        Debug.printf("on tx pin = %d\n", frTx);
+      } else  
+      if ((set.trmode == air) || (set.trmode == relay)) {
+        Debug.printf("on pins rx = %d and tx = %d\n", frRx, frTx);  
+        Debug.println("Use a 2-wire to 1-wire converter for Air and Relay Modes");
+      }  
+   
+  #endif
 #endif
 
 #if (defined TEENSY3X) 
-  frSerial.begin(frBaud); // Teensy 3.x    rx and tx hard wired
+  frSerial.begin(frBaud); // Teensy 3.x    tx pin hard wired
  #if (SPort_Serial == 1)
   // Manipulate UART registers for S.Port working
    uartC3   = &UART0_C3;  // UART0 is Serial1
@@ -81,6 +102,9 @@ void FrSkySPort_Init(void)  {
    UART2_C1 = 0xA0;       // Switch Serial1 into single wire mode
    UART2_S2 = 0x10;       // Invert Serial1 Rx levels;
  #endif
+ 
+  Debug.printf("S.Port on Teensy3.x inverted 1-wire half-duplex on pin %d \n", Fr_txPin); 
+ 
 #endif   
 
 }   
@@ -89,6 +113,7 @@ void FrSkySPort_Init(void)  {
 
   void setSPortMode(SPortMode mode); 
   void setSPortMode(SPortMode mode) {   
+    
   #if (defined TEENSY3X) 
     if(mode == tx && modeNow !=tx) {
       *uartC3 |= 0x20;                 // Switch S.Port into send mode
@@ -106,25 +131,28 @@ void FrSkySPort_Init(void)  {
     }
   #endif
 
-  #if (defined ESP32) || (defined ESP8266)
-    if(mode == tx && modeNow !=tx) { 
-   //   frSerial.enableRx(false);  // disable interrupts on rx pin
-      frSerial.enableTx(true);  // Switch S.Port into send mode
-      modeNow=mode;
-      #if defined Debug_SPort
-        Debug.println("tx <======");
-      #endif
-    }
-    else if(mode == rx && modeNow != rx) {   
-      frSerial.enableTx(false);  // disable interrupts on tx pin     
-     // frSerial.enableRx(true);   // Switch S.Port into receive mode
-      modeNow=mode;
-      #if defined Debug_SPort
-        Debug.println("rx <======");
-      #endif
-    }
-  #endif  
-
+  #if (defined ESP8266) || (defined ESP32) 
+      if(mode == tx && modeNow !=tx) { 
+        modeNow=mode;
+        pb_rx = false;
+        #if (defined ESP_Onewire) && (defined ESP32_SoftwareSerial)        
+          frSerial.enableTx(true);  // Switch S.Port into send mode
+        #endif
+        #if defined Debug_SPort
+          Debug.println("tx <======");
+        #endif
+      }   else 
+      if(mode == rx && modeNow != rx) {   
+        modeNow=mode; 
+        pb_rx = true; 
+        #if (defined ESP_Onewire) && (defined ESP32_SoftwareSerial)                  
+          frSerial.enableTx(false);  // disable interrupts on tx pin     
+        #endif
+        #if defined Debug_SPort
+          Debug.println("rx <======");
+        #endif
+      } 
+  #endif
   }
 //=================================================================================================  
   void frSerialSafeWrite(byte b) {
@@ -132,7 +160,8 @@ void FrSkySPort_Init(void)  {
     frSerial.write(b);   
     #if defined Debug_SPort  
       PrintByte(b);
-    #endif  
+    #endif 
+    delay(0); // yield to rtos for wifi & bt to get a sniff
   }
 //=================================================================================================
  byte frSerialSafeRead() {
@@ -140,45 +169,47 @@ void FrSkySPort_Init(void)  {
     byte b = frSerial.read(); 
     #if defined Debug_SPort  
       PrintByte(b);
-    #endif  
+    #endif 
+    delay(0); // yield to rtos for wifi & bt to get a sniff 
   return b;
   }
  
 //=================================================================================================  
-
-void ReadSPort(void) {
-  #if defined Debug_Air_Mode || defined Debug_Relay_Mode
-  //  Debug.println("Reading S.Port "); 
-  #endif
-
+//=================================================================================================
+void SPort_Interleave_Packet(void) {
+  setSPortMode(rx);
   uint8_t prevByt=0;
   uint8_t Byt = 0;
   while ( frSerial.available())   {  
     Byt =  frSerialSafeRead();
 
     if ((prevByt == 0x7E) && (Byt == 0x1B)) { 
+      sp_read_millis = millis(); 
+      spGood = true;
+      ReportSportStatusChange();
       #if defined Debug_SPort
         Debug.println("match"); 
       #endif
-      FrSkySPort_Inject_Packet(); 
+      SPort_Inject_Packet();  //  <========================
+      return;
     }     
   prevByt=Byt;
   }
   // and back to main loop
 }  
 
-
+//=================================================================================================
 //=================================================================================================  
 
-void Emulate_ReadSPort() {
+void SPort_Blind_Inject_Packet() {         // Ground Mode
  
-  FrSkySPort_Inject_Packet();  
+  SPort_Inject_Packet();      //  <========================
 
   // and back to main loop
 }
 
 //=================================================================================================  
-void FrSkySPort_Inject_Packet() {
+void SPort_Inject_Packet() {
   #if defined Frs_Debug_Period
     ShowPeriod(0);   
   #endif  
@@ -253,12 +284,12 @@ void FrSkySPort_Inject_Packet() {
       
     if (sb[ptr].id == 0xF101) {
       if (set.trmode != relay) {   
-        FrSkySPort_SendByte(0x7E, false);   
-        FrSkySPort_SendByte(0x1B, false);  
+        SPort_SendByte(0x7E, false);   
+        SPort_SendByte(0x1B, false);  
       }
      }
                               
-    FrSkySPort_SendDataFrame(0x1B, sb[ptr].id, sb[ptr].payload);
+    SPort_SendDataFrame(0x1B, sb[ptr].id, sb[ptr].payload);
     sb[ptr].payload = 0;  
     sb[ptr].inuse = false; // free the row for re-use
   }
@@ -371,7 +402,7 @@ void PackSensorTable(uint16_t id, uint8_t subid) {
 }
 //=================================================================================================  
 
-void FrSkySPort_SendByte(uint8_t byte, bool addCrc) {
+void SPort_SendByte(uint8_t byte, bool addCrc) {
   #if (not defined inhibit_SPort) 
     
    if (!addCrc) {
@@ -406,7 +437,7 @@ void CheckByteStuffAndSend(uint8_t byte) {
   #endif     
 }
 //=================================================================================================  
-void FrSkySPort_SendCrc() {
+void SPort_SendCrc() {
   uint8_t byte;
   byte = 0xFF-crc;
 
@@ -417,14 +448,14 @@ void FrSkySPort_SendCrc() {
   crc = 0;          // CRC reset
 }
 //=================================================================================================  
-void FrSkySPort_SendDataFrame(uint8_t Instance, uint16_t Id, uint32_t value) {
+void SPort_SendDataFrame(uint8_t Instance, uint16_t Id, uint32_t value) {
 
   if (set.trmode == ground) {    // Only if ground mode send these bytes, else XSR sends them
-    FrSkySPort_SendByte(0x7E, false);       //  START/STOP don't add into crc
-    FrSkySPort_SendByte(Instance, false);   //  don't add into crc  
+    SPort_SendByte(0x7E, false);       //  START/STOP don't add into crc
+    SPort_SendByte(Instance, false);   //  don't add into crc  
   }
   
-  FrSkySPort_SendByte(0x10, true );   //  Data framing byte
+  SPort_SendByte(0x10, true );   //  Data framing byte
  
   uint8_t *bytes = (uint8_t*)&Id;
   #if defined Frs_Debug_Payload
@@ -433,13 +464,13 @@ void FrSkySPort_SendDataFrame(uint8_t Instance, uint16_t Id, uint32_t value) {
     Debug.print(" "); 
     PrintByte(bytes[1]);
   #endif
-  FrSkySPort_SendByte(bytes[0], true);
-  FrSkySPort_SendByte(bytes[1], true);
+  SPort_SendByte(bytes[0], true);
+  SPort_SendByte(bytes[1], true);
   bytes = (uint8_t*)&value;
-  FrSkySPort_SendByte(bytes[0], true);
-  FrSkySPort_SendByte(bytes[1], true);
-  FrSkySPort_SendByte(bytes[2], true);
-  FrSkySPort_SendByte(bytes[3], true);
+  SPort_SendByte(bytes[0], true);
+  SPort_SendByte(bytes[1], true);
+  SPort_SendByte(bytes[2], true);
+  SPort_SendByte(bytes[3], true);
   
   #if defined Frs_Debug_Payload
     Debug.print("Payload (send order) "); 
@@ -455,8 +486,7 @@ void FrSkySPort_SendDataFrame(uint8_t Instance, uint16_t Id, uint32_t value) {
     Debug.println("/");  
   #endif
   
-  FrSkySPort_SendCrc();
-
+  SPort_SendCrc();
 }
 //=================================================================================================  
   uint32_t bit32Extract(uint32_t dword,uint8_t displ, uint8_t lth) {
@@ -1265,7 +1295,7 @@ void Pack_Rssi_F101(uint16_t id) {          // data id 0xF101 RSSI tell LUA scri
 
   #if defined Frs_Debug_All || defined Debug_Rssi
     ShowPeriod(0);    
-    Debug.print("FrSky in Rssi 0xF101: ");   
+    Debug.print("FrSky in Rssi 0x5F101: ");   
     Debug.print(" fr_rssi="); Debug.print(fr_rssi);
     Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.print(" "); 
     PrintPayload(fr_payload);
