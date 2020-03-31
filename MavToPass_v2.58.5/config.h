@@ -141,6 +141,8 @@ const uint16_t bat2_capacity = 0;
 
 //#define Rssi_In_Percent             // Un-comment if RSSI is already %, not relative to (254/100)
 
+//#define QLRS // QLRS Longe Range System (RSSI FIX)
+
 // Status_Text messages place a huge burden on the meagre 4 byte FrSky telemetry payload bandwith
 // The practice has been to send them 3 times to ensure that they arrive unscathed at the receiver
 //  but that makes the bandwidth limitation worse and may crowd out other message types. Try without

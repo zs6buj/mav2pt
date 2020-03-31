@@ -2146,9 +2146,12 @@ void DecodeOneMavFrame() {
           break; 
         case MAVLINK_MSG_ID_RADIO_STATUS:         // #109
           if (!mavGood) break;
-
-            ap_rssi109 = mavlink_msg_radio_status_get_rssi(&R2Gmsg);         // air signal strength
-            ap_remrssi = mavlink_msg_radio_status_get_remrssi(&R2Gmsg);      // remote signal strength
+            #ifdef QLRS 
+              ap_rssi109 = mavlink_msg_radio_status_get_remrssi(&R2Gmsg);      // QRLS uses remote signal strength as RSSI
+            #else
+              ap_rssi109 = mavlink_msg_radio_status_get_rssi(&R2Gmsg);         // air signal strength
+            #endif      
+            ap_remrssi = mavlink_msg_radio_status_get_remrssi(&R2Gmsg);      // remote signal strength   
             ap_txbuf = mavlink_msg_radio_status_get_txbuf(&R2Gmsg);          // how full the tx buffer is as a percentage
             ap_noise = mavlink_msg_radio_status_get_noise(&R2Gmsg);          // remote background noise level
             ap_remnoise = mavlink_msg_radio_status_get_remnoise(&R2Gmsg);    // receive errors
