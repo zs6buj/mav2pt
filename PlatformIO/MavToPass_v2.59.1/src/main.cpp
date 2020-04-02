@@ -1,4 +1,5 @@
 #include <Arduino.h>
+
 /*
 =====================================================================================================================
      MavToPass  (Mavlink To FrSky Passthrough) Protocol Translator
@@ -2147,12 +2148,9 @@ void DecodeOneMavFrame() {
           break; 
         case MAVLINK_MSG_ID_RADIO_STATUS:         // #109
           if (!mavGood) break;
-            #ifdef QLRS 
-              ap_rssi109 = mavlink_msg_radio_status_get_remrssi(&R2Gmsg);      // QRLS uses remote signal strength as RSSI
-            #else
-              ap_rssi109 = mavlink_msg_radio_status_get_rssi(&R2Gmsg);         // air signal strength
-            #endif      
-            ap_remrssi = mavlink_msg_radio_status_get_remrssi(&R2Gmsg);      // remote signal strength   
+
+            ap_rssi109 = mavlink_msg_radio_status_get_rssi(&R2Gmsg);         // air signal strength
+            ap_remrssi = mavlink_msg_radio_status_get_remrssi(&R2Gmsg);      // remote signal strength
             ap_txbuf = mavlink_msg_radio_status_get_txbuf(&R2Gmsg);          // how full the tx buffer is as a percentage
             ap_noise = mavlink_msg_radio_status_get_noise(&R2Gmsg);          // remote background noise level
             ap_remnoise = mavlink_msg_radio_status_get_remnoise(&R2Gmsg);    // receive errors
@@ -2161,13 +2159,15 @@ void DecodeOneMavFrame() {
             rssi109 = true;  
               
             // If we get #109 then it must be a SiK fw radio, so use this record for rssi
-            rssiGood=true;            
-            ap_rssi = ap_rssi109;   //  Percent
-            
-            #if defined Rssi_In_Percent
-              ap_rssi = ap_rssi109;          //  Percent
+            rssiGood=true;   
+            #ifdef QLRS 
+              ap_rssi = ap_remrssi;        // QRLS uses remote rssi - patch from giocomo892
             #else
-              ap_rssi = ap_rssi109 / 2.54;   //  254 -> 100%    // Patch from hasi123        
+              ap_rssi = ap_rssi109;        //  254 -> 100% (default) or percent (option)
+            #endif          
+            
+            #if not defined Rssi_In_Percent
+              ap_rssi /=  2.54;   //  254 -> 100%    // Patch from hasi123        
             #endif
             
             #if defined Mav_Debug_All || defined Debug_Rssi || defined Mav_Debug_RC
@@ -5048,32 +5048,48 @@ void ReportSportStatusChange() {
 #if defined webSupport
 
  String styleLogin =
-    "<style>#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
+    "<style>h1{background:#3498db;color:#fff;border-radius:5px;height:34px;font-family:sans-serif;}"
+    "#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
     "input{background:#f1f1f1;border:0;padding:0 15px}body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
-    "#file-input{padding:0;border:1px solid #ddd;line-height:44px;text-align:left;display:block;cursor:pointer}"
-    "#bar,#prgbar{background-color:#f1f1f1;border-radius:10px}#bar{background-color:#3498db;width:0%;height:10px}"
     "form{background:#fff;max-width:258px;margin:75px auto;padding:30px;border-radius:5px;text-align:center}"
-    ".btn{background:#3498db;color:#fff;cursor:pointer} .big{ width: 1em; height: 1em;}</style>";
+    ".btn{background:#3498db;color:#fff;cursor:pointer} .big{ width: 1em; height: 1em;}"
+    "::placeholder {color: white; opacity: 1; /* Firefox */}"
+    "</style>";
    
  String styleSettings =
     "<style>"
+    "h{color:#fff;font-family:sans-serif;}"
+    "h3{background:#3498db;color:#fff;border-radius:5px;height:22px;font-family:sans-serif;}"
     "input{background:#f1f1f1;border:1;margin:8px auto;font-size:14px}"
     "body{background:#3498db;font-family:arial;font-size:10px;color:black}"
     "#bar,#prgbar{background-color:#f1f1f1;border-radius:10px}#bar{background-color:#3498db;width:0%;height:10px}"
     "form{background:#fff;max-width:400px;margin:30px auto;padding:30px;border-radius:10px;text-align:left;font-size:16px}"
-    ".big{ width: 1em; height: 1em;} .bold {font-weight: bold;} "
+    ".big{ width: 1em; height: 1em;} .bold {font-weight: bold;}"
     "</style>";
 
- String otaIndex = styleLogin +
-    "<style>form{max-width:450px;margin:75px auto;padding:30px;border-radius:10px;text-align:centre}</style>"
-    "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>"
+ String styleOTA =
+    "<style>#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
+    "input{background:#f1f1f1;border:0;padding:0}"
+    "body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
+    "#file-input{padding:0;border:1px solid #ddd;line-height:44px;text-align:left;display:block;cursor:pointer}"
+    "#bar,#prgbar{background-color:#f1f1f1;border-radius:10px}#bar{background-color:#3498db;width:0%;height:10px}"
+    "form{background:#fff;margin:75px auto;padding:30px;text-align:center;max-width:450px;border-radius:10px;}"       
+    ".btn{background:#3498db;color:#fff;cursor:pointer; width: 80px;} .big{ width: 1em; height: 1em;}</style>"  
+    "<script>function backtoLogin() {window.close(); window.open('/');} </script>";
+
+   
+ String otaIndex = styleOTA +  
+    "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js'></script>"
     "<form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>"
     "<input type='file' name='update' id='file' onchange='sub(this)' style=display:none>"
-    "<label id='file-input' for='file'>   Choose file...</label>"
-    "<input type='submit' class=btn value='Update'>"
+    "<label id='file-input' for='file' class=btn > Choose file...</label><br><br>"
+    "<center><input type='submit' onclick='backtoLogin()' class=btn value='Cancel'> &nbsp &nbsp &nbsp &nbsp "  
+    "<input type='submit' class=btn value='Update'></center>"
     "<br><br>"
-    "<div id='prg'></div>"
-    "<br><div id='prgbar'><div id='bar'></div></div><br></form>"
+    "<div id='prg' align='left'></div>"
+    "<br><left><div id='prgbar'><div id='bar'></div></div><br><br>"
+    "<p id='rebootmsg'></p><br><br>"
+    "<center><input type='submit' onclick='window.close()' class=btn value='Close'></center></form>"
     "<script>"
     "function sub(obj){"
     "var fileName = obj.value.split('\\\\');"
@@ -5096,19 +5112,17 @@ void ReportSportStatusChange() {
     "var per = evt.loaded / evt.total;"
     "$('#prg').html('progress: ' + Math.round(per*100) + '%');"
     "$('#bar').css('width',Math.round(per*100) + '%');"
+    "if (per == 1.0) {document.getElementById('rebootmsg').innerHTML = 'Rebooting .....'}"
     "}"
     "}, false);"
     "return xhr;"
     "},"
-    "success:function(d, s) {"
-    "console.log('success!') "
-    "},"
-    "error: function (a, b, c) {"
-    "}"
+    "success:function(d, s) {console.log('success!')},"
+    "error: function (a, b, c) {}"
     "});"
     "});"
     "</script>";
-    
+
   String settingsPage;
   String loginPage;
   char   temp[128]; 
@@ -5177,15 +5191,15 @@ int32_t String_long(String S) {
     loginPage += temp;
     loginPage += "<br><input type='radio' class='big' name='_nextFn' value='set' checked> Settings &nbsp &nbsp &nbsp";          
     loginPage += "<input type='radio' class='big' name='_nextFn' value='ota' > Update Firmware<br> <br>";
-    loginPage += "<input name=userid  placeholder='User ID' size='10'> ";
-    loginPage += "<input name=pwd placeholder=Password type=Password> <br> <br>";
+    loginPage += "<input name=userid class=btn placeholder='User ID' size='10' color:#fff;> ";
+    loginPage += "<input name=pwd class=btn placeholder=Password type=Password> <br> <br>";
     loginPage += "<input type=submit onclick=check(this.form) class=btn value=Login></form>";
     loginPage += "<script>";
     loginPage += "function check(form) {";
     sprintf(temp, "if(form.userid.value=='admin' && form.pwd.value=='%s')", webPassword);
     loginPage += temp;
-    loginPage += "{{if(form._nextFn.value=='ota'){window.open('/otaIndex')}}";
-    loginPage += "{if(form._nextFn.value=='set'){window.open('/settingsIndex')}}}";
+    loginPage += "{{if(form._nextFn.value=='ota'){window.close(); window.open('/otaIndex')}}";
+    loginPage += "{if(form._nextFn.value=='set'){window.close(); window.open('/settingsIndex')}}}";
     loginPage += "else";
     loginPage += "{alert('Error Password or Username')}";
     loginPage += "}";
@@ -5195,7 +5209,7 @@ int32_t String_long(String S) {
   void ComposeSettingsPage() {
    
   settingsPage  = styleSettings;
-  settingsPage += "<!DOCTYPE html><html><body><h>Mavlink To Passthrough</h><form action='/settingsReturnIndex' ";  
+  settingsPage += "<!DOCTYPE html><html><body><h>Mavlink To Passthrough</h><form action='' ";  
   settingsPage += "autocomplete='on'> <center> <b><h3>MavToPassthrough Translator Setup</h3> </b></center> <style>text-align:left</style>";
   settingsPage += "Translator Mode: &nbsp &nbsp";
   sprintf(temp, "<input type='radio' class='big' name='_trmode' value='Ground' %s> Ground &nbsp &nbsp", set.trmode1);
@@ -5278,11 +5292,11 @@ int32_t String_long(String S) {
   settingsPage += temp;
   sprintf(temp, "<input type='radio' class='big' name='_btmode' value='Slave' %s> Slave &nbsp &nbsp <br>", set.btmode2);
   settingsPage += temp;
-  sprintf(temp, "Slave Connect To: <input type='text' name='_btSlaveConnectTo' value='%s' size='20' maxlength='20'> <br><br><center>", set.btSlaveConnectTo);
+  sprintf(temp, "Slave Connect To: <input type='text' name='_btSlaveConnectTo' value='%s' size='20' maxlength='20'>  <br><br><center>", set.btSlaveConnectTo);
   settingsPage += temp;
-  settingsPage += "<b><input type='submit' class='bold' value='Save & Reboot'> </b><br><br>";
+  settingsPage += "<b><input type='submit' onclick='closeWin()' formaction='/' class=btn value='Cancel'> </b>&nbsp &nbsp &nbsp &nbsp";
+  settingsPage += "&nbsp &nbsp &nbsp &nbsp<b><input type='submit' formaction='/settingsReturnIndex' class=btn value='Save & Reboot'> </b><br><br>";
   settingsPage += "<p><font size='1' color='black'><strong>";
-//  settingsPage += pgm_name.substring(0, pgm_name.lastIndexOf('.'));
   settingsPage += pgm_name + ".  Compiled for "; 
   #if defined ESP32 
     settingsPage += "ESP32";
@@ -5290,6 +5304,11 @@ int32_t String_long(String S) {
     settingsPage += "ESP8266";
   #endif   
   settingsPage += "</strong></p></center> </form> </body>";
+  settingsPage += "<script>";
+  settingsPage += "var myWindow";
+  settingsPage += "function closeWin() {";
+  settingsPage += "myWindow.close() }";
+  settingsPage += "</script>";
 }
 //=================================================================================
 
@@ -5752,10 +5771,8 @@ void RefreshHTMLButtons() {
       }
     } else if (upload.status == UPLOAD_FILE_END) {
       if (Update.end(true)) { //true to show the percentage progress bar
-    //    String s = "<a href='/'> Update Success. Rebooting........  Back to login screen</a>";
-    //    server.send(200, "text/html", s);
         Debug.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
-        delay(5000);
+        delay(2000);
       } else {
         Update.printError(Debug);
       }
