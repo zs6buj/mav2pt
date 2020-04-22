@@ -47,7 +47,7 @@ v2.55  2020-02-04 Add RFD900X TXMOD ESP8266 variant
 // How does Mavlink telemetry leave this translator?
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
-//#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
+#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 or ESP8266 only
 
@@ -119,10 +119,10 @@ const uint16_t bat2_capacity = 0;
                              
 //**********************   S E L E C T   E S P   B O A R D   V A R I A N T   ******************
 
-#define ESP32_Variant     1    //  ESP32 Dev Module - there are several sub-variants that work
+//#define ESP32_Variant     1    //  ESP32 Dev Module - there are several sub-variants that work
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi
-//#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - contributed by Noircogi
+#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - contributed by Noircogi
 
 #define ESP8266_Variant   1   // NodeMCU ESP 12F
 #define ESP8266_Variant   2   // RFD900X TX-MOD use generic ESP82660  board
@@ -628,7 +628,7 @@ uint32_t mvBaudFC_var     =       mvBaudFC;
 //#define Mav_Debug_All
 //#define Frs_Debug_All
 //#define Frs_Debug_Period
-#define Frs_Debug_Payload
+//#define Frs_Debug_Payload
 //#define Mav_Debug_RingBuff
 //#define Debug_Air_Mode
 //#define Debug_Relay_Mode

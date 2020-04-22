@@ -83,8 +83,8 @@ v2.29.1 2020-04-02 Support for QLRS (rssi) by giacomo892. Style and function imp
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi
 #define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS ith OTA)" - contributed by Noircogi
 
-#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
-//#define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - use Generic ESP8266 on IDE
+//#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
+#define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - use Generic ESP8266 on IDE
 
 
 //=================================================================================================
@@ -362,7 +362,7 @@ bool daylightSaving = false;
     #define GC_Mav_rxPin   7    
     #define GC_Mav_txPin   8   
   #elif (SPort_Serial == 3)
-    define Fr_txPin        8      // Optional SPort tx 
+    #define Fr_txPin        8      // Optional SPort tx 
   #endif  
     
   #if (defined SD_Support) || (defined OLED_Support)
@@ -771,7 +771,7 @@ bool daylightSaving = false;
 //#define Mav_Debug_GPS_Raw     // #24
 //#define Mav_Debug_GPS_Int     // #33
 //#define Frs_Debug_LatLon
-//#define Frs_Debug_YelYaw
+#define Frs_Debug_YelYaw
 //#define Frs_Debug_GPS_status
 //#define Mav_Debug_Scaled_IMU
 //#define Mav_Debug_Raw_IMU
@@ -779,7 +779,7 @@ bool daylightSaving = false;
 //#define Frs_Debug_Hud
 //#define Mav_Debug_Scaled_Pressure
 //#define Mav_Debug_Attitude
-//#define Frs_Debug_Attitude
+#define Frs_Debug_Attitude
 //#define Mav_Debug_StatusText
 //#define Frs_Debug_StatusText    
 //#define Mav_Debug_Mission
