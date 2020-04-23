@@ -9,7 +9,7 @@
 /*
 Complete change log and debugging options are at the bottom of this tab
                  
-v2.29.2 2020-04-21 Some structural tidying up.                                        
+v2.59.2 2020-04-21 Some structural tidying up.                                        
 */
 //===========================================================================================
 //
@@ -841,6 +841,6 @@ v2.58.3 2020-03-22 Deactivate experimental CRC error tolerance for general use. 
 v2.58.4 2020-03-25 RPM fixed (library path). 
 v2.58.5 2020-03-28 Add //#define SD_Support to optionally remove all SD support at compile time.
                    This is especially useful for PlatformIO on ESP8266.   
-v2.29.1 2020-04-02 Support for QLRS (rssi) by giacomo892. Style and function improvements to web
+v2.59.1 2020-04-02 Support for QLRS (rssi) by giacomo892. Style and function improvements to web
                    interface.                                                           
 */
