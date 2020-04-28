@@ -9,7 +9,10 @@
 /*
 Complete change log and debugging options are at the bottom of this tab
                  
-v2.29.2 2020-04-21 Some structural tidying up.                                        
+v2.59.2 2020-04-21 Some structural tidying up.   
+v2.59.3            Main loop minor fix.  
+                   wifiBuiltin and btBuiltim macros added.  
+        2020-04-28 GetBaud(FC_Mav_rxPin) fix. Thanks has1123.                                           
 */
 //===========================================================================================
 //
@@ -188,7 +191,7 @@ bool daylightSaving = false;
 #endif
 
 //=================================================================================================   
-//                              CHECK #define OPTIONS LOGIC
+//                              CHECK #MACRO OPTIONS LOGIC
 //================================================================================================= 
 
 #if defined PlusVersion
@@ -283,6 +286,13 @@ bool daylightSaving = false;
  
   #endif         
 
+  #if (defined ESP32 || defined ESP8266) && (FC_Mavlink_IO == 2 || FC_Mavlink_IO == 3 || GCS_Mavlink_IO == 2 || GCS_Mavlink_IO == 3 || defined webSupport)
+    #define wifiBuiltin   //  for these features we need wifi support compiled in
+  #endif    
+
+  #if (defined ESP32) && (FC_Mavlink_IO == 1 || FC_Mavlink_IO == 3 || GCS_Mavlink_IO == 1 || GCS_Mavlink_IO == 3)
+    #define btBuiltin   //  for these features we need bluetooth support compiled in
+  #endif      
 //=================================================================================================   
 //                          P L A T F O R M   D E P E N D E N T   S E T U P S
 //================================================================================================= 
@@ -394,7 +404,7 @@ bool daylightSaving = false;
 
 
     int16_t wifi_rssi;    
-    uint8_t startWiFiPin = 13;      // D13
+    uint8_t startWiFiPin = 15;      // D15
     uint8_t WiFiPinState = 0;
   #endif
   
@@ -627,7 +637,7 @@ bool daylightSaving = false;
 
 #if (defined ESP32)  
   #define Debug               Serial         // USB
-  #define mvSerialFC          Serial2      
+  #define mvSerialFC          Serial2        //  RXD0 and TXD0
    
   #if defined ESP32_SoftwareSerial
     #include <SoftwareSerial.h>
@@ -841,6 +851,6 @@ v2.58.3 2020-03-22 Deactivate experimental CRC error tolerance for general use. 
 v2.58.4 2020-03-25 RPM fixed (library path). 
 v2.58.5 2020-03-28 Add //#define SD_Support to optionally remove all SD support at compile time.
                    This is especially useful for PlatformIO on ESP8266.   
-v2.29.1 2020-04-02 Support for QLRS (rssi) by giacomo892. Style and function improvements to web
+v2.59.1 2020-04-02 Support for QLRS (rssi) by giacomo892. Style and function improvements to web
                    interface.                                                           
 */
