@@ -47,9 +47,9 @@ v2.55  2020-02-04 Add RFD900X TXMOD ESP8266 variant
 // How does Mavlink telemetry leave this translator?
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  0    // Serial Port  - Only Teensy 3.x and Maple Mini  have Serial3     
-#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
+//#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
-//#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 or ESP8266 only
+#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 or ESP8266 only
 
 // NOTE: The Bluetooth class library uses a lot of application memory. During Compile/Flash
 //  you may need to select Tools/Partition Scheme: "Minimal SPIFFS (1.9MB APP ...)
@@ -78,8 +78,8 @@ const char* BT_Slave_Name   =   "Crossfire 0277";  // Example
 //#define WiFi_Mode   3  // STA failover to AP
 
 // Choose one protocol - for ESP32 only
-//#define WiFi_Protocol 1    // TCP/IP
-#define WiFi_Protocol 2    // UDP   
+#define WiFi_Protocol 1    // TCP/IP
+//#define WiFi_Protocol 2    // UDP   
 // ************************************************************************************************
 
 
