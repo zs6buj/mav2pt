@@ -693,7 +693,6 @@ bool daylightSaving = false;
 //#define Debug_Relay_Mode
 //#define Mav_List_Params      // Use this to test uplink to Flight Controller 
 //#define Mav_Debug_Params
-//#define Frs_Debug_Params     //0x5007
 //#define Debug_BT    
 //#define Debug_FC_Down        // traffic down from FC to Ring Buffer
 //#define Debug_FC_Up          // traffic up to FC from GCS
@@ -706,6 +705,7 @@ bool daylightSaving = false;
 //#define Frs_Debug_RC
 //#define Mav_Debug_FC_Heartbeat
 //#define Mav_Debug_GCS_Heartbeat
+//#define Frs_Debug_Params       //0x5007
 //#define Mav_Debug_MavToPass_Heartbeat
 //#define Frs_Debug_APStatus    // 0x5001
 //#define Mav_Debug_SysStatus   // #1 && battery

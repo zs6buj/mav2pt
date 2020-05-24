@@ -385,8 +385,10 @@ uint8_t PX4FlightModeNum(uint8_t main, uint8_t sub) {
 
 //=================================================================================================  
 void ShowPeriod(bool LF) {
-  Debug.print("Period mS=");
   now_millis=millis();
+  Debug.print("Elapsed=");
+  Debug.print(now_millis); 
+  Debug.print("  Period mS=");
   Debug.print(now_millis-prev_millis);
   if (LF) {
     Debug.print("\t\n");
