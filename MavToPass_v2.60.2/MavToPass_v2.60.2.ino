@@ -457,9 +457,10 @@ void setup()  {
 
   #if (defined wifiBuiltin)
     if ((set.fc_io == fc_wifi) || (set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt) || (set.web_support)) {
-
-      pinMode(startWiFiPin, INPUT_PULLUP);
-      attachInterrupt(digitalPinToInterrupt(startWiFiPin), [] {if (wifiButnPres+= (millis() - debnceTimr) >= (delaytm)) debnceTimr = millis();}, RISING);
+     // #if (not defined Start_WiFi)
+     //   pinMode(startWiFiPin, INPUT_PULLUP);
+     //   attachInterrupt(digitalPinToInterrupt(startWiFiPin), [] {if (wifiButnPres+= (millis() - debnceTimr) >= (delaytm)) debnceTimr = millis();}, RISING);
+    //  #endif         
     }
 
   #else

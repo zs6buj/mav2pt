@@ -110,13 +110,13 @@ v2.59.5 2020-05-11 Fixed TCP_LocalPort initialisation
 #define Start_WiFi                       // Start WiFi at startup, override startWiFi Pin
 
 // Choose one default mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
-//#define WiFi_Mode   1  //AP            
-#define WiFi_Mode   2  // STA
+#define WiFi_Mode   1  //AP            
+//#define WiFi_Mode   2  // STA
 //#define WiFi_Mode   3  // STA failover to AP
 
 // Choose one default protocol - for ESP32 only
-#define WiFi_Protocol 1    // TCP/IP
-//#define WiFi_Protocol 2    // UDP 
+//#define WiFi_Protocol 1    // TCP/IP
+#define WiFi_Protocol 2    // UDP 
 
 
 //=================================================================================================

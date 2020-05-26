@@ -112,13 +112,13 @@ v2.60.2 2020-05-25 Added RSSI_Pacemaker option to help prevent "telemetry lost".
 #define STApw                "changeme"         // Target AP password (in STA mode)       
 
 // Choose one default mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
-//#define WiFi_Mode   1  //AP            
-#define WiFi_Mode   2  // STA
+#define WiFi_Mode   1  //AP            
+//#define WiFi_Mode   2  // STA
 //#define WiFi_Mode   3  // STA failover to AP
 
 // Choose one default protocol - for ESP32 only
-#define WiFi_Protocol 1    // TCP/IP
-//#define WiFi_Protocol 2    // UDP 
+//#define WiFi_Protocol 1    // TCP/IP
+#define WiFi_Protocol 2    // UDP 
 
 //=================================================================================================
 //                            R  S  S  I    O  P  T  I  O  N  S  
@@ -447,12 +447,13 @@ bool daylightSaving = false;
     #define FC_Mav_txPin  D10       // TXD0 default    
     #define Fr_rxPin      D5        // SPort - Not used in single wire mode
     #define Fr_txPin      D2        // SPort (half-duplex) inverted - Use me in single wire mode
-    #define startWiFiPin  D8        // Trigger WiFi startup       
+    #define startWiFiPin  D6        // Trigger WiFi startup       
     #if (defined SD_Support) || (defined OLED_Support)
       #define SCL           D0        // I2C OLED board   
       #define SDA           D1        // I2C OLED board
       #define i2cAddr      0x3C       // I2C OLED board
-    #endif       
+    #endif 
+ 
   #endif  
   
 #endif
@@ -575,13 +576,14 @@ bool daylightSaving = false;
     uint16_t UDP_localPort = 14555;     
     uint16_t UDP_remotePort = 14550;      
     bool FtRemIP = true;
-
-    int16_t           wifi_rssi;         
-    volatile uint32_t debnceTimr;
-    volatile int16_t  wifiButnPres;
-    volatile uint32_t delaytm = 100;
     
   #if (defined ESP32 || defined ESP8266) 
+  
+    int16_t wifi_rssi;  
+    volatile uint32_t debnceTimr;
+    volatile int16_t  wifiButnPres = 0;;
+    volatile uint32_t delaytm = 100;
+  
 
     // Define link variables
     struct linkStatus {

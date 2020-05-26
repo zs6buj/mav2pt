@@ -502,14 +502,15 @@ void OledPrint(String S) {
    #if defined Start_WiFi
     if (!wifiSuDone) {
       SetupWiFi();
+      return;
     }
     return;
-  #endif
-  
-  if ((wifiButnPres > 0) && (!wifiSuDone)) {
-    wifiButnPres = 0;
-    SetupWiFi();
-    }  
+  #else
+    if ((wifiButnPres > 0) && (!wifiSuDone)) {
+      wifiButnPres = 0;
+      SetupWiFi();
+      } 
+  #endif    
 }
 
   //==================================================

@@ -7,7 +7,7 @@
 //================================================================================================= 
 #if defined webSupport
 
- static const String PROGMEM styleLogin =  // Store in FLASH not SRAM Heap
+ static const String styleLogin =  // Store in FLASH not SRAM Heap
     "<style>h1{background:#3498db;color:#fff;border-radius:5px;height:34px;font-family:sans-serif;}"
     "#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
     "input{background:#f1f1f1;border:0;padding:0 15px}body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
@@ -16,7 +16,7 @@
     "::placeholder {color: white; opacity: 1; /* Firefox */}"
     "</style>";
    
- static const String PROGMEM styleSettings =
+ static const String styleSettings =
     "<style>"
     "h{color:#fff;font-family:sans-serif;}"
     "h3{background:#3498db;color:#fff;border-radius:5px;height:22px;font-family:sans-serif;}"
@@ -27,7 +27,7 @@
     ".big{ width: 1em; height: 1em;} .bold {font-weight: bold;}"
     "</style>";
 
- static const String PROGMEM styleOTA =
+ static const String styleOTA =
     "<style>#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
     "input{background:#f1f1f1;border:0;padding:0}"
     "body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
@@ -38,7 +38,7 @@
     "<script>function backtoLogin() {window.close(); window.open('/');} </script>";
 
    
- static const String PROGMEM otaIndex = styleOTA +  
+ static const String otaIndex = styleOTA +  
     "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js'></script>"
     "<form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>"
     "<input type='file' name='update' id='file' onchange='sub(this)' style=display:none>"
