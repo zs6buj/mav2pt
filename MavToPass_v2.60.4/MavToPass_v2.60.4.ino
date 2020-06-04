@@ -1492,9 +1492,8 @@ void DecodeOneMavFrame() {
    switch(R2Gmsg.msgid) {
     
         case MAVLINK_MSG_ID_HEARTBEAT:    // #0   http://mavlink.org/messages/common
-          ap_type_tmp = mavlink_msg_heartbeat_get_type(&R2Gmsg);   // Alex - don't contaminate the ap-type variable
-          if (ap_type_tmp == 5 || ap_type_tmp == 6 || ap_type_tmp == 27) break;      
-          // Ignore heartbeats from GCS (6) or Ant Trackers(5) or ADSB (27))
+          if (ap_type_tmp == 5 || ap_type_tmp == 6 || ap_type_tmp == 18 || ap_type_tmp == 27) break;      
+          // Ignore heartbeats from GCS (6) or Ant Trackers(5) or Onboard_Controllers(18) or ADSB (27)) 
           ap_type = ap_type_tmp;
           ap_autopilot = mavlink_msg_heartbeat_get_autopilot(&R2Gmsg);
           ap_base_mode = mavlink_msg_heartbeat_get_base_mode(&R2Gmsg);
@@ -1690,6 +1689,11 @@ void DecodeOneMavFrame() {
           ap_param_count=mavlink_msg_param_value_get_param_count(&R2Gmsg);
           ap_param_index=mavlink_msg_param_value_get_param_index(&R2Gmsg); 
 
+          if (ml20_flag == 1) {   // 0=none pending, 1=waiting for FC, 2=received_from_fc
+            ml20_flag = 2;
+            break;
+          }
+
           switch(ap_param_index) {      // if #define Battery_mAh_Source !=1 these will never arrive
             case 356:         // Bat1 Capacity
               ap_bat1_capacity = ap_param_value;
@@ -1716,7 +1720,7 @@ void DecodeOneMavFrame() {
               break;
           } 
              
-          #if defined Mav_Debug_All || defined Mav_Debug_Params || defined Mav_List_Params
+          #if defined Mav_Debug_All || defined Mav_Debug_Params || defined Mav_List_Params || defined Debug_Mavlite
             Debug.print("Mavlink from FC #22 Param_Value: ");
             Debug.print("param_id=");
             Debug.print(ap_param_id);

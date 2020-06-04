@@ -231,12 +231,12 @@ void SPortSendAndReceive() {
         spGood = true;
         ReportSPortOnlineStatus();
         #if defined Debug_SPort || defined Debug_Mavlite
-          Debug.println("slot found"); 
+       //   Debug.println("slot found"); 
         #endif
-      
+        
+        Inject_Mavlite();      // Interleave Mavlite frame   
         Inject_Passtrough();   // Interleave Passthrough frame      
-        Inject_Mavlite();      // Interleave Mavlite frame
-      
+   
         return;  
       }
 
@@ -253,10 +253,10 @@ void SPortSendAndReceive() {
 //=================================================================================================
 void BlindInjectSPort() {  // Downlink
 
-  Inject_Passtrough();  
- 
   Inject_Mavlite();
 
+  Inject_Passtrough();  
+ 
 }
 //=================================================================================================
  void Inject_Passtrough() {  
