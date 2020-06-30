@@ -2,7 +2,7 @@
 
 /*
 =====================================================================================================================
-     MavToPass  (Mavlink To FrSky Passthrough) Protocol Translator
+     MavToPass  (Mavlink To FrSky Passthru) Protocol Translator
 
  
      License and Disclaimer
@@ -157,12 +157,12 @@
 //=================================================================================================
 
 void OledPrintln(String);
-void SPort_Init(void);
 uint32_t GetBaud(uint8_t);
 void main_loop();
-void SenseWiFiPin(); 
+void SenseWiFiStatus(); 
+void StartWiFiTimer();
+void RestartWiFiSta();
 bool Read_FC_To_RingBuffer();
-void PackSensorTable(uint16_t, uint8_t);
 void RB_To_Decode_and_GCS();
 void Read_From_GCS();
 void Decode_GCS_To_FC();
@@ -193,21 +193,29 @@ uint32_t GetConsistent(uint8_t);
 uint32_t SenseUart(uint8_t);
 void SPort_Init();     
 void SPort_Interleave_Frame(void);  
-byte frSerialSafeRead();
+byte SPortSafeRead();
 void SPortSendAndReceive();
-void BlindInjectSPort();
-void Inject_Mavlite();
+void SPortBlindInject();
+void Inject_Into_SPort();
 uint16_t PopNextFrame(); 
-void SPort_Send_Passthru_Packet(uint16_t idx);
-void EncodeMavlite();
-void SPort_Send_Mavlite_Packet();
-void ReadMavliteUplink(byte);
-bool DecodeMavLite();
-bool Unpack_ml20();
-void Inject_Passtrough();
-void SPort_SendByte(uint8_t, bool);
-void SPort_SendDataFrame(uint8_t, uint16_t, uint32_t);
+msg_class_t  msg_class_now(uint8_t);
+void SPortFrameAndSend(uint16_t);
+void SPort_Send_Packet(uint16_t);
+void PushToEmptyRow(uint16_t, uint8_t);
+void MlitePushToEmpty();
+void PackSensorTable(uint16_t, uint8_t);
+void SPort_Send_Passthru_Packet(uint8_t, uint16_t); 
+void SPort_Send_Mavlite_Packet(uint8_t, uint16_t);
+void SPortSafeSend(uint8_t, bool);
+void SPort_SendCrc();
+void ReadMavLiteFrame(byte);
+bool DecodeAndUplinkMavLite();
+bool Unchunk_MavLite_Uplink();
 void ReportSPortOnlineStatus();
+uint16_t First_Empty_mt20_Row();
+uint16_t MatchWaitingParamRequests(char * paramid);
+void PrintPayload(msg_class_t);
+void PackMavLiteParamValue16(uint16_t);
 void PackLat800(uint16_t);
 void PackLon800(uint16_t);
 void PackMultipleTextChunks_5000(uint16_t);
@@ -223,11 +231,14 @@ void Pack_WayPoint_5009(uint16_t);
 void Pack_Servo_Raw_50F1(uint16_t);
 void Pack_VFR_Hud_50F2(uint16_t );
 void Pack_Rssi_F101(uint16_t );
-void CheckByteStuffAndSend(uint8_t);
 uint32_t createMask(uint8_t, uint8_t);
+void AddInCrc(uint8_t);
+void nbdelay(uint32_t);
 uint32_t Abs(int32_t);
 float RadToDeg (float );
 uint16_t prep_number(int32_t, uint8_t, uint8_t);
+uint32_t bit32Extract(uint32_t,uint8_t, uint8_t); 
+void bit32Pack(uint32_t, uint8_t, uint8_t);
 int16_t Add360(int16_t, int16_t);
 float wrap_360(int16_t);
 int8_t PWM_To_63(uint16_t);
@@ -238,9 +249,16 @@ void DisplayRemoteIP();
 bool Leap_yr(uint16_t);
 void WebServerSetup();
 void RecoverSettingsFromFlash();
-void PrintByte(byte);
+void PrintByte(byte, bool);
+void PrintByteNon(byte);
+void PrintByteOut(byte b);
+void PrintByteIn(byte b);
+void PrintMavLiteUplink();
 uint8_t PX4FlightModeNum(uint8_t, uint8_t);
-void SetupWiFi();
+void PrintPeriod(bool);
+void PrintFrPeriod(bool);
+void PrintLoopPeriod();
+void SetupWiFi(); 
 void handleLoginPage();
 void handleSettingsPage();
 void handleSettingsReturn();
@@ -260,6 +278,14 @@ void EEPROMWriteString(uint16_t, char*);
 void EEPROMWrite32(uint16_t, uint32_t);
 void PrintRemoteIP();
 
+#if (defined ESP32)
+  void IRAM_ATTR onTimer();                         // wifi retry timer
+  esp_err_t event_handler(system_event_t *event);   // wifi events handler
+#endif  
+
+#if (defined ESP8266)
+
+#endif
 //=================================================================================================
 //=================================================================================================   
 //                                      S   E   T   U  P 
@@ -274,8 +300,11 @@ void setup()  {
   pgm_name = pgm_path.substring(pgm_path.lastIndexOf("\\")+1);  
   pgm_name = pgm_name.substring(0, pgm_name.lastIndexOf('.'));  // remove the extension
   Debug.print("Starting "); Debug.print(pgm_name); Debug.println(" .....");
-  
- //   Debug.setDebugOutput(true);   //  ESP only   Debug.print("nodemcu.build.variant "); Debug.println(nodemcu.build.variant); 
+
+  #if ((defined ESP32) || (defined ESP8266)) && (defined Debug_WiFi)
+   WiFi.onEvent(WiFiEventHandler);   
+  #endif  
+ 
   #if ((defined ESP32) || (defined ESP8266)) && (defined Debug_SRAM)
     Debug.printf("Free Heap just after startup = %d\n", ESP.getFreeHeap());
   #endif  
@@ -369,6 +398,10 @@ void setup()  {
     #if (ESP8266_Variant == 2)
       Debug.println("ESP-F - RFD900X TX-MOD");
       OledPrintln("RFD900X TX-MOD");
+    #endif   
+    #if (ESP8266_Variant == 3)
+      Debug.println("Wemos® ESP-12F D1 Mini");
+      OledPrintln("Wemos ESP-12F D1 Mini");
     #endif       
   #endif
 
@@ -468,11 +501,7 @@ void setup()  {
 //=================================================================================================
 
   #if (defined wifiBuiltin)
-    if ((set.fc_io == fc_wifi) || (set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt) || (set.web_support)) {
-     // #if (not defined Start_WiFi)
-     //   pinMode(startWiFiPin, INPUT_PULLUP);
-     //   attachInterrupt(digitalPinToInterrupt(startWiFiPin), [] {if (wifiButnPres+= (millis() - debnceTimr) >= (delaytm)) debnceTimr = millis();}, RISING);
-    //  #endif         
+    if ((set.fc_io == fc_wifi) || (set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt) || (set.web_support)) {     
     }
 
   #else
@@ -503,11 +532,12 @@ void setup()  {
       } else {                               // slave, passive                           
         SerialBT.begin(set.host); 
         Debug.printf("Bluetooth slave mode, host name for pairing is %s\n", set.host);  
-      }    
+      } 
+      btActive = true;    
     }
-    btActive = true;
   #else
     Debug.println("No Bluetooth options selected, BT support not compiled in");
+    btActive = false;
   #endif
   
   #if ((defined ESP32) || (defined ESP8266)) && (defined Debug_SRAM)
@@ -535,7 +565,7 @@ void setup()  {
       uint8_t cardType = SD.cardType();
       sdStatus = 1;
       if(cardType == CARD_NONE){
-          Serial.println("No SD card found");
+          Debug.println("No SD card found");
           OledPrintln("No SD card");
           OledPrintln("Ignoring!");      
       } else {
@@ -637,11 +667,18 @@ void setup()  {
   downlink_millis = millis();       // mavlink downlink timimg
   sport_millis = millis();          // sport timimg
   fchb_millis = millis();
+  gshb_millis = millis();
   acc_millis = millis();
   rds_millis = millis();
   blind_inject_millis = millis();
   health_millis = millis();
-  
+
+  for (int i = 0 ; i < sb_rows ; i++) {     // initialise s.port downlink table
+    sb[i].inuse = 0;
+  }
+  for (int i = 0 ; i < mt20_rows ; i++) {  // initialise MavLite uplink table
+    mt20[i].inuse = 0;
+  }  
   pinMode(MavStatusLed, OUTPUT); 
   if (BufStatusLed != 99) {
     pinMode(BufStatusLed, OUTPUT); 
@@ -655,21 +692,31 @@ void loop() {            // For WiFi STA only
 
   #if (defined wifiBuiltin)
     if ((set.fc_io == fc_wifi) || (set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt) || (set.web_support)) {  
-      SenseWiFiPin();
+      
+      SenseWiFiStatus();
 
       if (set.wfproto == tcp)  {  // TCP  
         if (wifiSuGood) {
-          WiFiSTA = TCPserver.available();              // listen for incoming clients 
-          if(WiFiSTA) {
+          TCPclient = TCPserver.available();              // listen for incoming clients 
+          if(TCPclient) {
             Debug.println("New client connected"); 
-            OledPrintln("New client ok!");      
-            while (WiFiSTA.connected()) {            // loop while the client's connected
+            OledPrintln("New client ok!");  
+
+
+
+                
+            while ((TCPclient) && (TCPclient.connected())) {            // loop while the client's connected
+       //       if (!clientGood) TCPclient.setTimeout(4);  
+              clientGood = true;  
               main_loop(); 
             }
-          WiFiSTA.stop();
-          Debug.println("Client disconnected");
-          OledPrintln("Client discnnct!");      
+          nbdelay(100);  
+          TCPclient.stop();
+          nbdelay(100);  
+          Debug.println("Client disconnected XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+          OledPrintln("Client disconnected!");  
           } else {
+             clientGood = false;
              main_loop();
          } 
         }  else { 
@@ -698,11 +745,22 @@ void loop() {            // For WiFi STA only
 
 void main_loop() {
 
-  #if (defined wifiBuiltin)
-    SenseWiFiPin();
+  #if defined Debug_Loop_Period
+    PrintLoopPeriod();
+  #endif
+  
+  #if ((defined ESP32) || (defined ESP8266)) && (defined Debug_WiFi)
+    if (clientGood != clientPrev) {
+      Debug.printf("clientGood=%d\n", clientGood);
+      clientPrev = clientGood;
+    }
   #endif
 
-  //==================== 
+  #if (defined wifiBuiltin)
+    SenseWiFiStatus();  // Optional start-wifi pin
+  #endif
+
+  //==================== F l i g h t   C o m p u t e r   T o   R i n g   B u f f e r
   
   if (!Read_FC_To_RingBuffer()) {  //  check for SD eof
     if (sdStatus == 5) {
@@ -719,20 +777,20 @@ void main_loop() {
     rssiOverride = true;     // for debugging
   #endif
 
-  //====================  R i n g   B u f f e r   D e c o d e  &  S e n d   T o   G C S
+  //====================    R i n g   B u f f e r   D e c o d e  &  S e n d   T o   G C S
    
   if (millis() - downlink_millis > 1) {   // main timing loop for mavlink decode and GCS
     RB_To_Decode_and_GCS();
   }
   
- //====================       S P o r t   S e n d   a n d   R e c e i v e
+ //====================     S P o r t   S e n d   a n d   R e c e i v e
 
-  if(mavGood && ((millis() - sport_millis) > 2)) {   // zero does not work for Teensy 3.2
+  if( ((millis() - sport_millis) > 2) ) {   // zero does not work for Teensy 3.2
     SPortSendAndReceive();       
     sport_millis = millis();
   }
 
-  //==================== 
+  //====================   R e a d   F r o m   G C S
   
   Read_From_GCS();  
 
@@ -741,24 +799,36 @@ void main_loop() {
     Write_To_FC(G2Fmsg.msgid);  
     GCS_available = false;                      
    }
-   
-//==================== RSSI packemaker for OpenTX  :)
 
-#if defined Rssi_Pacemaker
-  if ((set.trmode == ground) || (set.trmode == relay))  {       // In Air_Mode the FrSky receiver provides rssi
-    if ( ( (rssiGood && mavGood)  || rssiOverride ) && (millis() - rssi_millis >= Rssi_Pacemaker) ) {
-      PackSensorTable(0xF101, 0);   // 0xF101 RSSI 
-      rssi_millis = millis(); 
-     }   
-  }
-#endif   
-
-  //==================== Check FC Mavlink Timeout
+  //==================== Check For Heartbeat from GCS Timeout
   
-  if(mavGood && (millis() - hb_millis) > 6000)  {   // if no heartbeat from APM in 6s then assume mav not connected
+  if(gshbGood && (millis() - gshb_millis) > 10000){ // if no heartbeat from GCS in n seconds then assume GCS not connected
+    gshbGood = false;
+    Debug.println("Heartbeat from GCS timed out! GCS not connected"); 
+    OledPrintln("GCS Heartbeat lost!"); 
+    
+    if (wifiSuGood && wifiSuDone && set.wfmode == sta)  {        
+      // do something
+    }
+  }
+ 
+  //====================   RSSI pacemaker for OpenTX 
+
+  #if defined Rssi_Pacemaker
+    if ((set.trmode == ground) || (set.trmode == relay))  {       // In Air_Mode the FrSky receiver provides rssi
+      if ( ( (rssiGood && mavGood)  || rssiOverride ) && (millis() - rssi_millis >= Rssi_Pacemaker) ) {
+        PackSensorTable(0xF101, 0);   // 0xF101 RSSI 
+        rssi_millis = millis(); 
+       }   
+    }
+  #endif   
+
+  //==================== Check For FC Heartbeat Timeout
+  
+  if(mavGood && (millis() - hb_millis) > 15000)  {   // if no heartbeat from APM in 15s then assume FC mav not connected
     mavGood=false;
-    Debug.println("Heartbeat timed out! Mavlink not connected"); 
-    OledPrintln("Mavlink lost!");       
+    Debug.println("Heartbeat from FC timed out! FC not connected"); 
+    OledPrintln("FC heartbeat lost!");       
     hb_count = 0;
    } 
    
@@ -771,7 +841,7 @@ void main_loop() {
     ReportSPortOnlineStatus();  
   }
   
-  //==================== 
+  //==================== Data Streaming Option
   
   #ifdef Data_Streams_Enabled 
   if(mavGood) {                      // If we have a link, request data streams from MavLink every 5s
@@ -784,7 +854,7 @@ void main_loop() {
   }
   #endif 
   
-  //==================== Check GCS Mavlink Timeout
+  //==================== Send Our Own Heartbeat to FC
   
   if(millis()- fchb_millis > 2000) {  // MavToPass heartbeat to FC every 2 seconds
     fchb_millis=millis();
@@ -793,7 +863,7 @@ void main_loop() {
     #endif    
    Send_FC_Heartbeat();   // must have MavToPass tx pin connected to Telem radio rx pin  
   }
-  //==================== 
+  //==================== Download Missions Option
   
   #if defined Request_Missions_From_FC || defined Request_Mission_Count_From_FC
   if (mavGood) {
@@ -804,9 +874,9 @@ void main_loop() {
   }
   #endif
   
-  //==================== 
+  //==================== Get battery capacity from the FC Option
   
-  #if (Battery_mAh_Source == 1)  // Get battery capacity from the FC
+  #if (Battery_mAh_Source == 1)  
   // Request battery capacity params 
   if (mavGood) {
     if (!ap_bat_paramsReq) {
@@ -827,7 +897,7 @@ void main_loop() {
   }
   #endif 
   
-  //==================== 
+  //====================   List All Parameters From The FC Option
   
   #ifdef Mav_List_Params
     if(mavGood && (!ap_paramsList)) {
@@ -836,19 +906,19 @@ void main_loop() {
     }
   #endif 
   
-  //==================== 
+  //====================   Open an SD File Here Because We Waited For The Time From FC
   
   #if defined GCS_Mavlink_SD
     void OpenSDForWrite();  // fwd define
     if ((timeGood) && (sdStatus == 2)) OpenSDForWrite();
   #endif
   
-  //==================== 
+  //====================   Service The Leds
   
   ServiceStatusLeds();
   
-  //==================== 
-  #if defined webSupport     //  esp32 and esp8266
+  //====================   Service The Web Server
+  #if defined webSupport     //  esp32 and esp8266 only
     if (wifiSuGood) {
       server.handleClient();
     }
@@ -866,7 +936,7 @@ bool Read_FC_To_RingBuffer() {
 
     while(mvSerialFC.available()) { 
       byte c = mvSerialFC.read();
-     // PrintByte(c);
+     // PrintByte(c, 1);
       if(mavlink_parse_char(MAVLINK_COMM_0, c, &F2Rmsg, &status)) {  // Read a frame
          #ifdef  Debug_FC_Down
            Debug.println("Serial passed to RB from FC side :");
@@ -1088,16 +1158,16 @@ void Read_From_GCS() {
 //================================================================================================= 
 #if (defined wifiBuiltin)
   bool Read_TCP(mavlink_message_t* msgptr)  {
-    if (!wifiSuGood) return false;  
+    if ( (!wifiSuGood) || (!clientGood) ) return false;  
     bool msgRcvd = false;
     mavlink_status_t _status;
     
-    len = WiFiSTA.available();
+    len = TCPclient.available();
     uint16_t tcp_count = len;
     if(tcp_count > 0) {
 
         while(tcp_count--)  {
-            int result = WiFiSTA.read();
+            int result = TCPclient.read();
             if (result >= 0)  {
 
                 msgRcvd = mavlink_parse_char(MAVLINK_COMM_2, result, msgptr, &_status);
@@ -1196,11 +1266,15 @@ void Read_From_GCS() {
 
 void Decode_GCS_To_FC() {
   if ((set.gs_io == gs_ser) || (set.gs_io == gs_bt) || (set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt)) { // if any GCS I/O requested
-    #if defined Mav_Print_All_Msgid
+    #if (defined Mav_Print_All_Msgid) || (defined Debug_All)
       Debug.printf("GCS to FC - msgid = %3d \n",  G2Fmsg.msgid);
     #endif
     switch(G2Fmsg.msgid) {
-       case MAVLINK_MSG_ID_HEARTBEAT:    // #0   
+       case MAVLINK_MSG_ID_HEARTBEAT:    // #0
+       
+          gshb_millis = millis();
+          gshbGood = true;
+          
           #if defined Mav_Debug_All || defined Debug_GCS_Up || defined Mav_Debug_GCS_Heartbeat
             gcs_type = mavlink_msg_heartbeat_get_type(&G2Fmsg); 
             gcs_autopilot = mavlink_msg_heartbeat_get_autopilot(&G2Fmsg);
@@ -1439,12 +1513,12 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
 //================================================================================================= 
 #if (defined wifiBuiltin)
   bool Send_TCP(mavlink_message_t* msgptr) {
-    if (!wifiSuGood) return false;  
+    if ( (!wifiSuGood) || (!clientGood) ) return false;   
     bool msgSent = false;
     uint8_t buf[300];
     uint16_t len = mavlink_msg_to_send_buffer(buf, msgptr);
   
-    size_t sent =  WiFiSTA.write(buf,len);  
+    size_t sent =  TCPclient.write(buf,len);  
 
     if (sent == len) {
       msgSent = true;
@@ -1478,13 +1552,11 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
 #endif
 //================================================================================================= 
 
-uint32_t bit32Extract(uint32_t dword,uint8_t displ, uint8_t lth); // Forward define
-
 void DecodeOneMavFrame() {
   
    #if defined Mav_Print_All_Msgid
      uint16_t sz = sizeof(R2Gmsg);
-     Debug.printf("FC to QGS - msgid = %3d Msg size =%3d\n",  R2Gmsg.msgid, sz);
+     Debug.printf("FC to GGS - msgid = %3d Msg size =%3d\n",  R2Gmsg.msgid, sz);
    #endif
 
    switch(R2Gmsg.msgid) {
@@ -1503,7 +1575,11 @@ void DecodeOneMavFrame() {
           px4_flight_stack = (ap_autopilot == MAV_AUTOPILOT_PX4);
 
           pitlab_flight_stack = (ap_autopilot == MAV_AUTOPILOT_INVALID);
-            
+          #if (defined PitLab)
+            pitlab_flight_stack = true;
+            ap_type = 1; // Force Plane (fixed wing)
+          #endif
+               
           ap_system_status = mavlink_msg_heartbeat_get_system_status(&R2Gmsg);
           ap_mavlink_version = mavlink_msg_heartbeat_get_mavlink_version(&R2Gmsg);
           hb_millis=millis(); 
@@ -1526,7 +1602,6 @@ void DecodeOneMavFrame() {
             }
 
           PackSensorTable(0x5001, 0);    // Flight mode (from ap_base_mode)
-
           PackSensorTable(0x5007, 1);    // Frame type (from ap_type)
           
           #if defined Mav_Debug_All || defined Mav_Debug_FC_Heartbeat
@@ -1686,8 +1761,24 @@ void DecodeOneMavFrame() {
           len=mavlink_msg_param_value_get_param_id(&R2Gmsg, ap_param_id);
           ap_param_value=mavlink_msg_param_value_get_param_value(&R2Gmsg);
           ap_param_count=mavlink_msg_param_value_get_param_count(&R2Gmsg);
-          ap_param_index=mavlink_msg_param_value_get_param_index(&R2Gmsg); 
+          ap_param_index=mavlink_msg_param_value_get_param_index(&R2Gmsg);
 
+          mt20_row = MatchWaitingParamRequests(ap_param_id);
+    //      Debug.printf("matched row mt20_row=%d\n", mt20_row);
+          if (mt20_row != 0xffff) {       // if matched
+
+            #if defined Mav_Debug_All || defined Debug_MavLite
+                Debug.print("Mavlink return from FC #22 Param_Value for MavLITE: ");
+                Debug.print("ap_param_id="); Debug.print(ap_param_id);
+                Debug.print(" ap_param_value="); Debug.println(ap_param_value, 3);             
+            #endif 
+
+            mt20[mt20_row].inuse = 0;
+            PackSensorTable(0x16, 0);    // MavLite PARAM_VALUE ( #22 ) use ap-param-id and ap_param_value
+
+            break;            
+          }
+          
           switch(ap_param_index) {      // if #define Battery_mAh_Source !=1 these will never arrive
             case 356:         // Bat1 Capacity
               ap_bat1_capacity = ap_param_value;
@@ -1714,7 +1805,7 @@ void DecodeOneMavFrame() {
               break;
           } 
              
-          #if defined Mav_Debug_All || defined Mav_Debug_Params || defined Mav_List_Params
+          #if defined Mav_Debug_All || defined Mav_Debug_Params || defined Mav_List_Params || defined Debug_MavLite
             Debug.print("Mavlink from FC #22 Param_Value: ");
             Debug.print("param_id=");
             Debug.print(ap_param_id);
@@ -2458,8 +2549,8 @@ void Send_FC_Heartbeat() {
 
   mavlink_msg_param_request_read_pack(ap_sysid, ap_compid, &G2Fmsg,
                    ap_targsys, ap_targcomp, param_id, param_index);
-  #if defined Debug_Mavlite
-    Debug.printf("MavLINK #20 Param_Request_Read :%s:\n", param_id);  
+  #if defined Debug_MavLite
+    Debug.printf("Sending to FC: MavLINK #20 Param_Request_Read :%s:\n", param_id);  
   #endif                
   Write_To_FC(20);             
  }
@@ -2567,27 +2658,21 @@ void RequestDataStreams() {    //  REQUEST_DATA_STREAM ( #66 ) DEPRECATED. USE S
 
 // Local FrSky variables
 
-byte     nb, lb;                      // NextByt, LastByt of ByteStuff pair     
-short    crc;                         // RCR of frsky packet
-uint8_t  time_slot_max = 16;              
-uint32_t time_slot = 1;
-float a, az, c, dis, dLat, dLon;
-uint8_t sv_count = 0;
-
-  volatile uint8_t *uartC3;
-  enum SPortMode { rx , tx };
-  SPortMode mode, modeNow;
   
 //=================================================================================================  
 void SPort_Init()  {
 
-  for (int i=0 ; i < sb_rows ; i++) {  // initialise sensor table
-    sb[i].id = 0;
-    sb[i].subid = 0;
+  for (int i=0 ; i < sb_rows ; i++) {  // initialise S.Port table
+    sb[i].msg_id = 0;
+    sb[i].sub_id = 0;
     sb[i].millis = 0;
-    sb[i].inuse = false;
+    sb[i].inuse = 0;
   }
 
+  for (int i=0 ; i < mt_rows ; i++) {  // initialise Mlite table
+    mt_inuse[i] = 0;
+  }
+  
 #if (defined ESP32) || (defined ESP8266) // ESP only
   int8_t frRx;
   int8_t frTx;
@@ -2607,25 +2692,27 @@ void SPort_Init()  {
     Debug.println("S.Port on ESP is inverted"); 
   } else {
     frInvert = false;
-    Debug.println("S.PORT NOT INVERTED! Hw inverter to 1-wire required. S.Port on ESP is "); 
+    Debug.println("S.PORT NOT INVERTED! Hw inverter to 1-wire required."); 
   }
 
-  #if ((defined ESP8266) || (defined ESP32) && (defined ESP32_SoftwareSerial))
+  #if ( (defined ESP8266) || ( (defined ESP32) && (defined ESP32_SoftwareSerial)) )
   
       if (oneWire) {
         frRx = frTx;     //  Share tx pin. Enable oneWire (half duplex)
-        Debug.printf("1-wire half-duplex on pin %d \n", frTx); 
+        Debug.printf("S.Port on ESP is 1-wire half-duplex on pin %d \n", frTx); 
       } else {
       if (set.trmode == ground) {
-        Debug.printf("1-wire simplex on tx pin = %d\n", frTx);
+        Debug.printf("S.Port on ESP is 1-wire simplex on tx pin = %d\n", frTx);
       } else { 
-        Debug.printf("2-wire on pins rx = %d and tx = %d\n", frRx, frTx);
+        Debug.printf("S.Port on ESP is 2-wire on pins rx = %d and tx = %d\n", frRx, frTx);
         if ((set.trmode == air) || (set.trmode == relay)) {
           Debug.println("Use a 2-wire to 1-wire converter for Air and Relay Modes");
         }  
        }  
       }
+      nbdelay(100);
       frSerial.begin(frBaud, SWSERIAL_8N1, frRx, frTx, frInvert);     // SoftwareSerial
+      nbdelay(100);
       Debug.println("Using SoftwareSerial for S.Port");
       if (oneWire) {
         frSerial.enableIntTx(true);
@@ -2677,15 +2764,15 @@ void SPort_Init()  {
     if(mode == tx && modeNow !=tx) {
       *uartC3 |= 0x20;                 // Switch S.Port into send mode
       modeNow=mode;
-      #if defined Debug_SPort
-        Debug.println("tx <======");
+      #if defined Debug_SPort_Switching
+        Debug.print("tx");
       #endif
     }
     else if(mode == rx && modeNow != rx) {   
       *uartC3 ^= 0x20;                 // Switch S.Port into receive mode
       modeNow=mode;
-      #if defined Debug_SPort
-        Debug.println("rx <======");
+      #if defined Debug_SPort_Switching
+        Debug.print("rx");
       #endif
     }
   #endif
@@ -2697,8 +2784,8 @@ void SPort_Init()  {
         #if (defined ESP_Onewire) && (defined ESP32_SoftwareSerial)        
           frSerial.enableTx(true);  // Switch S.Port into send mode
         #endif
-        #if defined Debug_SPort
-          Debug.println("tx <======");
+        #if defined Debug_SPort_Switching
+          Debug.print("tx");
         #endif
       }   else 
       if(mode == rx && modeNow != rx) {   
@@ -2707,23 +2794,15 @@ void SPort_Init()  {
         #if (defined ESP_Onewire) && (defined ESP32_SoftwareSerial)                  
           frSerial.enableTx(false);  // disable interrupts on tx pin     
         #endif
-        #if defined Debug_SPort
-          Debug.println("rx <======");
+        #if defined Debug_SPort_Switching
+          Debug.print("rx");
         #endif
       } 
   #endif
   }
-//=================================================================================================  
-  void frSerialSafeWrite(byte b) {
-    setSPortMode(tx);
-    frSerial.write(b);   
-    #if defined Debug_SPort  
-      PrintByte(b);
-    #endif 
-    delay(0); // yield to rtos for wifi & bt to get a sniff
-  }
+
 //=================================================================================================
- byte frSerialSafeRead() {
+ byte SPortSafeRead() {
  byte b;  
  byte prevb=0; 
  
@@ -2733,14 +2812,18 @@ void SPort_Init()  {
     stuffbyte = 0;
     
      } else {
-     
-    b = frSerial.read(); 
 
+    b = frSerial.read();  
+
+    //  Byte in frame has value 0x7E is changed into 2 bytes: 0x7D 0x5E
+    //  Byte in frame has value 0x7D is changed into 2 bytes: 0x7D 0x5D
+    
+    
     if (b == 0x7D) {
       prevb = b;
       b = frSerial.read();
       if (b == 0x5E) {
-        b = 0x7E;   // // replace 0x7D 5E with 0x7E
+        b = 0x7E;   // // replace 0x7D 5E pair with 0x7E
       } else {
         stuffbyte = b;  // else forward both
         b = prevb;
@@ -2751,7 +2834,7 @@ void SPort_Init()  {
       prevb = b;
       b = frSerial.read();
       if (b == 0x5D) {
-        b = 0x7D;   // replace 0x7D 5D with 0x7D
+        b = 0x7D;   // replace 0x7D 5D pair with 0x7D
       } else {
         stuffbyte = b;  // else forward both
         b = prevb;
@@ -2759,119 +2842,425 @@ void SPort_Init()  {
     }    
 
   }   
-  #if defined Debug_SPort  
-    PrintByte(b);
-  #endif       
-
+  #if (defined Debug_SPort_In) || (defined Debug_SPort)  
+    PrintByteIn(b);
+  #endif 
+  
   delay(0); // yield to rtos for wifi & bt to get a sniff 
   return b;
 }
+
 //=================================================================================================
+  
+  void SPortSafeSend(byte b, bool isPayload) {
+  #if (not defined inhibit_SPort)
+      
+    setSPortMode(tx);
+
+    //  B Y T E   S T U F F   
+    //  Byte in frame has value 0x7E is changed into 2 bytes: 0x7D 0x5E
+    //  Byte in frame has value 0x7D is changed into 2 bytes: 0x7D 0x5D
+    if (isPayload) {
+      if (b == 0x7E) {
+        frSerial.write(0x7D);
+        #if (defined Debug_SPort_Out) || (defined Debug_SPort) 
+          PrintByteOut(b);
+        #endif 
+        frSerial.write(0x5E);
+      } else if (b == 0x7D) {
+        frSerial.write(0x7D);
+        #if (defined Debug_SPort_Out) || (defined Debug_SPort) 
+          PrintByteOut(b);
+        #endif         
+        frSerial.write(0x5D);    
+      } else {
+      
+      frSerial.write(b); 
+      }
+    } else {
+      frSerial.write(b);    
+    }
+
+   if (isPayload) {  // Add CRC
+     AddInCrc(b);
+   }
+
+    #if (defined Debug_SPort_Out) || (defined Debug_SPort) 
+      PrintByteOut(b);
+    #endif 
+    delay(0); // yield to rtos for wifi & bt to get a sniff
+    
+  #endif      
+  }
+  
+//=================================================================================================  
 void SPortSendAndReceive() {  
 
   if (set.trmode == ground) {
     if(mavGood  && ((millis() - blind_inject_millis) > 18)) {  
-      BlindInjectSPort();                    // Blind inject packet into Taranis et al 
+      SPortBlindInject();                    // Blind inject frame into Taranis et al 
       blind_inject_millis=millis();
      }
   } else {
 
   // Read SPort Stream
   setSPortMode(rx);
-  uint8_t prevByt=0;
+
   uint8_t Byt = 0;
-  while ( frSerial.available())   {  // Receive sensor IDs from X receiver
-    Byt =  frSerialSafeRead();
-
-    if (prevByt == 0x7E) {  // Frame start
-    
-      if (Byt == 0x1B) {   // DIY slot found, slot ours in, and send 
-        sp_timeout_millis = millis(); 
-        spGood = true;
-        ReportSPortOnlineStatus();
-        #if defined Debug_SPort || defined Debug_Mavlite
-          Debug.println("slot found"); 
-        #endif
-      
-        Inject_Passtrough();   // Interleave Passthrough frame      
-        Inject_Mavlite();      // Interleave Mavlite frame
-      
-        return;  
-      }
-
-      if (Byt == 0x0D){           // ID for Mavlite uplink
-        ReadMavliteUplink(Byt);
-      }
+  uint8_t prevByt=0;
+  
+  while (frSerial.available())   {  // Receive sensor IDs from X receiver
+    Byt =  SPortSafeRead();
+    if (sp_idx > sp_max -1) {
+   //   Debug.println("S.Port from X Receiver read buff overflow ignored");
+      sp_idx--;
     }
+
+    if ((prevByt == 0x7E) && (Byt == 0x1B)) {   // Real-Time DIY sending slot found, slot ours in, and send right now  
+         Inject_Into_SPort();                   // Interleave a packet right now!    
+         return;  
+      }
+
+    if (Byt == 0x7E) {
+      if ((sp_buff[1] == 0x0D) && (sp_buff[2] == 0x30)) { // MavLite uplink match found
+
+        DecodeAndUplinkMavLite();        
+
+      }      
+      sp_idx = 0;
+    }   
+    sp_buff[sp_idx] = Byt;
+    sp_idx++;
     prevByt=Byt;
-    
   } // end of while
  }  // end of air and relay modes 
 }   // back to main loop
 
-//=================================================================================================
-void BlindInjectSPort() {  // Downlink
-
-  Inject_Passtrough();  
+//====================================   U P L I N K  ============================================ 
  
-  Inject_Mavlite();
+bool DecodeAndUplinkMavLite() {
+#if defined Support_MavLite  
+  mt_seq = sp_buff[3];
+  if (mt_seq == 0) {
+    mt_paylth = sp_buff[4];
+    mt_msg_id = sp_buff[5];
 
+    mt_idx = 0;
+    }
+    switch (mt_msg_id) {                // Decode uplink mavlite messages according to msg-id
+      case 20:    //  #20 or 0x14
+        if (Unchunk_MavLite_Uplink()) {
+          #if defined Debug_MavLite
+            Debug.printf("MavLite #20 Param_Request_Read :%s:\n", mt_param_id);  
+          #endif  
+          strncpy(ap_param_id, mt_param_id, 16);
+
+          Param_Request_Read(-1, ap_param_id); // Request Param Read using param_id, not index  //  Param_Request_Read_id(ap_param_id); 
+
+          mt20_row = First_Empty_mt20_Row();
+       //   Debug.printf("mt20_row=%d\n", mt20_row);
+          if (mt20_row == 0xffff) return false;  // mt20 table overflowed, ignore this message :(
+
+          strncpy(mt20[mt20_row].param_id, ap_param_id, 16);
+          mt20[mt20_row].millis = millis(); 
+          mt20[mt20_row].inuse = 1;
+
+          #if (defined Debug_MavLite_SPort)
+            PrintMavLiteUplink();
+          #endif
+                 
+          return true;           
+        }
+        return false;
+      case 23:    // #23 or 0x17
+         if (Unchunk_MavLite_Uplink()) {
+          #if defined Debug_MavLite
+            Debug.printf("MavLite #23 Param_Set :%s:\n", mt_param_id);  
+          #endif  
+          strncpy(ap_param_id, mt_param_id, 16);
+          return true;           
+        }            
+        return false;
+      case 76:  
+        return false;      
+    } 
+#endif     
+  return false;     
 }
-//=================================================================================================
- void Inject_Passtrough() {  
+
+
+//====================================   U P L I N K  ============================================ 
+#if defined Support_MavLite
+bool Unchunk_MavLite_Uplink() {              // Uplink to FC
+  if (mt_seq == 0) {            // first chunk 
+    for (int i = 6 ; i <= 8 ; i++, mt_idx++) {
+  //    Debug.printf("XX i=%d  mt_idx=%d sp_buff[i]=%x \n",i, mt_idx, sp_buff[i]);
+      mt_param_id[mt_idx] = sp_buff[i];
+      if (mt_idx >= mt_paylth) {
+        return true;
+      }        
+    }
+    return false;
+  } else {           // rest of the chunks
+    for (int i = 4 ; i <= 8 ; i++, mt_idx++) {
+ //     Debug.printf("YY i=%d  mt_idx=%d sp_buff[i]=%x \n",i, mt_idx, sp_buff[i]);
+      mt_param_id[mt_idx] = sp_buff[i];
+      if (mt_idx >= mt_paylth) {
+        mt_param_id[mt_idx] = 0x00; // terminate string      
+        return true; 
+      }                
+     }
+   return false;
+  }
+ return false;
+}
+#endif
+//====================================   D O W N L I N K  ========================================= 
+
+void SPortBlindInject() {  // Downlink
+
+  Inject_Into_SPort();     // Blind inject a passthru or MavLite frame    
+ 
+}
+//====================================   D O W N L I N K  ========================================= 
+void Inject_Into_SPort() {  
            
   uint16_t nxt = PopNextFrame();
+
   if (nxt != 0xffff) {   // not empty
-    SPort_Send_Passthru_Packet(nxt);  
+    SPortFrameAndSend(nxt);  
   }
  }
- //=================================================================================================
- void Inject_Mavlite() { 
-   
-  #if defined Support_Mavlite
-    if (ml20_flag == 2)  {       // 0=none pending, 1=waiting for FC, 2=received_from_fc
-      #if defined defined Debug_Mavlite         
-        Debug.println("Mavlite_Inject_Packet");
-      #endif
-      SPort_Send_Mavlite_Packet();
-      ml20_flag = 0;            // tri-state  0= none, 1=mavlink reply pending, 2 mav reply received
+
+
+//===========================================
+msg_class_t  msg_class_now(uint8_t msg_id) {
+  if ((msg_id >= 20) && (msg_id <=77)) {
+    return mavlite; 
+  } else {
+    return passthru;
+  }
+ }
+//====================================   D O W N L I N K  =========================================   
+ void SPortFrameAndSend(uint16_t idx) {
+  #if defined Frs_Debug_Period
+    PrintFrPeriod(0);   
+  #endif    
+
+  if (sb[idx].msg_id == 0xF101) {
+
+    #if (defined Frs_Debug_Rssi)
+      PrintFrPeriod(0);    
+      Debug.println(" 0xF101 sent");
+    #endif
+    
+    if (set.trmode != relay) {   
+      SPortSafeSend(0x7E, false);    // not payload, don't stuff or crc
+      SPortSafeSend(0x1B, false);  
     }
-  #endif
- }
-//=================================================================================================  
- void ReadMavliteUplink(byte Byt) {
+   }
 
-  #if defined Support_Mavlite      
+  #if defined Frs_Debug_Scheduler
+    Debug.printf("Injecting frame idx=%d ", idx);
+    PrintPayload(msg_class_now(sb[idx].msg_id)); 
+    Debug.println();
+  #elif defined Debug_MavLite_Scheduler
+  if (sb[idx].msg_id < 0x100) {  
+    Debug.printf("Injecting frame idx=%d ", idx);
+    PrintPayload(msg_class_now(sb[idx].msg_id)); 
+    Debug.println();
+  }  
+  #endif
+
+  msg_class = msg_class_now(sb[idx].msg_id);
+  if (msg_class == passthru) {
+    SPort_Send_Passthru_Packet(0x1B, sb[idx].msg_id);   // fr_payload given value in PopNextFrame() above
+    pt_payload[idx] = 0; 
+    fr_payload = 0;                                     // Clear the payload field 
+  } else
   
-    mlBytes[0] =  Byt; 
-    for (int i = 1 ; i < 8 ; i++) {
-      mlBytes[i] =  frSerialSafeRead();
-    }   
-     
-    ml.sensor_id = mlBytes[0];
-    ml.frame_id = mlBytes[1];
-    if (ml.frame_id == 0x30) {
-      ml.data = *(uint16_t *)(mlBytes+2);
-      ml.value = *(uint32_t*)(mlBytes+4);
-        
-       #if defined Debug_Mavlite 
-         Debug.print("S.Port Read raw: ");
-         for (int i=0 ; i < 8 ; i++) {
-           PrintByte(mlBytes[i]);
-          }
-         Debug.printf("\t0x%02X:0x%02X:%04X:%08X\n", ml.sensor_id, ml.frame_id, ml.data, ml.value);          
-       #endif   
-
-       if (DecodeMavLite()) {    // Uplink from Taranis/Horus
-                     
-         ml20_flag = 1;     // 0=none pending, 1=waiting for FC, 2=received_from_fc
-         Param_Request_Read(-1, ap_param_id); //   Request Param Read using param_id, not index  //  Param_Request_Read_id(ap_param_id); 
-       }
-    }      
-
-  #endif
+  if (msg_class == mavlite) {
+    SPort_Send_Mavlite_Packet(0x32, sb[idx].msg_id);    // mt_Payload given value in PopNextFrame() above
+    memset(&mt_payload[mt_row], 0, 6);
+    memset(&mt_Payload, 0, 6);                          // Clear the payload fields
+    mt_inuse[mt_row] = 0;
+  }
+  
+  sb[idx].inuse = 0;                                    // 0=free for use, 1=occupied - for sport and mlite
+   
  }
+
 //=================================================================================================  
+void PackSensorTable(uint16_t msg_id, uint8_t sub_id) {
+  switch(msg_id) {
+    case 0x16:                   // msg_id 0x16 MavLite PARAM_VALUE ( #22 )
+      PackMavLiteParamValue16(msg_id);
+      break; 
+      
+    case 0x800:                  // msg_id 0x800 Lat & Lon
+      if (sub_id == 0) {
+        PackLat800(msg_id);
+      }
+      if (sub_id == 1) {
+        PackLon800(msg_id);
+      }
+      break;            
+    case 0x5000:                 // msg_id 0x5000 Status Text            
+        PackMultipleTextChunks_5000(msg_id);
+        break;
+        
+    case 0x5001:                // msg_id 0x5001 AP Status
+      Pack_AP_status_5001(msg_id);
+      break; 
+
+    case 0x5002:                // msg_id 0x5002 GPS Status
+      Pack_GPS_status_5002(msg_id);
+      break; 
+          
+    case 0x5003:                //msg_id 0x5003 Batt 1
+      Pack_Bat1_5003(msg_id);
+      break; 
+                    
+    case 0x5004:                // msg_id 0x5004 Home
+      Pack_Home_5004(msg_id);
+      break; 
+
+    case 0x5005:                // msg_id 0x5005 Velocity and yaw
+      Pack_VelYaw_5005(msg_id);
+      break; 
+
+    case 0x5006:                // msg_id 0x5006 Attitude and range
+      Pack_Atti_5006(msg_id);
+      break; 
+      
+    case 0x5007:                // msg_id 0x5007 Parameters 
+      Pack_Parameters_5007(msg_id, sub_id);
+      break; 
+      
+    case 0x5008:                // msg_id 0x5008 Batt 2
+      Pack_Bat2_5008(msg_id);
+      break; 
+
+    case 0x5009:                // msg_id 0x5009 Waypoints/Missions 
+      Pack_WayPoint_5009(msg_id);
+      break;       
+
+    case 0x50F1:                // msg_id 0x50F1 Servo_Raw            
+      Pack_Servo_Raw_50F1(msg_id);
+      break;      
+
+    case 0x50F2:                // msg_id 0x50F2 VFR HUD          
+      Pack_VFR_Hud_50F2(msg_id);
+      break;    
+
+    case 0x50F3:                // msg_id 0x50F3 Wind Estimate      
+   //   Pack_Wind_Estimate_50F3(msg_id);  // not presently implemented
+      break; 
+    case 0xF101:                // msg_id 0xF101 RSSI      
+      Pack_Rssi_F101(msg_id);      
+      break;       
+    default:
+      Debug.print("Warning, msg_id "); Debug.print(msg_id, HEX); Debug.println(" unknown");
+      break;       
+  }            
+}
+
+//=================================================================================================  
+void SPort_Send_Passthru_Packet(uint8_t sensor_id, uint16_t msg_id) {
+  uint8_t *bytes;
+  
+  if (set.trmode == ground) {         // Only if ground mode send these bytes, else XSR sends them
+    SPortSafeSend(0x7E, false);       //  START/STOP don't stuff or add into crc
+    SPortSafeSend(sensor_id, false);  // alias == instance 
+  }
+  
+  SPortSafeSend(0x10, true );          //  Passthru - frame_id
+
+  bytes = (uint8_t*)&msg_id;           // cast to bytes
+
+  SPortSafeSend(bytes[0], true);
+  SPortSafeSend(bytes[1], true);
+  
+  #if defined Frs_Debug_Payload
+    PrintFrPeriod(0);
+    Debug.print("\tDataFrame. ID "); 
+    PrintByte(bytes[0], 0);
+    Debug.print(" "); 
+    PrintByte(bytes[1], 0);
+  #endif
+  
+  bytes = (uint8_t*)&fr_payload;       // cast to bytes
+
+  SPortSafeSend(bytes[0], true);
+  SPortSafeSend(bytes[1], true);
+  SPortSafeSend(bytes[2], true);
+  SPortSafeSend(bytes[3], true);
+  
+  #if defined Frs_Debug_Payload
+    Debug.print("Payload (send order) "); 
+    PrintByte(bytes[0], 0);
+    Debug.print(" "); 
+    PrintByte(bytes[1], 0);
+    Debug.print(" "); 
+    PrintByte(bytes[2], 0);
+    Debug.print(" "); 
+    PrintByte(bytes[3], 0);  
+    Debug.print("Crc= "); 
+    PrintByte(0xFF-CRC, 0);
+    Debug.println("/"); 
+  #endif 
+
+  SPort_SendCrc();                  
+
+}
+//=================================================================================================  
+void SPort_Send_Mavlite_Packet(uint8_t sensor_id, uint16_t msg_id) {
+  uint8_t *bytes;
+  
+  if (set.trmode == ground) {         // Only if ground mode send these bytes, else XSR sends them
+    SPortSafeSend(0x7E, false);       //  START/STOP don't stuff or add into crc
+    SPortSafeSend(sensor_id, false);  // alias == instance 
+  }
+  
+  SPortSafeSend(0x32, false );   //  MavLite frame, don't add crc here, we added it into the whole message
+
+  bytes = (uint8_t*)&mt_Payload;         // cast to bytes
+
+  SPortSafeSend(bytes[0], false);
+  SPortSafeSend(bytes[1], false);
+  SPortSafeSend(bytes[2], false);
+  SPortSafeSend(bytes[3], false);
+  SPortSafeSend(bytes[4], false); 
+  SPortSafeSend(bytes[5], false);
+
+  
+  #if defined Frs_Debug_Payload
+    Debug.print("Payload (send order) "); 
+    PrintByte(bytes[0], 0);
+    Debug.print(" "); 
+    PrintByte(bytes[1], 0);
+    Debug.print(" "); 
+    PrintByte(bytes[2], 0);
+    Debug.print(" "); 
+    PrintByte(bytes[3], 0);  
+    PrintByte(bytes[4], 0);   // extra 2 bytes for MavLite
+    PrintByte(bytes[5], 0);  
+    Debug.println("/"); 
+  #endif
+  
+}
+//=================================================================================================  
+void SPort_SendCrc() {
+  uint8_t byte;
+  byte = 0xFF-CRC;
+
+  SPortSafeSend(byte, false);
+ 
+  // PrintByte(byte, 1);
+  // Debug.println("");
+  CRC = 0;          // CRC reset
+}
+//====================================   D O W N L I N K  =========================================   
 
 uint16_t PopNextFrame() {
 
@@ -2888,7 +3277,7 @@ uint16_t PopNextFrame() {
   // 2 tier scheduling. Tier 1 gets priority, tier2 (0x5000) only sent when tier 1 empty 
   
   // find the row with oldest sensor data = idx 
-  sb_unsent = 0;  // how many slots in-use
+  sb_unsent = 0;  // how many rows in-use
 
   uint16_t i = 0;
   while (i < sb_rows) {  
@@ -2897,9 +3286,9 @@ uint16_t PopNextFrame() {
       sb_unsent++;   
       
       sb_age = (sb_now - sb[i].millis); 
-      sb_tier_age = sb_age - sb[i].subid;  
+      sb_tier_age = sb_age - sb[i].sub_id;  
 
-      if (sb[i].id == 0x5000) {
+      if (sb[i].msg_id == 0x5000) {
         if (sb_tier_age >= sb_oldest_tier2) {
           sb_oldest_tier2 = sb_tier_age;
           idx_tier2 = i;
@@ -2916,280 +3305,231 @@ uint16_t PopNextFrame() {
     
   if (sb_oldest_tier1 == 0) {            // if there are no tier 1 sensor entries
     if (sb_oldest_tier2 > 0) {           // but there are tier 2 entries
-      idx = idx_tier2;                // send tier 2 instead
+      idx = idx_tier2;                   // send tier 2 instead
       sb_oldest = sb_oldest_tier2;
     }
   } else {
-    idx = idx_tier1;                  // if there are tier1 entries send them
+    idx = idx_tier1;                    // if there are tier1 entries send them
     sb_oldest = sb_oldest_tier1;
   }
   
-  //Debug.println(sb_unsent);  // limited detriment :)  
+  //Debug.println(sb_unsent);           // limited detriment :)  
 
   if (sb_oldest == 0)  return 0xffff;  // flag the scheduler table as empty
 
-  #ifdef Frs_Debug_Scheduler
-    Debug.print(sb_unsent); 
-    Debug.printf("\tPop  row= %3d", idx );
-    Debug.print("  id=");  Debug.print(sb[idx].id, HEX);
-    if (sb[idx].id < 0x1000) Debug.print(" ");
-    Debug.printf("  subid= %2d", sb[idx].subid);       
-    Debug.printf("  payload=%12d", sb[idx].payload );
-    Debug.printf("  age=%3d mS \n" , sb_oldest_tier1 );    
-  #endif 
+  if ((msg_class_now(sb[idx].msg_id)) == passthru) {
+      fr_payload = pt_payload[idx]; 
+  } else
+  if ((msg_class_now(sb[idx].msg_id)) == mavlite) {
+      mt_Payload = mt_payload[sb[idx].mt_idx];
+  }
+
+  #if (defined Frs_Debug_Scheduler) || (defined MavLite_Debug_Scheduler)
+    uint16_t msgid_filter;
+    #if (defined MavLite_Debug_Scheduler)
+      msgid_filter = 0x100;
+    #else
+      msgid_filter = 0xffff; // just high value
+    #endif
+
+    if (sb[idx].msg_id < msgid_filter) {
+      Debug.print(sb_unsent); 
+      Debug.printf("\tPop  row= %3d", idx );
+      Debug.print("  msg_id=0x");  Debug.print(sb[idx].msg_id, HEX);
+      if (sb[idx].msg_id < 0x1000) Debug.print(" ");
+      Debug.printf("  sub_id= %2d", sb[idx].sub_id); 
+      
+      pb_rx=false;
+      PrintPayload(msg_class_now(sb[idx].msg_id));
+      Debug.printf("  age=%3d mS \n" , sb_oldest_tier1 );        
+    }
+  #endif
 
   return idx;  // return the index of the oldest frame
-
  }
  
 //=================================================================================================  
- void SPort_Send_Passthru_Packet(uint16_t idx) {
-  #if defined Frs_Debug_Period
-    ShowPeriod(0);   
-  #endif  
-       
-  fr_payload = 0; // Clear the payload field    
-      
-  if (sb[idx].id == 0xF101) {
+void PushToEmptyRow(uint16_t msg_id, uint8_t sub_id) {
+  sb_row = 0;
+  while (sb[sb_row].inuse) {   // find empty s.port row 
+    sb_row++; 
+    if (sb_row >= sb_rows-1) {
 
-    #if (defined Frs_Debug_Rssi)
-      ShowPeriod(0);    
-      Debug.println(" 0xF101 sent");
-    #endif
-    
-    if (set.trmode != relay) {   
-      SPort_SendByte(0x7E, false);   
-      SPort_SendByte(0x1B, false);  
+      if ( (sb_buf_full_gear == 0) || (sb_buf_full_gear%4000 == 0)) {
+        Debug.println("S.Port scheduler buffer full. Check S.Port link");  // Report every so often
+      }
+      sb_buf_full_gear++;
+      return;     
     }
-   }
-                              
-  SPort_SendDataFrame(0x1B, sb[idx].id, sb[idx].payload); 
-  sb[idx].payload = 0;  
-  sb[idx].inuse = false;   // free the row for re-use
-  #ifdef Frs_Debug_Scheduler
-    Debug.printf("Injecting frame idx=%d\n", idx );  
-  #endif   
- }
-//=================================================================================================  
-void PushToEmptyRow(sb_t psh) {
-  
-  // find empty sensor row
-  uint16_t j = 0;
-  while (sb[j].inuse) {
-    j++;
   }
-  if (j >= sb_rows-1) {
-    sens_buf_full_count++;
-    if ( (sens_buf_full_count == 0) || (sens_buf_full_count%1000 == 0)) {
-      Debug.println("Sensor buffer full. Check S.Port link");  // Report every so often
-    }
-    return;
-  }
-  
   sb_unsent++;
-  
-  #if defined Frs_Debug_Scheduler
-    Debug.print(sb_unsent); 
-    Debug.printf("\tPush row= %3d", j );
-    Debug.print("  id="); Debug.print(psh.id, HEX);
-    if (psh.id < 0x1000) Debug.print(" ");
-    Debug.printf("  subid= %2d", psh.subid);    
-    Debug.printf("  payload=%12d \n", psh.payload );
-  #endif
 
   // The push
-  psh.millis = millis();
-  psh.inuse = true;
-  sb[j] = psh;
-
-}
-//=================================================================================================  
-void PackSensorTable(uint16_t id, uint8_t subid) {
+  sb[sb_row].millis = millis();
+  sb[sb_row].inuse = 1;                // 0=free for use, 1=occupied
+  sb[sb_row].msg_id = msg_id;
+  sb[sb_row].sub_id = sub_id;
   
-  switch(id) {
-    case 0x800:                  // data id 0x800 Lat & Lon
-      if (subid == 0) {
-        PackLat800(id);
+  if(msg_class_now(msg_id) == passthru) {
+      pt_payload[sb_row] = fr_payload;  
+  } else
+  if(msg_class_now(msg_id)== mavlite) {
+     MlitePushToEmpty();
+  }
+  
+  #if (defined Frs_Debug_Scheduler) || (defined MavLite_Debug_Scheduler) 
+  
+    uint16_t msgid_filter;  
+    #if (defined MavLite_Debug_Scheduler)
+      msgid_filter = 0x100;
+    #else
+      msgid_filter = 0xffff; // high values
+    #endif
+    
+    if (msg_id < msgid_filter) {
+      Debug.print(sb_unsent); 
+      Debug.printf("\tPush row= %3d", sb_row );
+      Debug.print("  msg_id=0x"); Debug.print(msg_id, HEX);
+      if (msg_id < 0x1000) Debug.print(" ");
+      Debug.printf("  sub_id= %2d", sub_id);
+      pb_rx=false;
+      PrintPayload(msg_class_now(msg_id));
+      Debug.println();      
+    }
+  #endif
+}
+//=================================================================================================
+void MlitePushToEmpty() {
+#if defined Support_MavLite  
+  mt_row = 0;
+  while (mt_inuse[mt_row]) {   // find empty mavlite row
+    mt_row++;  
+    if (mt_row >= mt_rows-1) {
+      if ( (mt_buf_full_gear == 0) || (mt_buf_full_gear%1000 == 0)) {
+        Debug.println("Mavlite buffer full. Check S.Port link");  // Report every so often
       }
-      if (subid == 1) {
-        PackLon800(id);
-      }
-      break; 
-           
-    case 0x5000:                 // data id 0x5000 Status Text            
-        PackMultipleTextChunks_5000(id);
-        break;
-        
-    case 0x5001:                // data id 0x5001 AP Status
-      Pack_AP_status_5001(id);
-      break; 
+      mt_buf_full_gear++;
+      return;
+    }
+  }
+ // mt_unsent++;
 
-    case 0x5002:                // data id 0x5002 GPS Status
-      Pack_GPS_status_5002(id);
-      break; 
+  // mlite push
+  mt_payload[mt_row] = mt_Payload; // mlite payload to mlite table
+  sb[sb_row].mt_idx = mt_row;    // index to sport table
+  mt_inuse[mt_row] = 1;  
+#endif 
+} 
+
+//=================================================================================================  
+//                           P A C K   M E S S A G E  P A Y L O A D S
+//================================================================================================= 
+void PackMavLiteParamValue16(uint16_t msg_id) {   //  0x16 MavLite PARAM_VALUE ( #22 )
+#if defined Support_MavLite  
+
+  mliteMsg.msg_id = msg_id = 0x16;  
+  mt22_lth = 4 +strlen(ap_param_id);             // payload = value + param 
+  Debug.printf("mt22_lth+4=%d\n", mt22_lth);        //xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+  mliteMsg.lth = mt22_lth;                        // Payload lth = 17
+  mliteMsg.value = ap_param_value;
+  strncpy(mliteMsg.param_id, ap_param_id, 16);
+  mt22_tot = 4 + mliteMsg.lth;            // msg_id + lth + padd + padd + payload
+
+ // CRC = 0;
+  for (int i = 4 ; i < mt22_tot ; i++) {  // payload only - add in CRC
+    AddInCrc(mliteMsg.raw[i]);
+  }
+  mliteMsg.crc = 0xFF-CRC;      // 4 thru 20 = 21
+ 
+  #if defined Debug_MavLite
+    Debug.printf("PackMavLiteParamValue16 msg_id=0x%X lth=%d param_value=%.3f param_id=%s \n"
+      , mliteMsg.msg_id, mliteMsg.lth, mliteMsg.value, mliteMsg.param_id );    
           
-    case 0x5003:                //data id 0x5003 Batt 1
-      Pack_Bat1_5003(id);
-      break; 
-                    
-    case 0x5004:                // data id 0x5004 Home
-      Pack_Home_5004(id);
-      break; 
-
-    case 0x5005:                // data id 0x5005 Velocity and yaw
-      Pack_VelYaw_5005(id);
-      break; 
-
-    case 0x5006:                // data id 0x5006 Attitude and range
-      Pack_Atti_5006(id);
-      break; 
-      
-    case 0x5007:                // data id 0x5007 Parameters 
-      Pack_Parameters_5007(id, subid);
-      break; 
-      
-    case 0x5008:                // data id 0x5008 Batt 2
-      Pack_Bat2_5008(id);
-      break; 
-
-    case 0x5009:                // data id 0x5009 Waypoints/Missions 
-      Pack_WayPoint_5009(id);
-      break;       
-
-    case 0x50F1:                // data id 0x50F1 Servo_Raw            
-      Pack_Servo_Raw_50F1(id);
-      break;      
-
-    case 0x50F2:                // data id 0x50F2 VFR HUD          
-      Pack_VFR_Hud_50F2(id);
-      break;    
-
-    case 0x50F3:                // data id 0x50F3 Wind Estimate      
-   //   Pack_Wind_Estimate_50F3(id);  // not presently implemented
-      break; 
-    case 0xF101:                // data id 0xF101 RSSI      
-      Pack_Rssi_F101(id);      
-      break;       
-    default:
-      Debug.print("Warning, sensor "); Debug.print(id, HEX); Debug.println(" unknown");
-      break;       
-  }
-              
-}
-//=================================================================================================  
-
-void SPort_SendByte(uint8_t byte, bool addCrc) {
-  #if (not defined inhibit_SPort) 
-    
-   if (!addCrc) {
-      frSerialSafeWrite(byte);  
-     return;       
-   }
-
-   CheckByteStuffAndSend(byte);
- 
-    // update CRC
-    crc += byte;       //0-1FF
-    crc += crc >> 8;   //0-100
-    crc &= 0x00ff;
-    crc += crc >> 8;   //0-0FF
-    crc &= 0x00ff;
-    
-  #endif    
-}
-
-//=================================================================================================  
-void CheckByteStuffAndSend(uint8_t byte) {
-  #if (not defined inhibit_SPort) 
-   if (byte == 0x7E) {
-     frSerialSafeWrite(0x7D);
-     frSerialSafeWrite(0x5E);
-   } else if (byte == 0x7D) {
-     frSerialSafeWrite(0x7D);
-     frSerialSafeWrite(0x5D);    
-   } else {
-     frSerialSafeWrite(byte);  
-     }
-  #endif     
-}
-//=================================================================================================  
-void SPort_SendCrc() {
-  uint8_t byte;
-  byte = 0xFF-crc;
-
- CheckByteStuffAndSend(byte);
- 
- // PrintByte(byte);
- // Debug.println("");
-  crc = 0;          // CRC reset
-}
-//=================================================================================================  
-void SPort_SendDataFrame(uint8_t Instance, uint16_t Id, uint32_t value) {
-
-  if (set.trmode == ground) {    // Only if ground mode send these bytes, else XSR sends them
-    SPort_SendByte(0x7E, false);       //  START/STOP don't add into crc
-    SPort_SendByte(Instance, false);   //  don't add into crc  
-  }
-  
-  SPort_SendByte(0x10, true );   //  Data framing byte
- 
-  uint8_t *bytes = (uint8_t*)&Id;
-  #if defined Frs_Debug_Payload
-    Debug.print("DataFrame. ID "); 
-    PrintByte(bytes[0]);
-    Debug.print(" "); 
-    PrintByte(bytes[1]);
+    Debug.print("mliteMsg=");
+    for (int i = 0 ; i < mt22_tot ; i++) {
+     if ((i == 2) || !((i+2)%6)) Debug.print("|");
+     PrintByteNon(mliteMsg.raw[i]);
+    }
+    Debug.print("|Crc=");
+    PrintByteNon(mliteMsg.crc);
+    Debug.print("|\t");
+    for (int i = 0 ; i < mt22_tot ; i++) {
+     if ((mliteMsg.raw[i] >31) && (mliteMsg.raw[i]<127)) Debug.write(mliteMsg.raw[i]);
+      }
+    Debug.println("|");
   #endif
-  SPort_SendByte(bytes[0], true);
-  SPort_SendByte(bytes[1], true);
-  bytes = (uint8_t*)&value;
-  SPort_SendByte(bytes[0], true);
-  SPort_SendByte(bytes[1], true);
-  SPort_SendByte(bytes[2], true);
-  SPort_SendByte(bytes[3], true);
-  
-  #if defined Frs_Debug_Payload
-    Debug.print("Payload (send order) "); 
-    PrintByte(bytes[0]);
-    Debug.print(" "); 
-    PrintByte(bytes[1]);
-    Debug.print(" "); 
-    PrintByte(bytes[2]);
-    Debug.print(" "); 
-    PrintByte(bytes[3]);  
-    Debug.print("Crc= "); 
-    PrintByte(0xFF-crc);
-    Debug.println("/");  
-  #endif
-  
-  SPort_SendCrc();
-}
-//=================================================================================================  
-  uint32_t bit32Extract(uint32_t dword,uint8_t displ, uint8_t lth) {
-  uint32_t r = (dword & createMask(displ,(displ+lth-1))) >> displ;
-  return r;
-}
-//=================================================================================================  
-// Mask then AND the shifted bits, then OR them to the payload
-  void bit32Pack(uint32_t dword ,uint8_t displ, uint8_t lth) {   
-  uint32_t dw_and_mask =  (dword<<displ) & (createMask(displ, displ+lth-1)); 
-  fr_payload |= dw_and_mask; 
-}
-//=================================================================================================  
-  uint32_t bit32Unpack(uint32_t dword,uint8_t displ, uint8_t lth) {
-  uint32_t r = (dword & createMask(displ,(displ+lth-1))) >> displ;
-  return r;
-}
-//=================================================================================================  
-uint32_t createMask(uint8_t lo, uint8_t hi) {
-  uint32_t r = 0;
-  for (unsigned i=lo; i<=hi; i++)
-       r |= 1 << i;  
-  return r;
-}
-//=================================================================================================  
 
-void PackLat800(uint16_t id) {
+  mt_chunk = 0; 
+  mtmsg_idx = 4;   // 0 thru 3 skipped
+  
+  while (mtmsg_idx < mt22_tot) {    
+    Debug.printf("mtmsg_idx=%d  mt22_tot=%d   mt_chunk=%d\n", mtmsg_idx, mt22_tot, mt_chunk     ); 
+    if (mt_chunk == 0) {
+
+      //======= message to frame (chunk)
+      // payload starting position  msgid, lth - then 20B payload, then Crc
+    
+      // first chunk 
+      mt_Payload.seq = mt_chunk;
+      mt_Payload.msg_id = msg_id;    // idx = 0
+      mt_Payload.lth = mliteMsg.lth; // idx = 1     
+      //______________________________________________________
+      for (int i = 3 ; i < 6 ; i++) {  
+        mt_Payload.raw[i] = mliteMsg.raw[mtmsg_idx];   
+         
+        Debug.printf("i=%d mtmsg_idx=%d mt_Payload.raw[i]=0x%X\t|", i, mtmsg_idx, mt_Payload.raw[i]); 
+        if ((mt_Payload.raw[i] > 31) && (mt_Payload.raw[i] < 127)) 
+          Debug.write(mt_Payload.raw[i]);
+          else Debug.print(" ");
+        Debug.println("|");  
+        mtmsg_idx++;      
+      } 
+      //_______________________________________________________
+      // rest of the frames / chunks
+    } else {           
+      mt_Payload.seq = mt_chunk;
+      //_______________________________________________________
+      for (int i = 1 ; i < 6 ; i++) { 
+        mt_Payload.raw[i] = mliteMsg.raw[mtmsg_idx];
+          
+        if ((mtmsg_idx >= mt22_tot) || (mliteMsg.raw[mtmsg_idx] == 0)) {  // or param_id terminated before 16B
+         mt_Payload.raw[i] = mliteMsg.crc;   // append the CRC
+         Debug.printf("mtmsg_idx=%d  mliteMsg.raw[mtmsg_idx]=0x%X\n", mtmsg_idx, mliteMsg.raw[mtmsg_idx] );
+         break; // short chunk  
+        }
+        
+        Debug.printf("i=%d mtmsg_idx=%d mt_Payload.raw[i]=0x%X\t|", i, mtmsg_idx, mt_Payload.raw[i]); 
+        if ((mt_Payload.raw[i] > 31) && (mt_Payload.raw[i] < 127)) 
+          Debug.write(mt_Payload.raw[i]);
+          else Debug.print(" ");
+        Debug.println("|");
+        
+        mt_Payload.raw[i] = mliteMsg.raw[mtmsg_idx];   
+        mtmsg_idx++;                                    
+      } // end of for
+      //_________________________________________________________ 
+    }   // end of else - chunks > 0
+
+    PushToEmptyRow(msg_id, 0);  
+
+    #if defined Frs_Debug_All || defined Debug_MavLite
+      Debug.printf("MavLite downlink Param_Value chunk 0x%x: ", msg_id);
+      Debug.printf(" seq=%d  ", mt_Payload.seq);
+      pb_rx = false;
+      PrintPayload(mavlite); 
+      Debug.println();
+    #endif
+      
+    mt_chunk++;
+      
+  } // end of while loop
+
+  CRC = 0;
+#endif    
+}
+
+//=================================================================================================  
+void PackLat800(uint16_t msg_id) {       // 0x800
   fr_gps_status = ap_fixtype < 3 ? ap_fixtype : 3;                   //  0 - 3 
   if (fr_gps_status < 3) return;
   if ((px4_flight_stack) || (pitlab_flight_stack)) {
@@ -3208,23 +3548,20 @@ void PackLat800(uint16_t id) {
   bit32Pack(ms2bits, 30, 2);
           
   #if defined Frs_Debug_All || defined Frs_Debug_LatLon
-    ShowPeriod(0); 
-    Debug.print("FrSky out LatLon 0x800: ");
+    PrintFrPeriod(0); 
+    Debug.print("Passthru out LatLon 0x800: ");
     Debug.print(" ap_lat33="); Debug.print((float)ap_lat33 / 1E7, 7); 
     Debug.print(" fr_lat="); Debug.print(fr_lat);  
     Debug.print(" fr_payload="); Debug.print(fr_payload); Debug.print(" ");
-    PrintPayload(fr_payload);
+    PrintPayload(passthru);
     int32_t r_lat = (bit32Unpack(fr_payload,0,30) * 100 / 6);
     Debug.print(" lat unpacked="); Debug.println(r_lat );    
   #endif
 
-  sr.id = id;
-  sr.subid = 0;  
-  sr.payload = fr_payload;
-  PushToEmptyRow(sr);        
+  PushToEmptyRow(msg_id, 0);        
 }
 //=================================================================================================  
-void PackLon800(uint16_t id) { 
+void PackLon800(uint16_t msg_id) {      // 0x800
   fr_gps_status = ap_fixtype < 3 ? ap_fixtype : 3;                   //  0 - 3 
   if (fr_gps_status < 3) return;
   if ((px4_flight_stack) || (pitlab_flight_stack)) {
@@ -3249,23 +3586,20 @@ void PackLon800(uint16_t id) {
   bit32Pack(ms2bits, 30, 2);
           
   #if defined Frs_Debug_All || defined Frs_Debug_LatLon
-    ShowPeriod(0); 
-    Debug.print("FrSky out LatLon 0x800: ");  
+    PrintFrPeriod(0); 
+    Debug.print("Passthru out LatLon 0x800: ");  
     Debug.print(" ap_lon33="); Debug.print((float)ap_lon33 / 1E7, 7);     
     Debug.print(" fr_lon="); Debug.print(fr_lon); 
     Debug.print(" fr_payload="); Debug.print(fr_payload); Debug.print(" ");
-    PrintPayload(fr_payload);
+    PrintPayload(passthru);
     int32_t r_lon = (bit32Unpack(fr_payload,0,30) * 100 / 6);
     Debug.print(" lon unpacked="); Debug.println(r_lon );  
   #endif
 
-  sr.id = id;
-  sr.subid = 1;    
-  sr.payload = fr_payload;
-  PushToEmptyRow(sr); 
+   PushToEmptyRow(msg_id, 1); 
 }
 //=================================================================================================  
-void PackMultipleTextChunks_5000(uint16_t id) {
+void PackMultipleTextChunks_5000(uint16_t msg_id) {
 
   // status text  char[50] no null,  ap-text char[60]
 
@@ -3295,8 +3629,8 @@ void PackMultipleTextChunks_5000(uint16_t id) {
   fr_simple = ap_simple;
 
   #if defined Frs_Debug_All || defined Frs_Debug_StatusText
-    ShowPeriod(0); 
-    Debug.print("FrSky out AP_Text 0x5000: ");  
+    PrintFrPeriod(0); 
+    Debug.print("Passthru out AP_Text 0x5000: ");  
     Debug.print(" fr_severity="); Debug.print(fr_severity);
     Debug.print(" "); Debug.print(MavSeverity(fr_severity)); 
     Debug.print(" Text= ");  Debug.print(" |"); Debug.print(fr_text); Debug.println("| ");
@@ -3320,7 +3654,7 @@ void PackMultipleTextChunks_5000(uint16_t id) {
     bit32Pack(fr_chunk[3], 0, 7);  
     
     #if defined Frs_Debug_All || defined Frs_Debug_StatusText
-      ShowPeriod(0); 
+      PrintFrPeriod(0); 
       Debug.print(" fr_chunk_num="); Debug.print(fr_chunk_num); 
       Debug.print(" fr_txtlth="); Debug.print(fr_txtlth); 
       Debug.print(" fr_chunk_idx="); Debug.print(fr_chunk_idx); 
@@ -3329,7 +3663,7 @@ void PackMultipleTextChunks_5000(uint16_t id) {
       fr_chunk_print[4] = 0x00;
       Debug.print(" |"); Debug.print(fr_chunk_print); Debug.print("| ");
       Debug.print(" fr_payload="); Debug.print(fr_payload); Debug.print(" ");
-      PrintPayload(fr_payload);
+      PrintPayload(passthru);
       Debug.println();
     #endif  
 
@@ -3341,7 +3675,7 @@ void PackMultipleTextChunks_5000(uint16_t id) {
       bit32Pack(0, 31, 1);     // filler
       
       #if defined Frs_Debug_All || defined Frs_Debug_StatusText
-        ShowPeriod(0); 
+        PrintFrPeriod(0); 
         Debug.print(" fr_chunk_num="); Debug.print(fr_chunk_num); 
         Debug.print(" fr_severity="); Debug.print(fr_severity);
         Debug.print(" "); Debug.print(MavSeverity(fr_severity)); 
@@ -3352,42 +3686,27 @@ void PackMultipleTextChunks_5000(uint16_t id) {
         Debug.print(" mid bit="); Debug.print(sb); 
         Debug.print(" ms bit="); Debug.print(msb); 
         Debug.print(" fr_payload="); Debug.print(fr_payload); Debug.print(" ");
-        PrintPayload(fr_payload);
+        PrintPayload(passthru);
         Debug.println(); Debug.println();
      #endif 
      }
 
-    sr.id = id;
-    sr.subid = fr_chunk_num;
-    sr.payload = fr_payload;
-    PushToEmptyRow(sr); 
+   PushToEmptyRow(msg_id, fr_chunk_num); 
 
-    #if defined Send_status_Text_3_Times 
-      PushToEmptyRow(sr); 
-      PushToEmptyRow(sr);
-    #endif 
+   #if defined Send_status_Text_3_Times 
+    PushToEmptyRow(msg_id, fr_chunk_num); 
+    PushToEmptyRow(msg_id, fr_chunk_num); 
+   #endif 
     
-    fr_chunk_idx +=4;
+   fr_chunk_idx +=4;
  }
   
   fr_chunk_idx = 0;
    
 }
+
 //=================================================================================================  
-void PrintPayload(uint32_t pl)  {
-  uint8_t *bytes;
-  Debug.print("//");
-  bytes = (uint8_t*)&pl;
-  PrintByte(bytes[3]);
-  Debug.print(" "); 
-  PrintByte(bytes[2]);
-  Debug.print(" "); 
-  PrintByte(bytes[1]);
-  Debug.print(" "); 
-  PrintByte(bytes[0]);   
-}
-//=================================================================================================  
-void Pack_AP_status_5001(uint16_t id) {
+void Pack_AP_status_5001(uint16_t msg_id) {
   if (ap_type == 6) return;      // If GCS heartbeat ignore it  -  yaapu  - ejs also handled at #0 read
   fr_payload = 0;
  // fr_simple = ap_simple;         // Derived from "ALR SIMPLE mode on/off" text messages
@@ -3416,8 +3735,8 @@ void Pack_AP_status_5001(uint16_t id) {
   bit32Pack(fr_imu_temp, 26, 6);        // imu temperature in cdegC
 
   #if defined Frs_Debug_All || defined Frs_Debug_APStatus
-    ShowPeriod(0); 
-    Debug.print("FrSky out AP_status 0x5001: ");   
+    PrintFrPeriod(0); 
+    Debug.print("Passthru out AP_status 0x5001: ");   
     Debug.print(" fr_flight_mode="); Debug.print(fr_flight_mode);
     Debug.print(" fr_simple="); Debug.print(fr_simple);
     Debug.print(" fr_land_complete="); Debug.print(fr_land_complete);
@@ -3427,17 +3746,15 @@ void Pack_AP_status_5001(uint16_t id) {
     Debug.print(" px4_flight_stack="); Debug.print(px4_flight_stack);
     Debug.print(" fr_imu_temp="); Debug.print(fr_imu_temp);
     Debug.print(" fr_payload="); Debug.print(fr_payload); Debug.print(" ");
-    PrintPayload(fr_payload);
+    PrintPayload(passthru);
     Debug.println();
   #endif
 
-    sr.id = id;
-    sr.subid = 0;
-    sr.payload = fr_payload;
-    PushToEmptyRow(sr);         
+  PushToEmptyRow(msg_id, 0);       
+
 }
 //=================================================================================================  
-void Pack_GPS_status_5002(uint16_t id) {
+void Pack_GPS_status_5002(uint16_t msg_id) {
   fr_payload = 0;
   if (ap_sat_visible > 15)
     fr_numsats = 15;
@@ -3456,8 +3773,8 @@ void Pack_GPS_status_5002(uint16_t id) {
   bit32Pack(fr_gps_adv_status ,14, 2);  // part b, 3 bits
           
   #if defined Frs_Debug_All || defined Frs_Debug_GPS_status
-    ShowPeriod(0); 
-    Debug.print("FrSky out GPS Status 0x5002: ");   
+    PrintFrPeriod(0); 
+    Debug.print("Passthru out GPS Status 0x5002: ");   
     Debug.print(" fr_numsats="); Debug.print(fr_numsats);
     Debug.print(" fr_gps_status="); Debug.print(fr_gps_status);
     Debug.print(" fr_gps_adv_status="); Debug.print(fr_gps_adv_status);
@@ -3472,7 +3789,7 @@ void Pack_GPS_status_5002(uint16_t id) {
     Debug.print(" After prep: fr_amsl="); Debug.print(fr_amsl);
     Debug.print(" fr_hdop="); Debug.print(fr_hdop); 
     Debug.print(" fr_payload="); Debug.print(fr_payload); Debug.print(" ");
-    PrintPayload(fr_payload);
+    PrintPayload(passthru);
     Debug.println(); 
   #endif     
               
@@ -3480,28 +3797,25 @@ void Pack_GPS_status_5002(uint16_t id) {
   bit32Pack(fr_amsl ,22, 9);
   bit32Pack(0, 31,0);  // 1=negative 
 
-  sr.id = id;
-  sr.subid = 0;
-  sr.payload = fr_payload;
-  PushToEmptyRow(sr); 
+  PushToEmptyRow(msg_id, 0);  
 }
 //=================================================================================================  
-void Pack_Bat1_5003(uint16_t id) {   //  Into sensor table from #1 SYS_status only
+void Pack_Bat1_5003(uint16_t msg_id) {   //  Into S.Port table from #1 SYS_status only
   fr_payload = 0;
   fr_bat1_volts = ap_voltage_battery1 / 100;         // Were mV, now dV  - V * 10
   fr_bat1_amps = ap_current_battery1 ;               // Remain       dA  - A * 10   
   
-  // fr_bat1_mAh is populated at #147 depending on battery id.  Into sensor table from #1 SYS_status only.
+  // fr_bat1_mAh is populated at #147 depending on battery id.  Into S.Port table from #1 SYS_status only.
   //fr_bat1_mAh = Total_mAh1();  // If record type #147 is not sent and good
   
   #if defined Frs_Debug_All || defined Debug_Batteries
-    ShowPeriod(0); 
-    Debug.print("FrSky out Bat1 0x5003: ");   
+    PrintFrPeriod(0); 
+    Debug.print("Passthru out Bat1 0x5003: ");   
     Debug.print(" fr_bat1_volts="); Debug.print(fr_bat1_volts);
     Debug.print(" fr_bat1_amps="); Debug.print(fr_bat1_amps);
     Debug.print(" fr_bat1_mAh="); Debug.print(fr_bat1_mAh);
     Debug.print(" fr_payload="); Debug.print(fr_payload); Debug.print(" ");
-    PrintPayload(fr_payload);
+    PrintPayload(passthru);
     Debug.println();               
   #endif
           
@@ -3510,14 +3824,11 @@ void Pack_Bat1_5003(uint16_t id) {   //  Into sensor table from #1 SYS_status on
   bit32Pack(fr_bat1_amps,9, 8);
   bit32Pack(fr_bat1_mAh,17, 15);
 
-  sr.id = id;
-  sr.subid = 0;
-  sr.payload = fr_payload;
-  PushToEmptyRow(sr); 
+  PushToEmptyRow(msg_id, 0);  
                        
 }
 //=================================================================================================  
-void Pack_Home_5004(uint16_t id) {
+void Pack_Home_5004(uint16_t msg_id) {
     fr_payload = 0;
     
     lon1=hom.lon/180*PI;  // degrees to radians
@@ -3549,15 +3860,15 @@ void Pack_Home_5004(uint16_t id) {
       fr_home_alt = ap_alt_ag / 100;    // mm->dm
         
    #if defined Frs_Debug_All || defined Frs_Debug_Home
-     ShowPeriod(0); 
-     Debug.print("FrSky out Home 0x5004: ");         
+     PrintFrPeriod(0); 
+     Debug.print("Passthru out Home 0x5004: ");         
      Debug.print("fr_home_dist=");  Debug.print(fr_home_dist);
      Debug.print(" fr_home_alt=");  Debug.print(fr_home_alt);
      Debug.print(" az=");  Debug.print(az);
      Debug.print(" fr_home_angle="); Debug.print(fr_home_angle);  
      Debug.print(" fr_home_arrow="); Debug.print(fr_home_arrow);         // units of 3 deg  
      Debug.print(" fr_payload="); Debug.print(fr_payload); Debug.print(" ");
-     PrintPayload(fr_payload);
+     PrintPayload(passthru);
     Debug.println();      
    #endif
    fr_home_dist = prep_number(roundf(fr_home_dist), 3, 2);
@@ -3570,15 +3881,12 @@ void Pack_Home_5004(uint16_t id) {
      bit32Pack(0,24, 1);
    bit32Pack(fr_home_arrow,25, 7);
 
-   sr.id = id;
-   sr.subid = 0;
-   sr.payload = fr_payload;
-   PushToEmptyRow(sr); 
+   PushToEmptyRow(msg_id, 0);  
 
 }
 
 //=================================================================================================  
-void Pack_VelYaw_5005(uint16_t id) {
+void Pack_VelYaw_5005(uint16_t msg_id) {
   fr_payload = 0;
   
   fr_vy = ap_hud_climb * 10;   // from #74   m/s to dm/s;
@@ -3588,8 +3896,8 @@ void Pack_VelYaw_5005(uint16_t id) {
   fr_yaw = ap_hud_hdg * 10;              // degrees -> (degrees*10)
   
   #if defined Frs_Debug_All || defined Frs_Debug_VelYaw
-    ShowPeriod(0); 
-    Debug.print("FrSky out VelYaw 0x5005:");  
+    PrintFrPeriod(0); 
+    Debug.print("Passthru out VelYaw 0x5005:");  
     Debug.print(" fr_vy=");  Debug.print(fr_vy);       
     Debug.print(" fr_vx=");  Debug.print(fr_vx);
     Debug.print(" fr_yaw="); Debug.print(fr_yaw);
@@ -3613,18 +3921,15 @@ void Pack_VelYaw_5005(uint16_t id) {
    Debug.print(" fr_vx=");  Debug.print((int)fr_vx);  
    Debug.print(" fr_yaw="); Debug.print((int)fr_yaw);  
    Debug.print(" fr_payload="); Debug.print(fr_payload); Debug.print(" ");
-   PrintPayload(fr_payload);
+   PrintPayload(passthru);
    Debug.println();                 
  #endif
 
- sr.id = id;
- sr.subid = 0;
- sr.payload = fr_payload;
- PushToEmptyRow(sr); 
+ PushToEmptyRow(msg_id, 0);  
     
 }
 //=================================================================================================   
-void Pack_Atti_5006(uint16_t id) {
+void Pack_Atti_5006(uint16_t msg_id) {
   fr_payload = 0;
   
   fr_roll = (ap_roll * 5) + 900;             //  -- fr_roll units = [0,1800] ==> [-180,180]
@@ -3634,24 +3939,21 @@ void Pack_Atti_5006(uint16_t id) {
   bit32Pack(fr_pitch, 11, 10); 
   bit32Pack(prep_number(fr_range,3,1), 21, 11);
   #if defined Frs_Debug_All || defined Frs_Debug_AttiRange
-    ShowPeriod(0); 
-    Debug.print("FrSky out Attitude 0x5006: ");         
+    PrintFrPeriod(0); 
+    Debug.print("Passthru out Attitude 0x5006: ");         
     Debug.print("fr_roll=");  Debug.print(fr_roll);
     Debug.print(" fr_pitch=");  Debug.print(fr_pitch);
     Debug.print(" fr_range="); Debug.print(fr_range);
     Debug.print(" Payload="); Debug.println(fr_payload);  
   #endif
 
-  sr.id = id;
-  sr.subid = 0;
-  sr.payload = fr_payload;
-  PushToEmptyRow(sr);  
+  PushToEmptyRow(msg_id, 0);   
      
 }
 //=================================================================================================  
-void Pack_Parameters_5007(uint16_t id, uint8_t subid) {
+void Pack_Parameters_5007(uint16_t msg_id, uint8_t sub_id) {
     
-  switch(subid) {
+  switch(sub_id) {
     case 1:                                    // Frame type
       fr_param_id = 1;
       fr_frame_type = ap_type;
@@ -3661,23 +3963,20 @@ void Pack_Parameters_5007(uint16_t id, uint8_t subid) {
       bit32Pack(fr_param_id, 24, 4);
 
       #if defined Frs_Debug_All || defined Frs_Debug_Params
-        ShowPeriod(0);  
-        Debug.print("Frsky out Params 0x5007: ");   
+        PrintFrPeriod(0);  
+        Debug.print("Passthru out Params 0x5007: ");   
         Debug.print(" fr_param_id="); Debug.print(fr_param_id);
         Debug.print(" fr_frame_type="); Debug.print(fr_frame_type);  
         Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.print(" "); 
-        PrintPayload(fr_payload);
+        PrintPayload(passthru);
         Debug.println();                
       #endif
       
-      sr.id = id;     
-      sr.subid = subid;
-      sr.payload = fr_payload;
-      PushToEmptyRow(sr);
+      PushToEmptyRow(msg_id, sub_id);
       break;    
        
     case 4:    // Battery pack 1 capacity
-      fr_param_id = subid;
+      fr_param_id = sub_id;
       #if (Battery_mAh_Source == 2)    // Local
         fr_bat1_capacity = bat1_capacity;
       #elif  (Battery_mAh_Source == 1) //  FC
@@ -3689,23 +3988,20 @@ void Pack_Parameters_5007(uint16_t id, uint8_t subid) {
       bit32Pack(fr_param_id, 24, 4);
 
       #if defined Frs_Debug_All || defined Frs_Debug_Params || defined Debug_Batteries
-        ShowPeriod(0);       
-        Debug.print("Frsky out Params 0x5007: ");   
+        PrintFrPeriod(0);       
+        Debug.print("Passthru out Params 0x5007: ");   
         Debug.print(" fr_param_id="); Debug.print(fr_param_id);
         Debug.print(" fr_bat1_capacity="); Debug.print(fr_bat1_capacity);  
         Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.print(" "); 
-        PrintPayload(fr_payload);
+        PrintPayload(passthru);
         Debug.println();                   
       #endif
-      
-      sr.id = id;
-      sr.subid = subid;
-      sr.payload = fr_payload;
-      PushToEmptyRow(sr);
+
+      PushToEmptyRow(msg_id, sub_id); 
       break; 
       
     case 5:                 // Battery pack 2 capacity
-      fr_param_id = subid;
+      fr_param_id = sub_id;
       #if (Battery_mAh_Source == 2)    // Local
         fr_bat2_capacity = bat2_capacity;
       #elif  (Battery_mAh_Source == 1) //  FC
@@ -3717,35 +4013,31 @@ void Pack_Parameters_5007(uint16_t id, uint8_t subid) {
       bit32Pack(fr_param_id, 24, 4);
       
       #if defined Frs_Debug_All || defined Frs_Debug_Params || defined Debug_Batteries
-        ShowPeriod(0);  
-        Debug.print("Frsky out Params 0x5007: ");   
+        PrintFrPeriod(0);  
+        Debug.print("Passthru out Params 0x5007: ");   
         Debug.print(" fr_param_id="); Debug.print(fr_param_id);
         Debug.print(" fr_bat2_capacity="); Debug.print(fr_bat2_capacity); 
         Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.print(" "); 
-        PrintPayload(fr_payload);
+        PrintPayload(passthru);
         Debug.println();           
       #endif
       
-      sr.subid = 5;
-      sr.payload = fr_payload;
-      PushToEmptyRow(sr); 
+      PushToEmptyRow(msg_id, sub_id);
       break; 
     
      case 6:               // Number of waypoints in mission                       
-      fr_param_id = subid;
+      fr_param_id = sub_id;
       fr_mission_count = ap_mission_count;
 
       fr_payload = 0;
       bit32Pack(fr_mission_count, 0, 24);
       bit32Pack(fr_param_id, 24, 4);
 
-      sr.id = id;
-      sr.subid = subid;
-      PushToEmptyRow(sr);       
+      PushToEmptyRow(msg_id, sub_id);        
       
       #if defined Frs_Debug_All || defined Frs_Debug_Params || defined Debug_Batteries
-        ShowPeriod(0); 
-        Debug.print("Frsky out Params 0x5007: ");   
+        PrintFrPeriod(0); 
+        Debug.print("Passthru out Params 0x5007: ");   
         Debug.print(" fr_param_id="); Debug.print(fr_param_id);
         Debug.print(" fr_mission_count="); Debug.println(fr_mission_count);           
       #endif
@@ -3756,7 +4048,7 @@ void Pack_Parameters_5007(uint16_t id, uint8_t subid) {
   }    
 }
 //=================================================================================================  
-void Pack_Bat2_5008(uint16_t id) {
+void Pack_Bat2_5008(uint16_t msg_id) {
    fr_payload = 0;
    
    fr_bat2_volts = ap_voltage_battery2 / 100;         // Were mV, now dV  - V * 10
@@ -3766,13 +4058,13 @@ void Pack_Bat2_5008(uint16_t id) {
   //fr_bat2_mAh = Total_mAh2();  // If record type #147 is not sent and good
   
   #if defined Frs_Debug_All || defined Debug_Batteries
-    ShowPeriod(0);  
-    Debug.print("FrSky out Bat2 0x5008: ");   
+    PrintFrPeriod(0);  
+    Debug.print("Passthru out Bat2 0x5008: ");   
     Debug.print(" fr_bat2_volts="); Debug.print(fr_bat2_volts);
     Debug.print(" fr_bat2_amps="); Debug.print(fr_bat2_amps);
     Debug.print(" fr_bat2_mAh="); Debug.print(fr_bat2_mAh);
     Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.print(" "); 
-    PrintPayload(fr_payload);
+    PrintPayload(passthru);
     Debug.println();                  
   #endif        
           
@@ -3781,16 +4073,13 @@ void Pack_Bat2_5008(uint16_t id) {
   bit32Pack(fr_bat2_amps,9, 8);
   bit32Pack(fr_bat2_mAh,17, 15);      
 
-  sr.id = id;
-  sr.subid = 1;
-  sr.payload = fr_payload;
-  PushToEmptyRow(sr);          
+  PushToEmptyRow(msg_id, 1);           
 }
 
 
 //=================================================================================================  
 
-void Pack_WayPoint_5009(uint16_t id) {
+void Pack_WayPoint_5009(uint16_t msg_id) {
   fr_payload = 0;
   
   fr_ms_seq = ap_ms_seq;                                      // Current WP seq number, wp[0] = wp1, from regular #42
@@ -3817,8 +4106,8 @@ void Pack_WayPoint_5009(uint16_t id) {
  
    */
   #if defined Frs_Debug_All || defined Frs_Debug_Mission
-    ShowPeriod(0);  
-    Debug.print("FrSky out RC 0x5009: ");   
+    PrintFrPeriod(0);  
+    Debug.print("Passthru out RC 0x5009: ");   
     Debug.print(" fr_ms_seq="); Debug.print(fr_ms_seq);
     Debug.print(" fr_ms_dist="); Debug.print(fr_ms_dist);
     Debug.print(" fr_ms_xtrack="); Debug.print(fr_ms_xtrack, 3);
@@ -3826,7 +4115,7 @@ void Pack_WayPoint_5009(uint16_t id) {
     Debug.print(" fr_ms_cog="); Debug.print(fr_ms_cog, 0);  
     Debug.print(" fr_ms_offset="); Debug.print(fr_ms_offset);
     Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.print(" "); 
-    PrintPayload(fr_payload);         
+    PrintPayload(passthru);         
     Debug.println();      
   #endif
 
@@ -3840,15 +4129,12 @@ void Pack_WayPoint_5009(uint16_t id) {
 
   bit32Pack(fr_ms_offset, 29, 3);  
 
-  sr.id = id;
-  sr.subid = 1;
-  sr.payload = fr_payload;
-  PushToEmptyRow(sr); 
+  PushToEmptyRow(msg_id, 1);  
         
 }
 
 //=================================================================================================  
-void Pack_Servo_Raw_50F1(uint16_t id) {
+void Pack_Servo_Raw_50F1(uint16_t msg_id) {
 uint8_t sv_chcnt = 8;
   fr_payload = 0;
   
@@ -3888,14 +4174,11 @@ uint8_t sv_chcnt = 8;
         
   uint8_t sv_num = sv_count % 4;
 
-  sr.id = id;
-  sr.subid = sv_num + 1;
-  sr.payload = fr_payload;
-  PushToEmptyRow(sr); 
+  PushToEmptyRow(msg_id, sv_num + 1);  
 
   #if defined Frs_Debug_All || defined Frs_Debug_Servo
-    ShowPeriod(0);  
-    Debug.print("FrSky out Servo_Raw 0x50F1: ");  
+    PrintFrPeriod(0);  
+    Debug.print("Passthru out Servo_Raw 0x50F1: ");  
     Debug.print(" sv_chcnt="); Debug.print(sv_chcnt); 
     Debug.print(" sv_count="); Debug.print(sv_count); 
     Debug.print(" chunk="); Debug.print(chunk);
@@ -3904,14 +4187,14 @@ uint8_t sv_chcnt = 8;
     Debug.print(" fr_sv3="); Debug.print(fr_sv[3]);   
     Debug.print(" fr_sv4="); Debug.print(fr_sv[4]); 
     Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.print(" "); 
-    PrintPayload(fr_payload);
+    PrintPayload(passthru);
     Debug.println();             
   #endif
 
   sv_count += 4; 
 }
 //=================================================================================================  
-void Pack_VFR_Hud_50F2(uint16_t id) {
+void Pack_VFR_Hud_50F2(uint16_t msg_id) {
   fr_payload = 0;
   
   fr_air_spd = ap_hud_air_spd * 10;      // from #74  m/s to dm/s
@@ -3919,13 +4202,13 @@ void Pack_VFR_Hud_50F2(uint16_t id) {
   fr_bar_alt = ap_hud_amsl * 10;      // m to dm
 
   #if defined Frs_Debug_All || defined Frs_Debug_Hud
-    ShowPeriod(0);  
-    Debug.print("FrSky out Hud 0x50F2: ");   
+    PrintFrPeriod(0);  
+    Debug.print("Passthru out Hud 0x50F2: ");   
     Debug.print(" fr_air_spd="); Debug.print(fr_air_spd);
-    Debug.print(" fr_throt="); Debug.print(fr_throt);
+    Debug.print(" fr_throt=");   Debug.print(fr_throt);
     Debug.print(" fr_bar_alt="); Debug.print(fr_bar_alt);
     Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.print(" "); 
-    PrintPayload(fr_payload);
+    PrintPayload(passthru);
     Debug.println();             
   #endif
   
@@ -3941,18 +4224,15 @@ void Pack_VFR_Hud_50F2(uint16_t id) {
   else
    bit32Pack(0, 27, 1); 
     
-  sr.id = id;   
-  sr.subid = 1;
-  sr.payload = fr_payload;
-  PushToEmptyRow(sr); 
+  PushToEmptyRow(msg_id, 1); 
         
 }
 //=================================================================================================  
-void Pack_Wind_Estimate_50F3(uint16_t id) {
+void Pack_Wind_Estimate_50F3(uint16_t msg_id) {
   fr_payload = 0;
 }
 //=================================================================================================          
-void Pack_Rssi_F101(uint16_t id) {          // data id 0xF101 RSSI tell LUA script in Taranis we are connected
+void Pack_Rssi_F101(uint16_t msg_id) {          // msg_id 0xF101 RSSI tell LUA script in Taranis we are connected
   fr_payload = 0;
   
   if (rssiGood)
@@ -3970,262 +4250,18 @@ void Pack_Rssi_F101(uint16_t id) {          // data id 0xF101 RSSI tell LUA scri
   bit32Pack(fr_rssi ,0, 32);
 
   #if defined Frs_Debug_All || defined Frs_Debug_Rssi
-    ShowPeriod(0);    
-    Debug.print("FrSky out Rssi 0x5F101: ");   
+    PrintFrPeriod(0);    
+    Debug.print("Passthru out Rssi 0x5F101: ");   
     Debug.print(" fr_rssi="); Debug.print(fr_rssi);
     Debug.print(" fr_payload="); Debug.print(fr_payload);  Debug.print(" "); 
-    PrintPayload(fr_payload);
+    PrintPayload(passthru);
     Debug.println();             
   #endif
 
-  sr.id = id;
-  sr.subid = 1;
-  sr.payload = fr_payload;
-  PushToEmptyRow(sr); 
+  PushToEmptyRow(msg_id, 1); 
 }
-//=================================================================================================  
-int8_t PWM_To_63(uint16_t PWM) {       // PWM 1000 to 2000   ->    nominal -63 to 63
-int8_t myint;
-  myint = round((PWM - 1500) * 0.126); 
-  myint = myint < -63 ? -63 : myint;            
-  myint = myint > 63 ? 63 : myint;  
-  return myint; 
-}
+//=================================================================================================   
 
-//=================================================================================================  
-uint32_t Abs(int32_t num) {
-  if (num<0) 
-    return (num ^ 0xffffffff) + 1;
-  else
-    return num;  
-}
-//=================================================================================================  
-float Distance(Loc2D loc1, Loc2D loc2) {
-float a, c, d, dLat, dLon;  
-
-  loc1.lat=loc1.lat/180*PI;  // degrees to radians
-  loc1.lon=loc1.lon/180*PI;
-  loc2.lat=loc2.lat/180*PI;
-  loc2.lon=loc2.lon/180*PI;
-    
-  dLat = (loc1.lat-loc2.lat);
-  dLon = (loc1.lon-loc2.lon);
-  a = sin(dLat/2) * sin(dLat/2) + sin(dLon/2) * sin(dLon/2) * cos(loc2.lat) * cos(loc1.lat); 
-  c = 2* asin(sqrt(a));  
-  d = 6371000 * c;    
-  return d;
-}
-//=================================================================================================  
-float Azimuth(Loc2D loc1, Loc2D loc2) {
-// Calculate azimuth bearing from loc1 to loc2
-float a, az; 
-
-  loc1.lat=loc1.lat/180*PI;  // degrees to radians
-  loc1.lon=loc1.lon/180*PI;
-  loc2.lat=loc2.lat/180*PI;
-  loc2.lon=loc2.lon/180*PI;
-
-  a = sin(dLat/2) * sin(dLat/2) + sin(dLon/2) * sin(dLon/2) * cos(loc2.lat) * cos(loc1.lat); 
-  
-  az=a*180/PI;  // radians to degrees
-  if (az<0) az=360+az;
-  return az;
-}
-//=================================================================================================  
-//Add two bearing in degrees and correct for 360 boundary
-int16_t Add360(int16_t arg1, int16_t arg2) {  
-  int16_t ret = arg1 + arg2;
-  if (ret < 0) ret += 360;
-  if (ret > 359) ret -= 360;
-  return ret; 
-}
-//=================================================================================================  
-// Correct for 360 boundary - yaapu
-float wrap_360(int16_t angle)
-{
-    const float ang_360 = 360.f;
-    float res = fmodf(static_cast<float>(angle), ang_360);
-    if (res < 0) {
-        res += ang_360;
-    }
-    return res;
-}
-//=================================================================================================  
-// From Arducopter 3.5.5 code
-uint16_t prep_number(int32_t number, uint8_t digits, uint8_t power)
-{
-    uint16_t res = 0;
-    uint32_t abs_number = abs(number);
-
-   if ((digits == 1) && (power == 1)) { // number encoded on 5 bits: 4 bits for digits + 1 for 10^power
-        if (abs_number < 10) {
-            res = abs_number<<1;
-        } else if (abs_number < 150) {
-            res = ((uint8_t)roundf(abs_number * 0.1f)<<1)|0x1;
-        } else { // transmit max possible value (0x0F x 10^1 = 150)
-            res = 0x1F;
-        }
-        if (number < 0) { // if number is negative, add sign bit in front
-            res |= 0x1<<5;
-        }
-    } else if ((digits == 2) && (power == 1)) { // number encoded on 8 bits: 7 bits for digits + 1 for 10^power
-        if (abs_number < 100) {
-            res = abs_number<<1;
-        } else if (abs_number < 1270) {
-            res = ((uint8_t)roundf(abs_number * 0.1f)<<1)|0x1;
-        } else { // transmit max possible value (0x7F x 10^1 = 1270)
-            res = 0xFF;
-        }
-        if (number < 0) { // if number is negative, add sign bit in front
-            res |= 0x1<<8;
-        }
-    } else if ((digits == 2) && (power == 2)) { // number encoded on 9 bits: 7 bits for digits + 2 for 10^power
-        if (abs_number < 100) {
-            res = abs_number<<2;
-         //   Debug.print("abs_number<100  ="); Debug.print(abs_number); Debug.print(" res="); Debug.print(res);
-        } else if (abs_number < 1000) {
-            res = ((uint8_t)roundf(abs_number * 0.1f)<<2)|0x1;
-         //   Debug.print("abs_number<1000  ="); Debug.print(abs_number); Debug.print(" res="); Debug.print(res);
-        } else if (abs_number < 10000) {
-            res = ((uint8_t)roundf(abs_number * 0.01f)<<2)|0x2;
-          //  Debug.print("abs_number<10000  ="); Debug.print(abs_number); Debug.print(" res="); Debug.print(res);
-        } else if (abs_number < 127000) {
-            res = ((uint8_t)roundf(abs_number * 0.001f)<<2)|0x3;
-        } else { // transmit max possible value (0x7F x 10^3 = 127000)
-            res = 0x1FF;
-        }
-        if (number < 0) { // if number is negative, add sign bit in front
-            res |= 0x1<<9;
-        }
-    } else if ((digits == 3) && (power == 1)) { // number encoded on 11 bits: 10 bits for digits + 1 for 10^power
-        if (abs_number < 1000) {
-            res = abs_number<<1;
-        } else if (abs_number < 10240) {
-            res = ((uint16_t)roundf(abs_number * 0.1f)<<1)|0x1;
-        } else { // transmit max possible value (0x3FF x 10^1 = 10240)
-            res = 0x7FF;
-        }
-        if (number < 0) { // if number is negative, add sign bit in front
-            res |= 0x1<<11;
-        }
-    } else if ((digits == 3) && (power == 2)) { // number encoded on 12 bits: 10 bits for digits + 2 for 10^power
-        if (abs_number < 1000) {
-            res = abs_number<<2;
-        } else if (abs_number < 10000) {
-            res = ((uint16_t)roundf(abs_number * 0.1f)<<2)|0x1;
-        } else if (abs_number < 100000) {
-            res = ((uint16_t)roundf(abs_number * 0.01f)<<2)|0x2;
-        } else if (abs_number < 1024000) {
-            res = ((uint16_t)roundf(abs_number * 0.001f)<<2)|0x3;
-        } else { // transmit max possible value (0x3FF x 10^3 = 127000)
-            res = 0xFFF;
-        }
-        if (number < 0) { // if number is negative, add sign bit in front
-            res |= 0x1<<12;
-        }
-    }
-    return res;
-}  
-//=================================================================================================  
-//
-//                              M  A  V  L  I  T  E
-//
-//================================================================================================= 
- 
-#if defined Support_Mavlite
-void SPort_Send_Mavlite_Packet() {
-  EncodeMavlite();  // For Downlink  
-  
-  uint8_t tot_lth = ml22.paylth + 5;
-  #if defined Debug_Mavlite         
-    Debug.print("Sending:");
-  #endif
-
-  for (int i = 0 ; i < tot_lth ; i++) {
-    if (i > 4) {
-      SPort_SendByte(ml22.raw[i], true);  // add to CRC
-      #if defined Debug_Mavlite   
-        PrintByte(ml22.raw[i]);
-      #endif  
-      } else {
-      SPort_SendByte(ml22.raw[i], false); // don't add to CRC
-      #if defined Debug_Mavlite   
-        PrintByte(ml22.raw[i]);
-      #endif  
-      }
-  }
-  #if defined Debug_Mavlite   
-    Debug.printf("CRC=%2X\n", crc);
-  #endif  
-  SPort_SendCrc();  //  CRC byte
-
-}
-#endif
-//=================================================================================================  
-#if defined Support_Mavlite
-bool DecodeMavLite() {
-  ml20_seq = ml.raw[2];
-  if (ml20_seq == 0) {
-    ml20_msg_id = ml.raw[4];
-    ml20_paylth = ml.raw[3];
-    ml20_idx = 0;
-    }
-    switch (ml20_msg_id) {
-      case 20:    //  #20 or 0x14
-        if (Unpack_ml20()) {
-          #if defined Debug_Mavlite
-            Debug.printf("MavLITE #20 Param_Request_Read :%s:\n", ml20_param_id);  
-          #endif  
-          strncpy(ap_param_id, ml20_param_id, 16);
-          return true;           
-        }
-        return false;
-      case 21:         
-        return false;
-      case 22:  
-        return false;      
-    }  
-  return false;     
-}
-#endif
-//================================================================================================= 
-#if defined Support_Mavlite
-void EncodeMavlite()  {    // For  Downlink
-  ml22.sensor_id = 0x14;  
-  ml22.frame_id = 0x32;
-  ml22.seq = 0;
-  ml22.paylth = 20;
-  ml22.msg_id = 22;
-  ml22.value = ap_param_value;
-  strncpy(ml22.param_id, ap_param_id, 16);
-}
-#endif
-//================================================================================================= 
-#if defined Support_Mavlite
-bool Unpack_ml20 () {
-  if (ml20_seq == 0) {
-    for (int i = 5 ; i < 8 ; i++, ml20_idx++) {
-      ml20_param_id[ml20_idx] = ml.raw[i];
-      if (ml20_idx >= ml20_paylth) {
-        return true;
-      }        
-    }
-    return false;
-  }  
-        
-  if (ml20_seq > 0) {
-    for (int i = 3 ; i < 8 ; i++, ml20_idx++) {
-      ml20_param_id[ml20_idx] = ml.raw[i];
-      if (ml20_idx >= ml20_paylth) {
-        ml20_param_id[ml20_idx] = 0x00; // terminate string      
-        return true; 
-      }                
-     }
-   return false;
-  }
- return false;
-}
-#endif
 
 
 //=================================================================================================  
@@ -4276,10 +4312,9 @@ void BlinkMavLed(uint32_t period) {
 }
 
 //=================================================================================================  
-void PrintByte(byte b) {
-  if (b == 0x7E) {
+void PrintByte(byte b, bool LF) {  // line feed
+  if ((b == 0x7E) && (LF)) {
     Debug.println();
-    clm = 0;
   }
   if (b<=0xf) Debug.print("0");
   Debug.print(b,HEX);
@@ -4288,16 +4323,69 @@ void PrintByte(byte b) {
   } else {
     Debug.print(">");
   }
-  /*
-  clm++;
-  if (clm > 30) {
+}
+void PrintByteNon(byte b) {
+  if (b<=0xf) Debug.print("0");
+  Debug.print(b,HEX);
+  Debug.print(" ");
+}
+void PrintByteOut(byte b) {
+  if ((b == 0x7E) || (b == 0x10)  || (b == 0x32)) {
     Debug.println();
-    clm=0;
-  }
-  */
+  } 
+  if (b<=0xf) Debug.print("0");
+  Debug.print(b,HEX);
+  Debug.print(">");
+}
+void PrintByteIn(byte b) {
+  if ((b == 0x7E) || (b == 0x10)  || (b == 0x32)) {
+    Debug.println();
+  } 
+  if (b<=0xf) Debug.print("0");
+  Debug.print(b,HEX);
+  Debug.print("<");
 }
 //=================================================================================================  
+void PrintMavLiteUplink() {
+  
+        if (sp_buff[3] == 0) Debug.println();  // seq == 0       
+        PrintByteNon(sp_buff[0]);  // 0x7E
+        Debug.print(" ");
+        PrintByteNon(sp_buff[1]);  // 0x0D
+        Debug.print(" ");
+        PrintByteNon(sp_buff[2]);  // 0x30 
+        Debug.print("\t");
+        PrintByteNon(sp_buff[3]);  // seq
+        Debug.print(" ");       
+        for (int i = 4 ; i <= 8 ; i++ ) {
+          PrintByteNon(sp_buff[i]);
+        }
+        Debug.print(" | ");
+        PrintByteNon(sp_buff[9]);  // ?
 
+        Debug.print("\t");
+        
+        PrintByteNon(sp_buff[3]);  // seq
+
+        if (sp_buff[3] == 0)  {    // if seq == 0
+          Debug.print("  ");
+          PrintByteNon(sp_buff[4]);   // length
+          PrintByteNon(sp_buff[5]);   // msg_id 
+          Debug.print(" [");
+          for (int i = 6 ; i <= 8 ; i++ ) {      
+            Debug.write(sp_buff[i]);   // print ascii
+          }
+        } else {                  // seq > 0
+          Debug.print(" [");
+          for (int i = 4 ; i <= 8 ; i++ ) {  
+            Debug.write(sp_buff[i]);   // print ascii
+          }       
+        }
+        Debug.print("] ");
+        PrintByteNon(sp_buff[9]);  // ?
+        Debug.println();
+}
+//=================================================================================================  
 void PrintMavBuffer(const void *object){
 
     const unsigned char * const bytes = static_cast<const unsigned char *>(object);
@@ -4352,8 +4440,8 @@ uint16_t mav_checksum;          ///< X.25 CRC
     Debug.print("mav1: /");
 
     if (j == 0) {
-      PrintByte(bytes[0]);   // CRC1
-      PrintByte(bytes[1]);   // CRC2
+      PrintByte(bytes[0], 0);   // CRC1
+      PrintByte(bytes[1], 0);   // CRC2
       Debug.print("/");
       }
     mav_magic = bytes[j+2];   
@@ -4371,7 +4459,7 @@ uint16_t mav_checksum;          ///< X.25 CRC
     Debug.print("len="); Debug.print(mav_len); Debug.print("\t"); 
     Debug.print("/");
     for (int i = (j+2); i < (j+10); i++) {  // Print the header
-      PrintByte(bytes[i]); 
+      PrintByte(bytes[i], 0); 
     }
     
     Debug.print("  ");
@@ -4384,12 +4472,12 @@ uint16_t mav_checksum;          ///< X.25 CRC
     tl = (mav_len+10);                // Total length: 8 bytes header + Payload + 2 bytes CRC
  //   for (int i = (j+10); i < (j+tl); i++) {  
     for (int i = (j+10); i <= (tl); i++) {    
-     PrintByte(bytes[i]);     
+     PrintByte(bytes[i], 0);     
     }
     if (j == -2) {
       Debug.print("//");
-      PrintByte(bytes[mav_len + 8]); 
-      PrintByte(bytes[mav_len + 9]); 
+      PrintByte(bytes[mav_len + 8], 0); 
+      PrintByte(bytes[mav_len + 9], 0); 
       }
     Debug.println("//");  
   } else {
@@ -4407,8 +4495,8 @@ uint16_t mav_checksum;          ///< X.25 CRC
     
     Debug.print("mav2:  /");
     if (j == 0) {
-      PrintByte(bytes[0]);   // CRC1
-      PrintByte(bytes[1]);   // CRC2 
+      PrintByte(bytes[0], 0);   // CRC1
+      PrintByte(bytes[1], 0);   // CRC2 
       Debug.print("/");
     }
     mav_magic = bytes[2]; 
@@ -4426,7 +4514,7 @@ uint16_t mav_checksum;          ///< X.25 CRC
     Debug.print("len="); Debug.print(mav_len); Debug.print("\t"); 
     Debug.print("/");
     for (int i = (j+2); i < (j+12); i++) {  // Print the header
-     PrintByte(bytes[i]); 
+     PrintByte(bytes[i], 0); 
     }
 
     Debug.print("  ");
@@ -4445,14 +4533,14 @@ uint16_t mav_checksum;          ///< X.25 CRC
       if (i == (mav_len + 12 + 2+j)) {
         Debug.print("/");
       }
-      PrintByte(bytes[i]); 
+      PrintByte(bytes[i], 0); 
     }
     Debug.println();
   }
 
    Debug.print("Raw: ");
    for (int i = 0; i < 40; i++) {  //  unformatted
-      PrintByte(bytes[i]); 
+      PrintByte(bytes[i], 0); 
     }
    Debug.println();
   
@@ -4614,12 +4702,18 @@ uint8_t PX4FlightModeNum(uint8_t main, uint8_t sub) {
 }
 
 //=================================================================================================  
-void ShowPeriod(bool LF) {
+void PrintPeriod(bool LF) {
   now_millis=millis();
- // Debug.print("Elapsed S=");
- // Debug.print(int(now_millis/1000)); 
-  Debug.print("  Period mS=");
-  Debug.print(now_millis-prev_millis);
+  now_micros=micros();
+
+  uint32_t period = now_millis - prev_millis;
+  if (period < 10) {
+    period = now_micros - prev_micros;
+    Debug.printf(" Period uS=%d", period);
+  } else {
+    Debug.printf(" Period mS=%d", period);
+  }
+
   if (LF) {
     Debug.print("\t\n");
   } else {
@@ -4627,8 +4721,47 @@ void ShowPeriod(bool LF) {
   }
     
   prev_millis=now_millis;
+  prev_micros=now_micros;
 }
+//=================================================================================================  
+void PrintFrPeriod(bool LF) {
+  now_millis=millis();
+  now_micros=micros();
 
+  uint32_t period = now_millis - prev_fr_millis;
+  if (period < 10) {
+    period = now_micros - prev_fr_micros;
+    Debug.printf(" FrPeriod uS=%d", period);
+  } else {
+    Debug.printf(" FrPeriod mS=%d", period);
+  }
+
+  if (LF) {
+    Debug.print("\t\n");
+  } else {
+   Debug.print("\t");
+  }
+    
+  prev_fr_millis=now_millis;
+  prev_fr_micros=now_micros;
+}
+//=================================================================================================  
+void PrintLoopPeriod() {
+  now_millis=millis();
+  now_micros=micros();
+
+  uint32_t period = now_millis - prev_lp_millis;
+  if (period < 10) {
+    period = now_micros - prev_lp_micros;
+    Debug.printf("Loop Period uS=%d\n", period);
+  } else {
+    Debug.printf("Loop Period mS=%d\n", period);
+    if (period > 5000) Debug.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+  }
+    
+  prev_lp_millis=now_millis;
+  prev_lp_micros=now_micros;
+}
 //=================================================================================================   
 //                             O L E D   S U P P O R T   -   ESP Only - for now
 //================================================================================================= 
@@ -4725,10 +4858,53 @@ void OledPrint(String S) {
 //=================================================================================================   
 //                             W I F I   S U P P O R T   -   ESP Only - for now
 //=================================================================================================  
-  #if (defined wifiBuiltin)
+#if (defined wifiBuiltin)
 
-  void SenseWiFiPin() {
+  void SenseWiFiStatus() {
+
+  // If external STA disconnects from our AP, then it is the resposibility of that STA to reconnect
+
+  if (wifiSuGood && wifiSuDone && (set.wfmode == sta) )  { 
+        
+    if ( !WiFi.isConnected() )   { 
+      if (!wifiDisconnected) StartWiFiTimer();   // start wifi retry interrupt timer 
+      wifiDisconnected = true;
  
+      #if (defined ESP32)
+        if (xSemaphoreTake(wifiTimerSemaphore, 0) == pdTRUE)  { 
+          uint32_t isrCount = 0, isrTime = 0;   
+          portENTER_CRITICAL(&timerMux);
+         //  do something here if necessary   
+          portEXIT_CRITICAL(&timerMux);
+          RestartWiFiSta();
+        } 
+      #endif  
+
+      #if (defined ESP8266)
+        if ( (esp8266_wifi_retry_millis > 0) && ( (millis() - esp8266_wifi_retry_millis) > 5000) ) {
+          RestartWiFiSta();
+          esp8266_wifi_retry_millis = millis();  // restart timer
+        }
+      #endif           
+
+    } else {
+        if (wifiDisconnected) {
+          Debug.println("Wifi link restored");
+          OledPrintln("Wifi link restored"); 
+          wifiDisconnected = false;
+          
+          #if (defined ESP32) 
+            if (timer) {
+              timerEnd(timer);
+            }  
+          #endif
+          #if (defined ESP8266)        
+            esp8266_wifi_retry_millis = 0;  // stop timer
+          #endif    
+        }
+     }  
+   }    
+
    #if defined Start_WiFi
     if (!wifiSuDone) {
       SetupWiFi();
@@ -4741,14 +4917,57 @@ void OledPrint(String S) {
       SetupWiFi();
       } 
   #endif    
-}
+  }
+  //==================================================  
+  void StartWiFiTimer() {
+    #if (defined ESP32)
+      timerAlarmEnable(timer);
+    #endif
 
+    #if (defined ESP8266)
+      esp8266_wifi_retry_millis = millis();
+    #endif
+    
+  }
+  //==================================================
+  void RestartWiFiSta() { 
+    Debug.println("WiFi link lost - retrying XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+    OledPrintln("Wifilink lost - retry"); 
+    WiFi.disconnect(false); 
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(set.staSSID, set.staPw);
+    nbdelay(250);
+  }
+  //=================================================================================================
+  #if (defined ESP32)     
+  void IRAM_ATTR onTimer(){         // interrupt for periodic wifi retry 
+
+    portENTER_CRITICAL_ISR(&timerMux);
+    // do something here if needed 
+    portEXIT_CRITICAL_ISR(&timerMux);
+    // Give a semaphore that we can check in the loop
+    xSemaphoreGiveFromISR(wifiTimerSemaphore, NULL);  
+
+  }
+  #endif
+ 
   //==================================================
   void SetupWiFi() { 
+
     bool apFailover = false;            // used when STA fails to connect
+    #if (defined ESP32)
+      // set up wifi retry interrupt 
+      wifiTimerSemaphore = xSemaphoreCreateBinary();  // Create wifi retry semaphore
+      timer = timerBegin(3, 80, true);                // use timer 0 (0 thru 3) set 80 divider for prescaler
+      timerAttachInterrupt(timer, &onTimer, true);
+      timerAlarmWrite(timer, 5 * 1E6, true);         // uS, repeat  (semaphore every 5 seconds when alarm enabled)
+    #endif
+
+    #if (defined ESP8266)
+      esp8266_wifi_retry_millis = 0;
+    #endif
     
-  
-    apFailover = byte(EEPROM.read(0));  //  Read first eeprom byte
+    apFailover = byte(EEPROM.read(0));              //  Read first eeprom byte
     #if defined Debug_Eeprom
       Debug.print("Read EEPROM apFailover = "); Debug.println(apFailover); 
     #endif
@@ -4757,9 +4976,11 @@ void OledPrint(String S) {
 
   if ((set.wfmode == sta) || (set.wfmode == sta_ap))  {  // STA mode or STA failover to AP mode
     if (!apFailover) {   
+
+      
       uint8_t retry = 0;
       WiFi.disconnect(true);   // To circumvent "wifi: Set status to INIT" error bug
-      delay(500);
+      nbdelay(500);
       if (WiFi.mode(WIFI_STA)) {
          Debug.println("Wi-Fi mode set to STA sucessfully");  
       } else {
@@ -4768,7 +4989,7 @@ void OledPrint(String S) {
       Debug.print("Trying to connect to ");  
       Debug.print(set.staSSID); 
       OledPrintln("WiFi trying ..");
-      delay(500);
+      nbdelay(500);
       
       WiFi.begin(set.staSSID, set.staPw);
       while (WiFi.status() != WL_CONNECTED){
@@ -4793,8 +5014,8 @@ void OledPrint(String S) {
           
           break;
         }
-        delay(500);
-        Serial.print(".");
+        nbdelay(500);
+        Debug.print(".");
       }
       
       if (WiFi.status() == WL_CONNECTED) {
@@ -4821,7 +5042,7 @@ void OledPrint(String S) {
         OledPrintln(localIP.toString());
         
         if (set.wfproto == tcp)  {   // TCP
-          TCPserver.begin();                     //  tcp socket started
+          TCPserver.begin(set.tcp_localPort);                     //  tcp socket started
           Debug.println("TCP server started");  
           OledPrintln("TCP server started");
         }
@@ -4901,7 +5122,6 @@ void OledPrint(String S) {
  } 
 
   //=================================================================================================  
-
    void PrintRemoteIP() {
     if (FtRemIP)  {
       FtRemIP = false;
@@ -4966,17 +5186,17 @@ void OledPrint(String S) {
 }
 
 void writeFile(fs::FS &fs, const char * path, const char * message){
-    Serial.printf("Initialising file: %s\n", path);
+    Debug.printf("Initialising file: %s\n", path);
 
     File file = fs.open(path, FILE_WRITE);
     if(!file){
-        Serial.println("Failed to open file for writing");
+        Debug.println("Failed to open file for writing");
         return;
     }
     if(file.print(message)){
-        Serial.println("File initialised");
+        Debug.println("File initialised");
     } else {
-        Serial.println("Write failed");
+        Debug.println("Write failed");
     }
     file.close();
 }
@@ -5075,7 +5295,7 @@ void OpenSDForWrite() {
     decomposeEpoch(time_unix_sec, dt_tm);
 
     String sPath = "/MavToPass"  + DateTimeString(dt_tm) + ".tlog";
-    Debug.print("  Path: "); Serial.println(sPath); 
+    Debug.print("  Path: "); Debug.println(sPath); 
 
     strcpy(cPath, sPath.c_str());
     writeFile(SD, cPath , "Mavlink to FrSky Passthru by zs6buj");
@@ -5278,7 +5498,7 @@ const uint32_t su_timeout = 5000; // uS !
   for (int i = 1; i <= 10; i++) {            // 1 start bit, 8 data and 1 stop bit
     pw = pulseIn(rxPin,LOW, su_timeout);     // default timeout 1000mS! Returns the length of the pulse in uS
     #if (defined wifiBuiltin)
-      SenseWiFiPin();
+      SenseWiFiStatus();
     #endif  
     if (pw !=0) {
       min_pw = (pw < min_pw) ? pw : min_pw;  // Choose the lowest
@@ -5340,15 +5560,377 @@ void ReportSPortOnlineStatus() {
    if (spGood != spPrev) {  // report on change of status
      spPrev = spGood;
      if (spGood) {
-      Debug.println("SPort read good!");
-      OledPrintln("SPort read good!");         
+      Debug.println("S.Port read good!");
+      OledPrintln("S.Port read good!");         
      } else {
-      Debug.println("SPort read timeout!");
-      OledPrintln("SPort read timeout!");         
+      Debug.println("S.Port read timeout!");
+      OledPrintln("S.Port read timeout!");         
      }
    }
 }
+//=================================================================================================
+uint16_t First_Empty_mt20_Row() {
+  uint16_t i = 0;
+  while (mt20[i].inuse == 1) {   // find empty mt20 uplink row
+  //  Debug.printf("i=%d  mt20[i].inuse=%d\n", i, mt20[i].inuse);
+
+    if (millis() - mt20[i].millis > 5000) { // expire the row if no reply from FC in 5 seconds ? bad param_id
+      mt20[i].inuse = 0;
+      Debug.printf("param_id %s not received back from FC. Timed out.\n", mt20[i].param_id);
+    }
+    i++; 
+    if ( i >= mt20_rows-1) {
+      mt20_buf_full_gear++;
+      if ( (mt20_buf_full_gear == 0) || (mt20_buf_full_gear%1000 == 0)) {
+        Debug.println("mt20 uplink buffer full");  // Report every so often
+      }
+      return 0xffff;
+    }
+  }
+  return i;
+}    
+
+//=================================================================================================
+uint16_t MatchWaitingParamRequests(char * paramid) {
+  for (int i = 0 ; i < mt20_rows ; i++ ) {  // try to find match on waiting param requests
+//    Debug.printf("MatchWaiting. i=%d  mt20_rows=%d  inuse=%d param_id=%s paramid=%s \n", i, mt20_rows, mt20[i].inuse, mt20[i].param_id,  ap_param_id);
+
+    bool paramsequal = (strcmp (mt20[i].param_id, paramid) == 0);
+    if ( (mt20[i].inuse) && paramsequal ) {
+      return i;             
+     }
+  }
+  return 0xffff;  // this mean no match  
+}  
+//=================================================================================================
+
+void PrintPayload(msg_class_t msg_class)  {
+  uint8_t *bytes;
+  uint8_t sz;
+  if (msg_class == passthru) {
+    Debug.print(" passthru payload ");
+    bytes = (uint8_t*)&fr_payload;         // cast to bytes
+    sz = 4;   
+  } else
+  if (msg_class == mavlite) {
+    Debug.print(" MavLite payload ");   
+    bytes = (uint8_t*)&mt_Payload;           // cast to bytes
+    sz = 6;
+  } 
+   
+  for (int i = 0 ; i < sz ; i++) {
+    PrintByte(bytes[i], 0);     
+  }
+  Debug.print("\t");
+  for (int i = 0 ; i <sz ; i++) {
+     if ((bytes[i] > 31) && (bytes[i] < 127)) Debug.write(bytes[i]);  
+  }
+  Debug.print("\t");
+}
+//=================================================================================================  
+//=================================================================================================  
+int8_t PWM_To_63(uint16_t PWM) {       // PWM 1000 to 2000   ->    nominal -63 to 63
+int8_t myint;
+  myint = round((PWM - 1500) * 0.126); 
+  myint = myint < -63 ? -63 : myint;            
+  myint = myint > 63 ? 63 : myint;  
+  return myint; 
+}
+
+//=================================================================================================  
+uint32_t Abs(int32_t num) {
+  if (num<0) 
+    return (num ^ 0xffffffff) + 1;
+  else
+    return num;  
+}
+//=================================================================================================  
+float Distance(Loc2D loc1, Loc2D loc2) {
+float a, c, d, dLat, dLon;  
+
+  loc1.lat=loc1.lat/180*PI;  // degrees to radians
+  loc1.lon=loc1.lon/180*PI;
+  loc2.lat=loc2.lat/180*PI;
+  loc2.lon=loc2.lon/180*PI;
+    
+  dLat = (loc1.lat-loc2.lat);
+  dLon = (loc1.lon-loc2.lon);
+  a = sin(dLat/2) * sin(dLat/2) + sin(dLon/2) * sin(dLon/2) * cos(loc2.lat) * cos(loc1.lat); 
+  c = 2* asin(sqrt(a));  
+  d = 6371000 * c;    
+  return d;
+}
+//=================================================================================================  
+float Azimuth(Loc2D loc1, Loc2D loc2) {
+// Calculate azimuth bearing from loc1 to loc2
+float a, az; 
+
+  loc1.lat=loc1.lat/180*PI;  // degrees to radians
+  loc1.lon=loc1.lon/180*PI;
+  loc2.lat=loc2.lat/180*PI;
+  loc2.lon=loc2.lon/180*PI;
+
+  a = sin(dLat/2) * sin(dLat/2) + sin(dLon/2) * sin(dLon/2) * cos(loc2.lat) * cos(loc1.lat); 
+  
+  az=a*180/PI;  // radians to degrees
+  if (az<0) az=360+az;
+  return az;
+}
+//=================================================================================================  
+//Add two bearing in degrees and correct for 360 boundary
+int16_t Add360(int16_t arg1, int16_t arg2) {  
+  int16_t ret = arg1 + arg2;
+  if (ret < 0) ret += 360;
+  if (ret > 359) ret -= 360;
+  return ret; 
+}
+//=================================================================================================  
+// Correct for 360 boundary - yaapu
+float wrap_360(int16_t angle)
+{
+    const float ang_360 = 360.f;
+    float res = fmodf(static_cast<float>(angle), ang_360);
+    if (res < 0) {
+        res += ang_360;
+    }
+    return res;
+}
+//=================================================================================================  
+// From Arducopter 3.5.5 code
+uint16_t prep_number(int32_t number, uint8_t digits, uint8_t power)
+{
+    uint16_t res = 0;
+    uint32_t abs_number = abs(number);
+
+   if ((digits == 1) && (power == 1)) { // number encoded on 5 bits: 4 bits for digits + 1 for 10^power
+        if (abs_number < 10) {
+            res = abs_number<<1;
+        } else if (abs_number < 150) {
+            res = ((uint8_t)roundf(abs_number * 0.1f)<<1)|0x1;
+        } else { // transmit max possible value (0x0F x 10^1 = 150)
+            res = 0x1F;
+        }
+        if (number < 0) { // if number is negative, add sign bit in front
+            res |= 0x1<<5;
+        }
+    } else if ((digits == 2) && (power == 1)) { // number encoded on 8 bits: 7 bits for digits + 1 for 10^power
+        if (abs_number < 100) {
+            res = abs_number<<1;
+        } else if (abs_number < 1270) {
+            res = ((uint8_t)roundf(abs_number * 0.1f)<<1)|0x1;
+        } else { // transmit max possible value (0x7F x 10^1 = 1270)
+            res = 0xFF;
+        }
+        if (number < 0) { // if number is negative, add sign bit in front
+            res |= 0x1<<8;
+        }
+    } else if ((digits == 2) && (power == 2)) { // number encoded on 9 bits: 7 bits for digits + 2 for 10^power
+        if (abs_number < 100) {
+            res = abs_number<<2;
+         //   Debug.print("abs_number<100  ="); Debug.print(abs_number); Debug.print(" res="); Debug.print(res);
+        } else if (abs_number < 1000) {
+            res = ((uint8_t)roundf(abs_number * 0.1f)<<2)|0x1;
+         //   Debug.print("abs_number<1000  ="); Debug.print(abs_number); Debug.print(" res="); Debug.print(res);
+        } else if (abs_number < 10000) {
+            res = ((uint8_t)roundf(abs_number * 0.01f)<<2)|0x2;
+          //  Debug.print("abs_number<10000  ="); Debug.print(abs_number); Debug.print(" res="); Debug.print(res);
+        } else if (abs_number < 127000) {
+            res = ((uint8_t)roundf(abs_number * 0.001f)<<2)|0x3;
+        } else { // transmit max possible value (0x7F x 10^3 = 127000)
+            res = 0x1FF;
+        }
+        if (number < 0) { // if number is negative, add sign bit in front
+            res |= 0x1<<9;
+        }
+    } else if ((digits == 3) && (power == 1)) { // number encoded on 11 bits: 10 bits for digits + 1 for 10^power
+        if (abs_number < 1000) {
+            res = abs_number<<1;
+        } else if (abs_number < 10240) {
+            res = ((uint16_t)roundf(abs_number * 0.1f)<<1)|0x1;
+        } else { // transmit max possible value (0x3FF x 10^1 = 10240)
+            res = 0x7FF;
+        }
+        if (number < 0) { // if number is negative, add sign bit in front
+            res |= 0x1<<11;
+        }
+    } else if ((digits == 3) && (power == 2)) { // number encoded on 12 bits: 10 bits for digits + 2 for 10^power
+        if (abs_number < 1000) {
+            res = abs_number<<2;
+        } else if (abs_number < 10000) {
+            res = ((uint16_t)roundf(abs_number * 0.1f)<<2)|0x1;
+        } else if (abs_number < 100000) {
+            res = ((uint16_t)roundf(abs_number * 0.01f)<<2)|0x2;
+        } else if (abs_number < 1024000) {
+            res = ((uint16_t)roundf(abs_number * 0.001f)<<2)|0x3;
+        } else { // transmit max possible value (0x3FF x 10^3 = 127000)
+            res = 0xFFF;
+        }
+        if (number < 0) { // if number is negative, add sign bit in front
+            res |= 0x1<<12;
+        }
+    }
+    return res;
+}  
+//=================================================================================================  
+  uint32_t bit32Extract(uint32_t dword,uint8_t displ, uint8_t lth) {
+  uint32_t r = (dword & createMask(displ,(displ+lth-1))) >> displ;
+  return r;
+}
+//=================================================================================================  
+// Mask then AND the shifted bits, then OR them to the payload
+  void bit32Pack(uint32_t dword ,uint8_t displ, uint8_t lth) {   
+  uint32_t dw_and_mask =  (dword<<displ) & (createMask(displ, displ+lth-1)); 
+  fr_payload |= dw_and_mask; 
+}
+//=================================================================================================  
+  uint32_t bit32Unpack(uint32_t dword,uint8_t displ, uint8_t lth) {
+  uint32_t r = (dword & createMask(displ,(displ+lth-1))) >> displ;
+  return r;
+}
+//=================================================================================================  
+uint32_t createMask(uint8_t lo, uint8_t hi) {
+  uint32_t r = 0;
+  for (unsigned i=lo; i<=hi; i++)
+       r |= 1 << i;  
+  return r;
+}
+//=================================================================================================  
+void AddInCrc(uint8_t b) {
+   CRC += b;          //0-1FF
+//   Debug.print(CRC); Debug.print("|");
+   CRC += CRC >> 8;   //0-100
+//      Debug.print(CRC); Debug.print("|");
+   CRC &= 0x00ff;
+//      Debug.print(CRC); Debug.print("|");
+   CRC += CRC >> 8;   //0-0FF
+//      Debug.print(CRC); Debug.print("|");
+   CRC &= 0x00ff;
+//      Debug.print(CRC); Debug.println("|");
+}
 //================================================================================================= 
+void nbdelay(uint32_t delaymS) { // non-blocking delay
+uint32_t start;
+  start = millis();
+  
+  while (millis() - start < delaymS) {     
+    yield();
+  }
+}  
+//================================================================================================= 
+#if (defined ESP32)
+void WiFiEventHandler(WiFiEvent_t event)  {
+    Debug.printf("[WiFi-event] event: %d ", event);
+
+    switch (event) {
+        case SYSTEM_EVENT_WIFI_READY: 
+            Debug.println("WiFi interface ready");
+            break;
+        case SYSTEM_EVENT_SCAN_DONE:
+            Debug.println("Completed scan for access points");
+            break;
+        case SYSTEM_EVENT_STA_START:
+            Debug.println("WiFi client started");
+            break;
+        case SYSTEM_EVENT_STA_STOP:
+            Debug.println("WiFi clients stopped");
+            break;
+        case SYSTEM_EVENT_STA_CONNECTED:
+            Debug.println("Connected to access point");
+            break;
+        case SYSTEM_EVENT_STA_DISCONNECTED:
+            Debug.println("Disconnected from WiFi access point");
+            break;
+        case SYSTEM_EVENT_STA_AUTHMODE_CHANGE:
+            Debug.println("Authentication mode of access point has changed");
+            break;
+        case SYSTEM_EVENT_STA_GOT_IP:
+            Debug.print("Obtained IP address: ");
+            Debug.println(WiFi.localIP());
+            break;
+        case SYSTEM_EVENT_STA_LOST_IP:
+            Debug.println("Lost IP address and IP address is reset to 0");
+            break;
+        case SYSTEM_EVENT_STA_WPS_ER_SUCCESS:
+            Debug.println("WiFi Protected Setup (WPS): succeeded in enrollee mode");
+            break;
+        case SYSTEM_EVENT_STA_WPS_ER_FAILED:
+            Debug.println("WiFi Protected Setup (WPS): failed in enrollee mode");
+            break;
+        case SYSTEM_EVENT_STA_WPS_ER_TIMEOUT:
+            Debug.println("WiFi Protected Setup (WPS): timeout in enrollee mode");
+            break;
+        case SYSTEM_EVENT_STA_WPS_ER_PIN:
+            Debug.println("WiFi Protected Setup (WPS): pin code in enrollee mode");
+            break;
+        case SYSTEM_EVENT_AP_START:
+            Debug.println("WiFi access point started");
+            break;
+        case SYSTEM_EVENT_AP_STOP:
+            Debug.println("WiFi access point  stopped");
+            break;
+        case SYSTEM_EVENT_AP_STACONNECTED:
+            Debug.println("Client connected");
+            break;
+        case SYSTEM_EVENT_AP_STADISCONNECTED:
+            Debug.println("Client disconnected");
+            break;
+        case SYSTEM_EVENT_AP_STAIPASSIGNED:
+            Debug.println("Assigned IP address to client");
+            break;
+        case SYSTEM_EVENT_AP_PROBEREQRECVED:
+            Debug.println("Received probe request");
+            break;
+        case SYSTEM_EVENT_GOT_IP6:
+            Debug.println("IPv6 is preferred");
+            break;
+        case SYSTEM_EVENT_ETH_START:
+            Debug.println("Ethernet started");
+            break;
+        case SYSTEM_EVENT_ETH_STOP:
+            Debug.println("Ethernet stopped");
+            break;
+        case SYSTEM_EVENT_ETH_CONNECTED:
+            Debug.println("Ethernet connected");
+            break;
+        case SYSTEM_EVENT_ETH_DISCONNECTED:
+            Debug.println("Ethernet disconnected");
+            break;
+        case SYSTEM_EVENT_ETH_GOT_IP:
+            Debug.println("Obtained IP address");
+            break;
+        default: break;
+    }
+}
+#endif
+/* AVAILABLE EVENTS:
+0  SYSTEM_EVENT_WIFI_READY               < ESP32 WiFi ready
+1  SYSTEM_EVENT_SCAN_DONE                < ESP32 finish scanning AP
+2  SYSTEM_EVENT_STA_START                < ESP32 station start
+3  SYSTEM_EVENT_STA_STOP                 < ESP32 station stop
+4  SYSTEM_EVENT_STA_CONNECTED            < ESP32 station connected to AP
+5  SYSTEM_EVENT_STA_DISCONNECTED         < ESP32 station disconnected from AP
+6  SYSTEM_EVENT_STA_AUTHMODE_CHANGE      < the auth mode of AP connected by ESP32 station changed
+7  SYSTEM_EVENT_STA_GOT_IP               < ESP32 station got IP from connected AP
+8  SYSTEM_EVENT_STA_LOST_IP              < ESP32 station lost IP and the IP is reset to 0
+9  SYSTEM_EVENT_STA_WPS_ER_SUCCESS       < ESP32 station wps succeeds in enrollee mode
+10 SYSTEM_EVENT_STA_WPS_ER_FAILED        < ESP32 station wps fails in enrollee mode
+11 SYSTEM_EVENT_STA_WPS_ER_TIMEOUT       < ESP32 station wps timeout in enrollee mode
+12 SYSTEM_EVENT_STA_WPS_ER_PIN           < ESP32 station wps pin code in enrollee mode
+13 SYSTEM_EVENT_AP_START                 < ESP32 soft-AP start
+14 SYSTEM_EVENT_AP_STOP                  < ESP32 soft-AP stop
+15 SYSTEM_EVENT_AP_STACONNECTED          < a station connected to ESP32 soft-AP
+16 SYSTEM_EVENT_AP_STADISCONNECTED       < a station disconnected from ESP32 soft-AP
+17 SYSTEM_EVENT_AP_STAIPASSIGNED         < ESP32 soft-AP assign an IP to a connected station
+18 SYSTEM_EVENT_AP_PROBEREQRECVED        < Receive probe request packet in soft-AP interface
+19 SYSTEM_EVENT_GOT_IP6                  < ESP32 station or ap or ethernet interface v6IP addr is preferred
+20 SYSTEM_EVENT_ETH_START                < ESP32 ethernet start
+21 SYSTEM_EVENT_ETH_STOP                 < ESP32 ethernet stop
+22 SYSTEM_EVENT_ETH_CONNECTED            < ESP32 ethernet phy link up
+23 SYSTEM_EVENT_ETH_DISCONNECTED         < ESP32 ethernet phy link down
+24 SYSTEM_EVENT_ETH_GOT_IP               < ESP32 ethernet got IP from connected AP
+25 SYSTEM_EVENT_MAX
+*/
+//=================================================================================================
 
 
 
@@ -5528,8 +6110,8 @@ int32_t String_long(String S) {
   void ComposeSettingsPage() {
    
   settingsPage  = styleSettings;
-  settingsPage += "<!DOCTYPE html><html><body><h>Mavlink To Passthrough</h><form action='' ";  
-  settingsPage += "autocomplete='on'> <center> <b><h3>MavToPassthrough Translator Setup</h3> </b></center> <style>text-align:left</style>";
+  settingsPage += "<!DOCTYPE html><html><body><h>Mavlink To Passthru</h><form action='' ";  
+  settingsPage += "autocomplete='on'> <center> <b><h3>MavToPassthru Translator Setup</h3> </b></center> <style>text-align:left</style>";
   settingsPage += "Translator Mode: &nbsp &nbsp";
   sprintf(temp, "<input type='radio' class='big' name='_trmode' value='Ground' %s> Ground &nbsp &nbsp", set.trmode1);
   settingsPage += temp;
@@ -6038,7 +6620,7 @@ void RefreshHTMLButtons() {
  void handleLoginPage() {
 
   #if (defined btBuiltin)
-    if (btActive) {
+  //  if (btActive) {
     
       #if ((defined ESP32) || (defined ESP8266)) && (defined Debug_SRAM)
         Debug.printf("==============>Free Heap before handleLoginPage = %d\n", ESP.getFreeHeap());
@@ -6053,7 +6635,7 @@ void RefreshHTMLButtons() {
       #if ((defined ESP32) || (defined ESP8266)) && (defined Debug_SRAM)
         Debug.printf("==============>Free Heap after bluetooth disabled = %d\n", ESP.getFreeHeap());
       #endif
-    }
+  //  }
   #endif
   
   ComposeLoginPage();
