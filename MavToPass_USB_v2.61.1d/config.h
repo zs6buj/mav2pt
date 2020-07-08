@@ -11,11 +11,7 @@
 
 Complete change log and debugging options are at the bottom of this tab
                                     
-v2.61.0 2020-06-29 Important patch of WiFi TCP client for graceful close/reopen on loss of signal
-                    Half-duplex MavLite on S.Port - phase 2 - work in progress!
-                    Filter out heartbeats from Onboard_Controllers(18)
-                    #define PitLab to force frame_type = 1
-                    Monitor GCS heartbeat                                                             
+v2.61.1             Change references to pin 12 for all ESP32 variants                                                                                
 */
 
 //===========================================================================================
@@ -54,11 +50,11 @@ v2.61.0 2020-06-29 Important patch of WiFi TCP client for graceful close/reopen 
 //=================================================================================================
 // Choose only one of these default Flight-Controller-side I/O channels 
 // How does Mavlink telemetry enter this translator?
-#define FC_Mavlink_IO  0    // Serial Port (default)         
+//#define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define FC_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
 //#define FC_Mavlink_IO  3    // SD Card / TF - ESP32 only
-
+#define FC_Mavlink_IO  4    // USB<=>Serial   
 
 //=================================================================================================
 //           D E F A U L T   G R O U N D S T A T I O N    I / O   S E T T I N G S   
@@ -117,8 +113,8 @@ v2.61.0 2020-06-29 Important patch of WiFi TCP client for graceful close/reopen 
 
 // Choose one default mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
 //#define WiFi_Mode   1  //AP            
-//#define WiFi_Mode   2  // STA
-#define WiFi_Mode   3  // STA failover to AP
+#define WiFi_Mode   2  // STA
+//#define WiFi_Mode   3  // STA failover to AP
 
 // Choose one default protocol - for ESP32 only
 #define WiFi_Protocol 1    // TCP/IP
@@ -180,7 +176,7 @@ bool daylightSaving = false;
 //#define ESP_Onewire                     // enable half_duplex on single (tx) pin and wire - Air/Relay
 //#define ESP_Air_Relay_Blind_Inject_OK   // Blind inject instead of interleaving
 
-//#define Support_MavLite
+#define Support_MavLite
 
 //=================================================================================================   
 //                              Auto Determine Target Platform
@@ -332,13 +328,15 @@ bool daylightSaving = false;
  
 #elif defined ESP32                 // ESP32 Platform
 
+//   N O T E:  G P I O 1 2  is a bootstrap pin on the ESP32 - avoid GPIO12 high on bootup
+
   #if (ESP32_Variant == 1)          // ESP32 Dev Module
     #define MavStatusLed  02        // Onboard LED
     #define InvertMavLed false      
     #define BufStatusLed  27        // untested pin      
     #define FC_Mav_rxPin  16        // Mavlink to FC
     #define FC_Mav_txPin  17        // Mavlink from FC
-    #define Fr_rxPin      13        // SPort - Not used in 1-wire mode
+    #define Fr_rxPin      13        // SPort - Not used in 1-wire mode DON'T use 12!
     #define Fr_txPin       4        // SPort tx - Use me in single wire mode
     #define startWiFiPin   5        // Trigger WiFi startup       
     #if (defined SD_Support) || (defined OLED_Support)   
@@ -361,9 +359,9 @@ bool daylightSaving = false;
     #define BufStatusLed  99        // None    
     #define FC_Mav_rxPin  25        // Mavlink to FC
     #define FC_Mav_txPin  26        // Mavlink from FC
-    #define Fr_rxPin      12        // SPort - Not used in single wire mode
+    #define Fr_rxPin      13        // SPort - Not used in single wire mode DON'T use 12!
     #define Fr_txPin      14        // SPort tx - Use me in single wire mode
-    #define startWiFiPin  13        // Trigger WiFi startup      
+    #define startWiFiPin  18        // Trigger WiFi startup      
     #if (defined SD_Support) || (defined OLED_Support)
       #define SDA           05        // I2C OLED board
       #define SCL           04        // I2C OLED board
@@ -381,9 +379,9 @@ bool daylightSaving = false;
     #define BufStatusLed  19        // Green LED        
     #define FC_Mav_rxPin  16        // Mavlink to FC
     #define FC_Mav_txPin  17        // Mavlink from FC
-    #define Fr_rxPin      12        // SPort - Not used in single wire mode
+    #define Fr_rxPin      13        // SPort - Not used in single wire mode DON'T use 12!
     #define Fr_txPin      01        // SPort tx - Use me in single wire mode
-    #define startWiFiPin  13        // Trigger WiFi startup   
+    #define startWiFiPin  18        // Trigger WiFi startup   
     #if (defined SD_Support) || (defined OLED_Support)
       #define SDA           05        // I2C OLED board
       #define SCL           04        // I2C OLED board 
@@ -394,12 +392,14 @@ bool daylightSaving = false;
   #if (ESP32_Variant == 4)          // Heltec Wifi Kit 32 (NOTE! 8MB) 
     #define MavStatusLed  25        // Onboard LED
     #define InvertMavLed false     
-    #define BufStatusLed  99   
+    #define BufStatusLed  99  
+    #define Dbg_rxPin     32        // reserved but not used
+    #define Dbg_txPin     19        // If FC_Mav is USB then use me for debug output     
     #define FC_Mav_rxPin  27        // Mavlink to FC
     #define FC_Mav_txPin  17        // Mavlink from FC
-    #define Fr_rxPin      12        // SPort rx 
+    #define Fr_rxPin      13        // SPort rx - (NOTE: DON'T use pin 12! boot fails if pulled high)
     #define Fr_txPin      14        // SPort tx - Use me in single wire mode
-    #define startWiFiPin  13        // Trigger WiFi startup   
+    #define startWiFiPin  18        // Trigger WiFi startup   
     #if !defined OLED_Support       // I2C OLED board is built into Heltec WiFi Kit 32
       #define OLED_Support
     #endif
@@ -693,9 +693,16 @@ bool daylightSaving = false;
 //=================================================================================================
 
 #if (defined ESP32)  
-  #define Debug               Serial         // USB
-  #define mvSerialFC          Serial2        //  RXD0 and TXD0
-   
+
+  #if (FC_Mavlink_IO == 4)    // USB<=>Serial     
+    #define Debug               Serial2       // UART2
+    #define mvSerialFC          Serial        // USB<=>UART0 
+  #else
+    #define Debug               Serial        // USB<=>UART0 
+    #define mvSerialFC          Serial2       // UART2 - RXD2 and TXD2
+  #endif
+  
+  // Define S.Port here
   #if defined ESP32_SoftwareSerial
     #include <SoftwareSerial.h>
     SoftwareSerial frSerial; 
@@ -803,7 +810,7 @@ bool daylightSaving = false;
 //#define Debug_SPort_Switching
 //#define Mav_Debug_RPM
 //#define Debug_SRAM
-//#define Debug_MavLite
+#define Debug_MavLite
 //#define MavLite_Debug_Scheduler
 //#define Debug_MavLite_SPort
 //#define Debug_SPort   // both in and out
@@ -934,5 +941,10 @@ v2.60.1 2020-05-24 Schedule fr 0x5007 params individually, fixes periodic flight
 v2.60.2 2020-05-25 Added RSSI_Pacemaker option to help prevent "telemetry lost". Default period 200 mS.   
 v2.60.3 2020-05-25 Added new variant for ESP8266 - ESP-12F WEMOS D1 Mini    
         2020-05-30 Added some support for PitLab flight stack 
-v2.60.4 2020-06-01 Half-duplex MavLite on S.Port - phase 1                                                                                        
+v2.60.4 2020-06-01 Half-duplex MavLite on S.Port - phase 1   
+v2.61.0 2020-06-29 Important patch of WiFi TCP client for graceful close/reopen on loss of signal
+                    Half-duplex MavLite on S.Port - phase 2 - work in progress!
+                    Filter out heartbeats from Onboard_Controllers(18)
+                    #define PitLab to force frame_type = 1
+                    Monitor GCS heartbeat                                                                                     
 */

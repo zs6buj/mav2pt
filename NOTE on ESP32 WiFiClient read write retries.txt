@@ -1,0 +1,27 @@
+Sometimes, when the ESP32 version of MavToPass is used where the WiFi RF environment is hostile, 
+10 write() retries before disconnecting can take up 10 seconds, during which time the pilot may lack
+critcal situational awareness.
+
+10 x 1000000uS = 10 seconds - see below
+
+During that time the WiFiClient object blocks all other processing. The blocking time can be reduced
+ by reducing the retries to (say) 2 or 3. Please understand you do this at your own risk.
+
+TO CHANGE WIFI TCP READ() AND WRITE() DEFAULT RETRIES
+
+Find and open Open WiFiClient.cpp, usually located at :
+
+%systemdrive%:\Users\%username%\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\libraries\WiFi\src\
+
+
+Line 26:
+
+#define WIFI_CLIENT_MAX_WRITE_RETRY   (10)
+#define WIFI_CLIENT_SELECT_TIMEOUT_US (1000000)
+
+change to 
+
+#define WIFI_CLIENT_MAX_WRITE_RETRY   (3)
+#define WIFI_CLIENT_SELECT_TIMEOUT_US (1000000)
+
+Save WiFiClient.cpp, and rebuild the application
