@@ -80,10 +80,10 @@ v2.61.1             Change references to pin 12 for all ESP32 variants
 //                          S E L E C T   E S P   B O A R D   V A R I A N T   
 //=================================================================================================
 
-//#define ESP32_Variant     1    //  ESP32 Dev Module - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
+#define ESP32_Variant     1    //  ESP32 Dev Module - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi
-#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS ith OTA)" - contributed by Noircogi
+//#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS ith OTA)" - contributed by Noircogi
 
 //#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
 #define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - use Generic ESP8266 on IDE
@@ -333,7 +333,9 @@ bool daylightSaving = false;
   #if (ESP32_Variant == 1)          // ESP32 Dev Module
     #define MavStatusLed  02        // Onboard LED
     #define InvertMavLed false      
-    #define BufStatusLed  27        // untested pin      
+    #define BufStatusLed  27        // untested pin   
+    #define Dbg_rxPin     32        // reserved but not used
+    #define Dbg_txPin     19        // If FC_Mav is USB then use me for debug output       
     #define FC_Mav_rxPin  16        // Mavlink to FC
     #define FC_Mav_txPin  17        // Mavlink from FC
     #define Fr_rxPin      13        // SPort - Not used in 1-wire mode DON'T use 12!
