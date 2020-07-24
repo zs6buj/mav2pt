@@ -13,7 +13,10 @@ Complete change log and debugging options are at the bottom of this tab
                                     
 v2.61.1             Change references to pin 12 for all ESP32 variants   
                     Mavlink phase 2 working  
-        2020-07-15  SPort Class established                                                                          
+        2020-07-15  SPort Class established   
+v2.61.2 2020-07-24  Web settings - value for st/ap failover not picked up. Should be STA/AP not STA_AP.
+                    Display WiFi Mode at startup.
+                    Emphasise EEPROM settings reset for clarity.                                                                            
 */
 
 //===========================================================================================
@@ -81,7 +84,6 @@ v2.61.1             Change references to pin 12 for all ESP32 variants
 //=================================================================================================                             
 //                          S E L E C T   E S P   B O A R D   V A R I A N T   
 //=================================================================================================
-
 //#define ESP32_Variant     1    //  ESP32 Dev Module - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi

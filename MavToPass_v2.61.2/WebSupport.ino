@@ -226,7 +226,7 @@ int32_t String_long(String S) {
   settingsPage += temp;
   sprintf(temp, "<input type='radio' class='big' name='_wfmode' value='STA' %s> STA &nbsp &nbsp", set.wfmode2);
   settingsPage += temp;    
-  sprintf(temp, "<input type='radio' class='big' name='_wfmode' value='STA_AP' %s> STA/AP &nbsp <br>", set.wfmode3);
+  sprintf(temp, "<input type='radio' class='big' name='_wfmode' value='STA/AP' %s> STA/AP &nbsp <br>", set.wfmode3);
   settingsPage += temp;
   settingsPage += "WiFi Protocol: &nbsp &nbsp ";
   sprintf(temp, "<input type='radio' class='big' name='_wfproto' value='TCP' %s> TCP &nbsp &nbsp", set.wfproto1);
@@ -363,9 +363,7 @@ byte b;
     } 
     EEPROMReadString(140, set.btConnectToSlave);  // 140 thru 160 
 
-    RefreshHTMLButtons();
-
-    Debug.println("EEPROM settings read and adopted");       
+    RefreshHTMLButtons();     
    
     #if defined Debug_Web_Settings
       Debug.println();
@@ -390,7 +388,10 @@ byte b;
       Debug.print("bt mode = "); Debug.println(set.btmode); 
       Debug.print("SlaveConnect To Name = "); Debug.println(set.btConnectToSlave);
       Debug.println();          
-    #endif              
+    #endif  
+
+    Debug.println("EEPROM settings read and adopted");  
+                
   }
 //=================================================================================
 void WriteSettingsToEEPROM() {
@@ -721,7 +722,7 @@ void RefreshHTMLButtons() {
   
   String s = "<a href='/'> Rebooting........  Back to login screen</a>";
   server.send(200, "text/html", styleLogin+s);
-  Debug.println("Rebooting ......");  
+  Debug.println("Rebooting to adopt new settings ....");  
   delay(3000);
   ESP.restart();                 // esp32 and esp8266   
  }
