@@ -12,7 +12,7 @@
 Complete change log and debugging options are at the bottom of this tab
                                      
 v2.61.3 2020-07-28  Add variant for LILYGO® TTGO T-Display ESP32 1.14 Inch Colour LCD 
-v2.61.2 2020-07-30  Added display up/down scrolling on touch pins                   
+v2.61.4 2020-07-30  Added display up/down scrolling on touch pins                   
                                                                                               
 */
 
