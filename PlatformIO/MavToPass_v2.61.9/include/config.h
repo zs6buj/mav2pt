@@ -59,9 +59,9 @@ v2.61.9 2020-09-04  Tidy up serial downlink capability. Add outgoing TCP client 
 //=================================================================================================
 // Choose only one of these default Flight-Controller-side I/O channels 
 // How does Mavlink telemetry enter this translator?
-//#define FC_Mavlink_IO  0    // Serial Port (default)         
+#define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define FC_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
+//#define FC_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
 //#define FC_Mavlink_IO  3    // SD Card / TF - ESP32 only
 
 
@@ -71,9 +71,9 @@ v2.61.9 2020-09-04  Tidy up serial downlink capability. Add outgoing TCP client 
 // Choose only one of these default GCS-side I/O channels
 // How does Mavlink telemetry leave this translator?
 // These are optional, and in addition to the S.Port telemetry output
-#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
+//#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
+#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 only
 
 #ifndef GCS_Mavlink_IO
@@ -91,11 +91,11 @@ v2.61.9 2020-09-04  Tidy up serial downlink capability. Add outgoing TCP client 
 //                          S E L E C T   E S P   B O A R D   V A R I A N T   
 //=================================================================================================
 //================================================================================================= 
-//#define ESP32_Variant     1    //  ESP32 Dev Module - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
+#define ESP32_Variant     1    //  ESP32 Dev Module - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi
 //#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS ith OTA)" - contributed by Noircogi
-#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD
+//#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD
 
 //#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
 #define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - use Generic ESP8266 on IDE
@@ -128,8 +128,8 @@ v2.61.9 2020-09-04  Tidy up serial downlink capability. Add outgoing TCP client 
 #define WiFi_Mode   3  // STA failover to AP
 
 // Choose one default protocol - for ESP32 only
-#define WiFi_Protocol 1    // TCP/IP
-//#define WiFi_Protocol 2    // UDP 
+//#define WiFi_Protocol 1    // TCP/IP
+#define WiFi_Protocol 2    // UDP 
 
 #define UDP_Broadcast      // Comment out if you will always have only one client UDP GCS at a time
 // NOTE; UDP is not a session based protocol. To communicate with > 1 client at a time, we must broadcast on the subnet    
@@ -250,13 +250,17 @@ bool daylightSaving = false;
     #error Please choose at least one Battery_mAh_Source
   #endif
 
-  #if (not defined ESP32) && (not defined ESP8266) 
-     #if (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3) || (defined webSupport)
-    //   #error WiFi and webSupport only work on an ESP32 or ESP8266 board
+  #if (defined TEENSY3X) 
+  
+     #if (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3) || (defined webSupport)   // if wifi selected
+       #error WiFi and webSupport only work on an ESP32 or ESP8266 board
        #if defined FC_Mavlink
          #undef FC_Mavlink
        #endif  
-       #define FC_Mavlink_IO  0
+       #if defined FC_Mavlink_IO
+         #undef  FC_Mavlink_IO     
+         #define FC_Mavlink_IO  0
+       #endif
        #if defined GCS_Mavlink_IO
          #undef GCS_Mavlink_IO
        #endif   
