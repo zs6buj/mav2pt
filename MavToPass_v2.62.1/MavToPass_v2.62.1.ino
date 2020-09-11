@@ -1269,7 +1269,7 @@ void Read_From_GCS() {
                 msgRcvd = mavlink_parse_char(MAVLINK_COMM_2, result, msgptr, &_status);
                 if(msgRcvd) {
                     #if (not defined UDP_Broadcast)
-                      udp_remoteIP = UDP.remoteIP();  // remember which remote client sent this packet so we can target it
+                      UDP_remoteIP = UDP.remoteIP();  // remember which remote client sent this packet so we can target it
                     #endif  
                     PrintRemoteIP();
                        
