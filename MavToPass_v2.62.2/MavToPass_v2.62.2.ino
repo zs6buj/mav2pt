@@ -1656,8 +1656,9 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
     bool msgSent = false;
 
     if (msgptr->msgid == MAVLINK_MSG_ID_HEARTBEAT) {
-      UDP_remoteIP[3] = 255;       // always broadcast a heartbeat, either from the GCS or from the FC                 
-    //  Debug.print("Broadcast heartbeat UDP_remoteIP="); Debug.println(UDP_remoteIP.toString());     
+      UDP_remoteIP = localIP;
+      UDP_remoteIP[3] = 255;       // always broadcast a heartbeat on the local LAN, either from the GCS or from the FC                 
+   //   Debug.print("Broadcast heartbeat UDP_remoteIP="); Debug.println(UDP_remoteIP.toString());     
     } 
 
     UDP.beginPacket(UDP_remoteIP, set.udp_remotePort);
