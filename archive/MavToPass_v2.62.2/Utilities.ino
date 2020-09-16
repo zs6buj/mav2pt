@@ -827,7 +827,8 @@ void PrintLoopPeriod() {
       Debug.print(", remote port: "); Debug.println(set.udp_remotePort);
       DisplayPrintln("UDP client connected");
       DisplayPrintln("Remote IP =");
-      DisplayPrintln(UDP_remoteIP.toString());
+      snprintf(snprintf_buf, max_col, "%s", UDP_remoteIP.toString().c_str());        
+      DisplayPrintln(snprintf_buf);        
       snprintf(snprintf_buf, max_col, "Remote port = %d", set.udp_remotePort);        
       DisplayPrintln(snprintf_buf);    
      }
