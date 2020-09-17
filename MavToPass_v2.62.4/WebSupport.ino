@@ -7,7 +7,12 @@
 //================================================================================================= 
 #if defined webSupport
 
- static const String styleLogin =  // Store in FLASH not SRAM Heap
+/*
+In the ESP32, constant data is automatically stored in FLASH memory and can be accessed directly 
+from FLASH memory without first copying it to RAM. So, there is no need to use the PROGMEM keyword
+*/
+
+ static const String styleLogin =  // Stored in FLASH not SRAM Heap - see above
     "<style>h1{background:#3498db;color:#fff;border-radius:5px;height:34px;font-family:sans-serif;}"
     "#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
     "input{background:#f1f1f1;border:0;padding:0 15px}body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
@@ -95,7 +100,7 @@
             //===========================================================
 
 
-  server.on("/", handleLoginPage);                  // root
+  server.on("/", handleLoginPage);                          // root
   server.on("/settingsIndex", handleSettingsPage);             
   server.on("/settingsReturnIndex", handleSettingsReturn);  // save settings and reboot
   server.on("/rebootIndex", handleReboot);                  // reboot only
@@ -131,16 +136,6 @@ void RecoverSettingsFromFlash() {
 
 }
 
-//===========================================================================================
-
-void String_char(char* ch, String S) {
-  int i;
-  int lth = sizeof(S);
-  for ( i = 0 ; i <= lth ; i++) {
-    ch[i] = S[i];
-  }
-  ch[i] = 0;
-}
 //=================================================================================
 int32_t String_long(String S) {
   const char* c;
@@ -261,7 +256,7 @@ int32_t String_long(String S) {
   settingsPage += temp;
   sprintf(temp, "<input type='radio' class='big' name='_btmode' value='Slave' %s> Slave &nbsp &nbsp <br>", set.btmode2);
   settingsPage += temp;
-  sprintf(temp, "Master to Slave: <input type='text' name='_btConnectToSlave' value='%s' size='20' maxlength='20'>  <br><br><center>", set.btConnectToSlave);
+  sprintf(temp, "Master to Slave: <input type='text' name='_btConnectToSlave' value='%s' size='22' maxlength='22'>  <br><br><center>", set.btConnectToSlave);
   settingsPage += temp;
   settingsPage += "<b><input type='submit' onclick='closeWin()' formaction='/rebootIndex' class=btn value='Cancel'> </b>&nbsp &nbsp &nbsp &nbsp";
   settingsPage += "&nbsp &nbsp &nbsp &nbsp<b><input type='submit' formaction='/settingsReturnIndex' class=btn value='Save & Reboot'> </b><br><br>";
@@ -561,8 +556,10 @@ void ReadSettingsFromForm() {
   }   
   set.baud = String_long(server.arg("_baud"));
   set.channel = String_long(server.arg("_channel")); 
-  String_char(set.apSSID, server.arg("_apSSID"));
-  String_char(set.apPw, server.arg("_apPw"));
+  S = server.arg("_apSSID");
+  strcpy(set.apSSID, S.c_str());
+  S = server.arg("_apPw");
+  strcpy(set.apPw, S.c_str());
 
   if(strlen(set.apPw) < 8) {
         // esp fail passphrase too short
@@ -570,16 +567,19 @@ void ReadSettingsFromForm() {
       DisplayPrintln("AP PW < 8 chars long");   
     }
 
-  String_char(set.staSSID, server.arg("_staSSID"));
-  String_char(set.staPw, server.arg("_staPw"));
+  S = server.arg("_staSSID");
+  strcpy(set.staSSID, S.c_str());
+  S = server.arg("_staPw");
+  strcpy(set.staPw, S.c_str());  
 
   if(strlen(set.staPw) < 8) {
         // esp fail passphrase too short
       Debug.println("STA Password < 8 chars long! Will fail to authenticate");
       DisplayPrintln("STA PW < 8 chars long");   
     }
-  
-  String_char(set.host, server.arg("_host"));
+
+  S = server.arg("_host");
+  strcpy(set.host, S.c_str());    
   set.tcp_localPort = String_long(server.arg("_tcp_localPort"));
   set.udp_localPort = String_long(server.arg("_udp_localPort"));
   set.udp_remotePort = String_long(server.arg("_udp_remotePort")); 
@@ -590,7 +590,9 @@ void ReadSettingsFromForm() {
   if (S == "Slave") {
     set.btmode = slave;
   } 
-  String_char(set.btConnectToSlave, server.arg("_btConnectToSlave"));
+
+  S = server.arg("_btConnectToSlave");
+  strcpy(set.btConnectToSlave, S.c_str());    // strcpy() copies the C string including the terminating null character
 
       #if defined Debug_Web_Settings
         Debug.println();
@@ -751,31 +753,18 @@ void RefreshHTMLButtons() {
  //===========================================================================================
  void handleLoginPage() {
 
-  #if (defined btBuiltin)
+  #if ((defined ESP32) || (defined ESP8266)) && (defined Debug_SRAM)
+    Debug.printf("==============>Free Heap before handleLoginPage = %d\n", ESP.getFreeHeap());
+  #endif  
 
-    
-      #if ((defined ESP32) || (defined ESP8266)) && (defined Debug_SRAM)
-        Debug.printf("==============>Free Heap before handleLoginPage = %d\n", ESP.getFreeHeap());
-      #endif  
-      if (!btDisabled) {  // if not already disabled
-        esp_bt_controller_disable();
-        esp_bt_controller_deinit();
-        esp_bt_mem_release(ESP_BT_MODE_BTDM);
-        btActive = false;
-        btDisabled = true;
-        Debug.println("Bluetooth disabled to free up SRAM for web support"); 
-        DisplayPrintln("Bluetooth disabled");         
-        #if ((defined ESP32) || (defined ESP8266)) && (defined Debug_SRAM)
-          Debug.printf("==============>Free Heap after bluetooth disabled = %d\n", ESP.getFreeHeap());
-        #endif
-      }
-  #endif
-  
   ComposeLoginPage();
   server.send(200, "text/html", loginPage); 
  }
  //===========================================================================================
  void handleSettingsPage() {
+
+  Free_Bluetooth_RAM();   // Disables BT and required a reboot to reinstate BT
+
   ComposeSettingsPage();
   server.send(200, "text/html", settingsPage); 
  }
@@ -803,6 +792,9 @@ void RefreshHTMLButtons() {
  
  //===========================================================================================
  void handleOtaPage() {
+
+  //Free_Bluetooth_RAM();   // Disables BT and required a reboot to reinstate BT
+  
   server.sendHeader("Connection", "close");
   server.send(200, "text/html", otaIndex);
   /*handle upload of firmware binary file */
@@ -919,7 +911,7 @@ void RefreshHTMLButtons() {
   char s[30];
         for (int i = 0 ; i < 30 ; i++) {  // safety limit
           s[i] = EEPROM.read(address+i);
-          if (s[i] == 0x00) {                  // eo string
+          if (s[i] == 0x00) {             // eo string
             strcpy(strptr, s);  
             break;    
           }
