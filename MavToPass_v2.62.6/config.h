@@ -14,7 +14,7 @@ Complete change log and debugging options are at the bottom of this tab
 v2.62.5 2020-09-18  Minor tweek to byte stuff 
         2020-09-21  Tighten up on Mavlink routing required for multi-GCSs
                     Only send own HB to FC is GCS is not
-                   
+v2.62.6 2020-09-30  Minor fwd declarations for debugging only                   
                                               
 */
 //===========================================================================================
@@ -903,7 +903,7 @@ bool daylightSaving = false;
 
 //#define inhibit_SPort     // Use me to send debug messages only, out of GPIO1/TX0 on ESP32_Variant 3, DL V3 internal ESP32
 //#define Mav_Debug_All
-#define Frs_Debug_All
+//#define Frs_Debug_All
 //#define Mav_Debug_RingBuff
 //#define Frs_Debug_Period
 //#define Debug_Air_Mode
