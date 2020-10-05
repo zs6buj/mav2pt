@@ -11,10 +11,8 @@
 
 Complete change log and debugging options are at the bottom of this tab
                                         
-v2.62.5 2020-09-18  Minor tweek to byte stuff 
-        2020-09-21  Tighten up on Mavlink routing required for multi-GCSs
-                    Only send own HB to FC is GCS is not
-v2.62.6 2020-09-30  Minor fwd declarations for debugging only                   
+v2.62.7 2020-10-05  Fixed nasty bytestuff bug affecting Air and Relay modes 
+            
                                               
 */
 //===========================================================================================
@@ -945,7 +943,7 @@ bool daylightSaving = false;
 //#define Frs_Debug_Mission   
 
 //#define Mav_Debug_System_Time   
-//#define Frs_Debug_Scheduler // - this debugger affects the performance of the scheduler when activated
+
 //#define Decode_Non_Essential_Mav 
 //#define Debug_Baud 
 //#define Debug_Radio_Status  
@@ -956,6 +954,10 @@ bool daylightSaving = false;
 //#define Debug_Eeprom
 //#define Debug_SPort_Switching
 //#define Mav_Debug_RPM
+
+
+//#define Frs_Debug_Scheduler // - this debugger affects the performance of the scheduler when activated
+
 //#define Frs_Debug_Payload
 //#define Debug_SD   
 //#define MavLite_Debug_Scheduler
@@ -1132,5 +1134,10 @@ v2.62.2 2020-09-15  Add support for multi targeted UDP clients.
 v2.62.3 2020-09-17  AP channel change fixed.
                     Display remote IP fixed. 
 v2.62.4 2020-09-16  Fix BT slave name truncated by 1 chr
-                    Improve when BT disabled to free up SRAM for web support, also #undef btBuiltin                                                                                                                                                                                      
+                    Improve when BT disabled to free up SRAM for web support, also #undef btBuiltin   
+v2.62.5 2020-09-18  Minor tweek to byte stuff 
+        2020-09-21  Tighten up on Mavlink routing required for multi-GCSs
+                    Only send own HB to FC is GCS is not
+v2.62.7 2020-10-30  Minor fwd declarations for debugging only  
+                                                                                                                                                                                                       
 */
