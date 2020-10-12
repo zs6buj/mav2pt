@@ -35,7 +35,9 @@
   }
   
   //===============================       H a n d l e   W i F i   E v e n t s 
-
+  
+    void CheckStaLinkStatus();  // Forward declaration 
+    
     void ServiceWiFiRoutines() {
       
       SenseWiFiPin();   // check optional start-wifi pin
