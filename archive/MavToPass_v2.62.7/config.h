@@ -10,10 +10,10 @@
 =================================================================================================== 
 
 Complete change log and debugging options are at the bottom of this tab
-                                     
-v2.62.0 2020-09-08  Add support for multiple incoming tcp clients (GCSs, trackers..)
-                    Always broadcast UDP on the /24 subnet.                                 
-
+                                        
+v2.62.7 2020-10-05  Fixed nasty bytestuff bug affecting Air and Relay modes 
+            
+                                              
 */
 //===========================================================================================
 //
@@ -21,11 +21,13 @@ v2.62.0 2020-09-08  Add support for multiple incoming tcp clients (GCSs, tracker
 //
 //===========================================================================================
 
+#define Device_sysid     251                     // Our Mavlink Identity - APM FC is 1, Mission Planner is 255, QGC default is 0 
+#define Device_compid    MAV_COMP_ID_PERIPHERAL  // 158 Generic autopilot peripheral - APM FC is 1, MP is 190, QGC is  https://mavlink.io/en/messages/common.html
 
-#define webSupport                      // ESP only. Enable wifi web support, including OTA firmware updating. Browse to IP.
-#define webPassword      "changeme!"    // Web password 
+#define webSupport                               // ESP only. Enable wifi web support, including OTA firmware updating. Browse to IP.
+#define webPassword      "changeme!"             // Web password 
 
-//#define Reset_Web_Defaults            // Reset settings in eeprom. Do this if you suspect eeprom settings are corrupt.
+#define Reset_Web_Defaults            // Reset settings in eeprom. Do this if you suspect eeprom settings are corrupt.
 // USE THE ABOVE LINE SPARINGLY. IT CAN EVENTUALLY WEAR OUT YOUR EEPROM.
 
 //#define SD_Support                    // Enable if you have an SD card reader attached
@@ -72,7 +74,7 @@ v2.62.0 2020-09-08  Add support for multiple incoming tcp clients (GCSs, tracker
 //#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
-#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously - ESP32 only
+#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
 
 #ifndef GCS_Mavlink_IO
   #define GCS_Mavlink_IO  9    // NONE (default)
@@ -89,10 +91,10 @@ v2.62.0 2020-09-08  Add support for multiple incoming tcp clients (GCSs, tracker
 //                          S E L E C T   E S P   B O A R D   V A R I A N T   
 //=================================================================================================
 //================================================================================================= 
-//#define ESP32_Variant     1    //  ESP32 Dev Module - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
+#define ESP32_Variant     1    //  ESP32 Dev Module - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi
-#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS ith OTA)" - contributed by Noircogi
+//#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS ith OTA)" - contributed by Noircogi
 //#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD
 
 //#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
@@ -129,6 +131,8 @@ v2.62.0 2020-09-08  Add support for multiple incoming tcp clients (GCSs, tracker
 //#define WiFi_Protocol 1    // TCP/IP
 #define WiFi_Protocol 2    // UDP 
 
+//#define UDP_Broadcast      // Comment out (default) if you want to track and target remote udp client ips
+// NOTE; UDP is not a connection based protocol. To communicate with > 1 client at a time, we must broadcast on the subnet  
 //=================================================================================================
 //                            R  S  S  I    O  P  T  I  O  N  S  
 //=================================================================================================
@@ -816,7 +820,7 @@ bool daylightSaving = false;
     linkStatus    link_status;
   
     #if defined ESP32 
-      #include <WiFi.h>  
+      #include <WiFi.h>  // includes UDP class
       #if defined webSupport
         #include <WebServer.h> 
         #include <Update.h> 
@@ -830,13 +834,11 @@ bool daylightSaving = false;
       #include <ESP8266WiFi.h>   // Includes AP class
       #if defined webSupport
         #include <ESP8266WebServer.h>    
-        ESP8266WebServer server(80);       
+        ESP8266WebServer server(80);  
+        #include <WiFiUdp.h>       
       #endif      
     #endif
     
-    #include <WiFiUdp.h>   
-
-
    //====================       W i F i   O b j e c t s 
    
     #define max_clients    5
@@ -844,11 +846,13 @@ bool daylightSaving = false;
 
     WiFiClient TCPclient; 
      
-    WiFiClient *clients[max_clients] = {NULL };   // pointers to TCP clients table
+    WiFiClient *clients[max_clients] = {NULL};   // pointers to TCP clients table
     
     WiFiServer TCPserver(TCP_localPort);         // dummy TCP local port(changes on TCPserver.begin() ).
 
-    IPAddress UDP_remoteIP(192, 168, 1, 255);   
+    IPAddress UDP_remoteIP(192, 168, 1, 255);    // default to broadcast unless (not defined UDP_Broadcast)               
+    uint8_t   UDP_remoteIP_B3[max_clients];      // table of last byte of remote UDP client IPs
+
     WiFiUDP UDP;                                 // create UDP object    
          
     IPAddress localIP;                           // tcp and udp
@@ -915,10 +919,8 @@ bool daylightSaving = false;
 //#define Frs_Debug_Rssi        // 0xF101
 //#define Mav_Debug_RC           
 //#define Frs_Debug_RC
-//#define Mav_Debug_FC_Heartbeat
-//#define Mav_Debug_GCS_Heartbeat
+
 //#define Frs_Debug_Params       //0x5007
-//#define Mav_Debug_MavToPass_Heartbeat
 //#define Frs_Debug_APStatus    // 0x5001
 //#define Mav_Debug_SysStatus   // #1 && battery
 //#define Debug_Batteries       // 0x5003
@@ -939,9 +941,9 @@ bool daylightSaving = false;
 //#define Frs_Debug_StatusText  // 0x5000
 //#define Mav_Debug_Mission
 //#define Frs_Debug_Mission   
-//#define Debug_Param_Request_List 
+
 //#define Mav_Debug_System_Time   
-//#define Frs_Debug_Scheduler // - this debugger affects the performance of the scheduler when activated
+
 //#define Decode_Non_Essential_Mav 
 //#define Debug_Baud 
 //#define Debug_Radio_Status  
@@ -950,12 +952,13 @@ bool daylightSaving = false;
 //#define Mav_Show_Unknown_Msgs
 //#define Mav_Print_All_Msgid
 //#define Debug_Eeprom
-//#define Debug_Web_Settings
 //#define Debug_SPort_Switching
 //#define Mav_Debug_RPM
-//#define Debug_SRAM
-//#define Frs_Debug_Payload
 
+
+//#define Frs_Debug_Scheduler // - this debugger affects the performance of the scheduler when activated
+
+//#define Frs_Debug_Payload
 //#define Debug_SD   
 //#define MavLite_Debug_Scheduler
 //#define Debug_Mavlite_SPort
@@ -966,7 +969,15 @@ bool daylightSaving = false;
 //#define Debug_Loop_Period
 //#define Debug_Mavlite 
 //#define Mav_Debug_Command_Ack
+//#define Debug_SRAM
+//#define Debug_Web_Settings
 
+//#define Mav_Debug_FC_Heartbeat
+//#define Mav_Debug_GCS_Heartbeat
+//#define Debug_Our_FC_Heartbeat
+//#define Debug_Param_Request_Read  // #20
+//#define Debug_Param_Request_List  // #21
+//#define Mav_Debug_Params
 //=================================================================================================   
 //                                   C H A N G E   L O G
 //=================================================================================================
@@ -1062,12 +1073,12 @@ v2.56.3 2020-03-03 Minor ESP8266 variants logic check
 v2.56.4 2020-03-04 Remove spurious debugging code affecting S.Port Thanks pascale dragos.     
 v2.56.5 2020-03-09 Reduce rssi timing cycle to 350mS from 700mS. 
 v2.57   2020-03-15 Fix RFD900/TXMOD status LED. SoftwareSerial for ESP32.  
-v2.58   2020-03-17 Option to work around apparent bug in Mavlink V2 Library. Tolerate CRC errors.
+v2.58   2020-03-17 Option to work around apparent bug in Mavlink V2 Library. Tolerate CRC_Out errors.
                    This fixes failure to parse certain mavlink messages, including #226 RPM 
                    Needs more investigation. Use with caution!
 v2.58.1 2020-03-18 Improve user options on hw/sw serial 
 v2.58.2 2020-03-20 Stable. Lots of nice, small tweaks. Exp. code for inherent 1-wire on ESP
-v2.58.3 2020-03-22 Deactivate experimental CRC error tolerance for general use. My bad. 
+v2.58.3 2020-03-22 Deactivate experimental CRC_Out error tolerance for general use. My bad. 
 v2.58.4 2020-03-25 RPM fixed (library path). 
 v2.58.5 2020-03-28 Add //#define SD_Support to optionally remove all SD support at compile time.
                    This is especially useful for PlatformIO on ESP8266.   
@@ -1113,5 +1124,20 @@ v2.61.8 2020-08-10  S.Port telemetry to SD card option.
 v2.61.9 2020-09-04  Tidy up serial downlink capability. Add outgoing TCP client capability. 
                     Improve web setup data vetting. 
                     Show last line properly & reverse scroll buttons on ST7789.
-                    Ignore heartbeats from or Gremsy Gimbal(26).                                                                                                                                       
+                    Ignore heartbeats from or Gremsy Gimbal(26).       
+v2.62.0 2020-09-08  Add support for multiple incoming tcp clients (GCSs, trackers..)
+                    Always broadcast UDP on the /24 subnet. 
+v2.62.1 2020-09-10  Restore #defined UDP_broadcast option :)    
+v2.62.2 2020-09-15  Add support for multi targeted UDP clients.
+                    Flush UDP buffer after send. 
+                    Always broadcast heartbeat for UDP.   
+v2.62.3 2020-09-17  AP channel change fixed.
+                    Display remote IP fixed. 
+v2.62.4 2020-09-16  Fix BT slave name truncated by 1 chr
+                    Improve when BT disabled to free up SRAM for web support, also #undef btBuiltin   
+v2.62.5 2020-09-18  Minor tweek to byte stuff 
+        2020-09-21  Tighten up on Mavlink routing required for multi-GCSs
+                    Only send own HB to FC is GCS is not
+v2.62.7 2020-10-30  Minor fwd declarations for debugging only  
+                                                                                                                                                                                                       
 */

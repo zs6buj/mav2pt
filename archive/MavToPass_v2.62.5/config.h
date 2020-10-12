@@ -903,7 +903,7 @@ bool daylightSaving = false;
 
 //#define inhibit_SPort     // Use me to send debug messages only, out of GPIO1/TX0 on ESP32_Variant 3, DL V3 internal ESP32
 //#define Mav_Debug_All
-#define Frs_Debug_All
+//#define Frs_Debug_All
 //#define Mav_Debug_RingBuff
 //#define Frs_Debug_Period
 //#define Debug_Air_Mode

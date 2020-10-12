@@ -11,8 +11,9 @@
 
 Complete change log and debugging options are at the bottom of this tab
                                         
-v2.62.7 2020-10-05  Fixed nasty bytestuff bug affecting Air and Relay modes 
-            
+
+v2.62.8 2020-10-07  Improve display scrolling
+        2020-10-12  Tested WiFi TCP output to AntTracker v2.15           
                                               
 */
 //===========================================================================================
@@ -73,8 +74,8 @@ v2.62.7 2020-10-05  Fixed nasty bytestuff bug affecting Air and Relay modes
 // These are optional, and in addition to the S.Port telemetry output
 //#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
-#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
+#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
+//#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
 
 #ifndef GCS_Mavlink_IO
   #define GCS_Mavlink_IO  9    // NONE (default)
@@ -96,10 +97,11 @@ v2.62.7 2020-10-05  Fixed nasty bytestuff bug affecting Air and Relay modes
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi
 #define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS ith OTA)" - contributed by Noircogi
 //#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD
+//#define ESP32_Variant     6    //  DONT USE ME YET !!  LILYGO® TTGO T2 + SD
 
-//#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
-#define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - use Generic ESP8266 on IDE
-//#define ESP8266_Variant   3   // ESP-12F - Wemos® LOLIN D1 Mini
+//#define ESP8266_Variant   1    // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
+#define ESP8266_Variant   2    // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - use Generic ESP8266 on IDE
+//#define ESP8266_Variant   3    // ESP-12F - Wemos® LOLIN D1 Mini
 //================================================================================================= 
 //=================================================================================================
 //                      D E F A U L T   B L U E T O O T H   S E T T I N G S   
@@ -128,8 +130,8 @@ v2.62.7 2020-10-05  Fixed nasty bytestuff bug affecting Air and Relay modes
 #define WiFi_Mode   3  // STA failover to AP
 
 // Choose one default protocol - for ESP32 only
-//#define WiFi_Protocol 1    // TCP/IP
-#define WiFi_Protocol 2    // UDP 
+#define WiFi_Protocol 1    // TCP/IP
+//#define WiFi_Protocol 2    // UDP 
 
 //#define UDP_Broadcast      // Comment out (default) if you want to track and target remote udp client ips
 // NOTE; UDP is not a connection based protocol. To communicate with > 1 client at a time, we must broadcast on the subnet  
@@ -454,7 +456,7 @@ bool daylightSaving = false;
     #define fr_rxPin        13        // SPort rx - (NOTE: DON'T use pin 12! boot fails if pulled high)
     #define fr_txPin        14        // SPort tx - Use me in single wire mode
     #define startWiFiPin    18        // Trigger WiFi startup 
-    #if !defined Display_Support    // I2C OLED board is built into Heltec WiFi Kit 32
+    #if !defined Display_Support      // I2C OLED board is built into Heltec WiFi Kit 32
       #define Display_Support
     #endif
     #if !defined SSD1306_Display    
@@ -508,16 +510,56 @@ bool daylightSaving = false;
     #define Pdn           35        // 35 Board Button 2 to scroll the display down    
     #define Tup           99        // 33 Touch pin to scroll the display up
     #define Tdn           99        // 32 Touch pin to scroll the display down   
-    
-    //static const uint8_t screenOrientation = 0;    // Portrait - Select one orientation only
-    static const uint8_t screenOrientation = 1;    // Landscape
- 
-    #define SDA           21        // I2C TFT board 
-    #define SCL           22        // I2C TFT board
+        
+    //#define screenOrientation 0     // Portrait - Select one orientation only
+    #define screenOrientation 1     // Landscape
+     
+    #define SDA           13        // I2C TFT board 
+    #define SCL           14        // I2C TFT board
     #define i2cAddr      0x3C       // I2C TFT board
   #endif
- 
+
+  //=========================================================================   
+  #if (ESP32_Variant == 6)          // LILYGO® TTGO T2 SD    IDE board = "ESP32 Dev Module"
+    #define MavStatusLed  21        // Add your own LED with around 1K series resistor
+    #define InvertMavLed false     
+    #define BufStatusLed  99        // none
+    #define mav_rxPin     27        // Mavlink serial rx
+    #define mav_txPin     17        // Mavlink serial tx
+    #define fr_rxPin       2        // SPort rx - (NOTE: DON'T use pin 12! boot fails if pulled high)
+    #define fr_txPin       5        // SPort tx - Use me in single wire mode
+    #define startWiFiPin  99        // 99=none. No input pin available (non touch!) Could use touch with a bit of messy work.
+
+    #if !defined SD_Support         // SD reader is built into TTGO T2
+      //#define SD_Support
+    #endif
+    #if !defined Display_Support      // I2C OLED board is built into TTGO T2
+      #define Display_Support
+    #endif
+    
+    #if !defined SSD1331_Display    
+      #define SSD1331_Display         // OLED display type
+    #endif 
+    #undef ST7789_Display
+    #undef SSD1306_Display 
+    
+    #define SCLK        14                  // SPI pins for SSD1331
+    #define MOSI        13
+    #define CS          15
+    #define RST          4
+    #define DC          16
   
+    /*    Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
+     *    Pin == 99 means the pin-pair is not used
+     */ 
+    #define Pup           99        // Board Button 1 to scroll the display up
+    #define Pdn           99        // Board Button 2 to scroll the display down    
+    #define Tup           33        // 33 Touch pin to scroll the display up
+    #define Tdn           32        // 32 Touch pin to scroll the display down      
+      
+  #endif  
+  
+
 #elif defined ESP8266                    // ESP8266 Platform
 
   
@@ -691,19 +733,61 @@ bool daylightSaving = false;
   #endif  
   //=================================================================================================   
   //                      D I S P L A Y   S U P P O R T    E S P  O N L Y - for now
-  //================================================================================================= 
+  //=================================================================================================  
 
-  #define max_col   21
-  #define max_row   30
-  // 20 rows of 21 characters
-  char snprintf_buf[max_col];   // for use with snprintf() formatting of display line
-  
   #if ((defined ESP32 || defined ESP8266)) && (defined Display_Support)  
-  
+
     #if not defined SD_Libs_Loaded    //  by SD block
       #include <SPI.h>                // for SD card and/or Display
     #endif  
+    //==========================================================
+    
+    #if (defined ST7789_Display)        // TFT display type    
+      #include <TFT_eSPI.h>             // Note: This is a hardware-specific library. You must update User_Setup.h 
+      TFT_eSPI display = TFT_eSPI();
+      #if (screenOrientation == 0)      // portrait
+        #define screen_height  20       // characters not pixels
+        #define screen_width   30       // ?
+      #elif (screenOrientation == 1)    // landscape
+        #define screen_height   8       // characters not pixels 
+        #define screen_width   20        
+      #endif      
+    //==========================================================
+    
+    #elif (defined SSD1306_Display)    // SSD1306 OLED display     
+      #include <Adafruit_SSD1306.h> 
+      #define SCREEN_WIDTH 128   // OLED display width, in pixels
+      #define SCREEN_HEIGHT 64   // OLED display height, in pixels
+      #define screen_height  8   // characters not pixels 
+      #define screen_width  21        
+      #ifndef OLED_RESET
+        #define OLED_RESET    -1 // Reset pin # (or -1 if sharing Arduino reset pin)
+      #endif  
+      Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);  
+          
+    //==========================================================  
+    #elif (defined SSD1331_Display)    // SSD1331 OLED display    
+      #include <Adafruit_SSD1331.h>
+      #define screen_height  8   // characters not pixels 
+      #define screen_width  21         
+      // Color definitions
+      #define BLACK           0x0000
+      #define BLUE            0x001F
+      #define RED             0xF800
+      #define GREEN           0x07E0
+      #define CYAN            0x07FF
+      #define MAGENTA         0xF81F
+      #define YELLOW          0xFFE0
+      #define WHITE           0xFFFF 
+      Adafruit_SSD1331 display = Adafruit_SSD1331(CS, DC, MOSI, SCLK, RST);      
+    #endif   
+    //==========================================================   
+     
+  #define max_col   screen_width+1  // +1 for terminating 0x00        
+  #define max_row   30
 
+  char snprintf_buf[max_col];   // for use with snprintf() formatting of display line
+  
     static const uint16_t threshold = 40;
     volatile bool upButton = false;
     volatile bool dnButton = false;
@@ -738,28 +822,8 @@ bool daylightSaving = false;
      
     uint8_t   row = 0;
     uint8_t   col = 0;
-    int8_t    scroll_row = 0;
+    uint8_t    scroll_row = 0;
     uint32_t  scroll_millis =0 ;
-    
-    #if (defined ST7789_Display)        // TFT display type    
-      #include <TFT_eSPI.h>             // Note: This is a hardware-specific library. You must update User_Setup.h 
-      TFT_eSPI display = TFT_eSPI();
-
-    #elif (defined SSD1306_Display)    // SSD1306 OLED display     
-      #if not defined SD_Libs_Loaded   //  by SD block
-        #include <Wire.h>
-      #endif  
-      #include <Adafruit_SSD1306.h> 
-        #define SCREEN_WIDTH 128 // OLED display width, in pixels
-        #define SCREEN_HEIGHT 64 // OLED display height, in pixels
-        // 8 rows of 21 characters
-
-        #ifndef OLED_RESET
-          #define OLED_RESET    -1 // Reset pin # (or -1 if sharing Arduino reset pin)
-        #endif  
-      Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);      
-    #endif
-
 
   #endif
 
@@ -789,7 +853,10 @@ bool daylightSaving = false;
     uint16_t  UDP_remotePort = 14550;      
     bool      FtRemIP = true;
     bool      wifiDisconnected = false;
-    int16_t   wifi_rssi;  
+    int16_t   wifi_rssi;
+    uint16_t  wifi_status = 0xfe;   // 0xfe = unused yet
+    uint8_t   AP_sta_count = 0;
+    uint8_t   AP_prev_sta_count = 0;
     
   #if ( (defined ESP32) || (defined ESP8266) )
 
@@ -846,7 +913,7 @@ bool daylightSaving = false;
 
     WiFiClient TCPclient; 
      
-    WiFiClient *clients[max_clients] = {NULL};   // pointers to TCP clients table
+    WiFiClient *clients[max_clients] = {NULL};   // pointers to TCP client objects 
     
     WiFiServer TCPserver(TCP_localPort);         // dummy TCP local port(changes on TCPserver.begin() ).
 
@@ -856,7 +923,7 @@ bool daylightSaving = false;
     WiFiUDP UDP;                                 // create UDP object    
          
     IPAddress localIP;                           // tcp and udp
-    IPAddress TCP_remoteIP(192,168,4,1);         // when we connect to a server in tcp client mode, put the server IP here  
+    IPAddress TCP_remoteIP(192,168,4,1);         // when we connect to a server in tcp client mode, put the server IP here 
     
   #endif  // end of ESP32 and ESP8266
   
@@ -978,6 +1045,10 @@ bool daylightSaving = false;
 //#define Debug_Param_Request_Read  // #20
 //#define Debug_Param_Request_List  // #21
 //#define Mav_Debug_Params
+//#define Debug_Read_TCP
+//#define Debug_Read_UDP
+#define Debug_Send_TCP
+//#define Debug_Send_UDP
 //=================================================================================================   
 //                                   C H A N G E   L O G
 //=================================================================================================
@@ -1139,5 +1210,5 @@ v2.62.5 2020-09-18  Minor tweek to byte stuff
         2020-09-21  Tighten up on Mavlink routing required for multi-GCSs
                     Only send own HB to FC is GCS is not
 v2.62.7 2020-10-30  Minor fwd declarations for debugging only  
-                                                                                                                                                                                                       
+        2020-10-05  Fixed nasty bytestuff bug affecting Air and Relay modes                                                                                                                                                                                                        
 */
