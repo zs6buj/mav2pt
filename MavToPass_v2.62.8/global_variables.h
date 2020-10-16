@@ -6,10 +6,13 @@
 //================================================================================================= 
 //=================================================================================================
 
-bool      pb_rx = true;               // For PrintByte() direction indication
-uint8_t   clm = 0;                    // Columns for PrintByte();
+bool      pb_rx = true;               // for PrintByte() direction indication
+uint8_t   clm = 0;                    // columns for PrintByte();
 String    pgm_path;
 String    pgm_name;
+
+const uint8_t snp_max = 32;
+char          snprintf_buf[32];       // for use with snprintf() formatting of display line
 
 volatile uint32_t debnceTimr;         // for pin interrupts
 volatile uint32_t delaytm = 100;

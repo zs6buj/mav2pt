@@ -783,11 +783,9 @@ bool daylightSaving = false;
     #endif   
     //==========================================================   
      
-  #define max_col   screen_width+1  // +1 for terminating 0x00        
-  #define max_row   30
+    #define max_col   screen_width+1  // +1 for terminating 0x00        
+    #define max_row   30
 
-  char snprintf_buf[max_col];   // for use with snprintf() formatting of display line
-  
     static const uint16_t threshold = 40;
     volatile bool upButton = false;
     volatile bool dnButton = false;

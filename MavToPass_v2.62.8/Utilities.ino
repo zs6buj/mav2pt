@@ -53,7 +53,7 @@
       if (AP_sta_count > AP_prev_sta_count) {  
         AP_prev_sta_count = AP_sta_count;
         Debug.printf("Remote STA %d connected to our AP\n", AP_sta_count);  
-        snprintf(snprintf_buf, max_col, "STA %d connected", AP_sta_count);                
+        snprintf(snprintf_buf, snp_max, "STA %d connected", AP_sta_count);                
         DisplayPrintln(snprintf_buf); 
         if ((set.fc_io == fc_wifi) && (set.wfproto == tcp))  {  // if we expect wifi from the fc, we are a client
           if (!outbound_clientGood) // and we don't have an active tcp session, start a new session
@@ -84,7 +84,7 @@
                 inbound_clientGood = true;
                 active_client_idx = i;
                 Debug.printf("Remote tcp client %d connected\n", i+1);
-                snprintf(snprintf_buf, max_col, "Client %d connected", i+1);        
+                snprintf(snprintf_buf, snp_max, "Client %d connected", i+1);        
                 DisplayPrintln(snprintf_buf);               
                 break;
               }
@@ -295,7 +295,7 @@
         if (set.wfproto == udp)  {  // UDP
           UDP.begin(set.udp_localPort);
           Debug.printf("UDP started, listening on IP %s, port %d \n", localIP.toString().c_str(), set.udp_localPort);
-          snprintf(snprintf_buf, max_col, "Local port = %d", set.udp_localPort);     
+          snprintf(snprintf_buf, snp_max, "Local port = %d", set.udp_localPort);     
           DisplayPrintln(snprintf_buf);
           #if defined UDP_Broadcast      
             UDP_remoteIP[3] = 255;    // in this case UDP always broadcasts on the AP 192.168.4/24 subnet
@@ -329,26 +329,26 @@
 
       Debug.print("AP IP address: ");
       Debug.print (localIP); 
-      snprintf(snprintf_buf, max_col, "AP IP = %s", localIP.toString().c_str());        
+      snprintf(snprintf_buf, snp_max, "AP IP = %s", localIP.toString().c_str());        
       DisplayPrintln(snprintf_buf);  
       
       Debug.print("  SSID: ");
       Debug.println(String(set.apSSID));
       DisplayPrintln("WiFi AP SSID =");
-      snprintf(snprintf_buf, max_col, "%s", set.apSSID);        
+      snprintf(snprintf_buf, snp_max, "%s", set.apSSID);        
       DisplayPrintln(snprintf_buf);  
       
       if (set.wfproto == tcp)  {         // TCP
           TCPserver.begin(set.tcp_localPort);   //  Server for TCP/IP traffic     
           Debug.printf("TCP/IP started, listening on IP %s, TCP port %d\n", localIP.toString().c_str(), set.tcp_localPort);
-          snprintf(snprintf_buf, max_col, "TCP port = %d", set.tcp_localPort);        
+          snprintf(snprintf_buf, snp_max, "TCP port = %d", set.tcp_localPort);        
           DisplayPrintln(snprintf_buf);        
         }
 
       if (set.wfproto == udp)  {      // UDP
           UDP.begin(set.udp_localPort);
           Debug.printf("UDP started, listening on IP %s, port %d \n", WiFi.softAPIP().toString().c_str(), set.udp_localPort);
-          snprintf(snprintf_buf, max_col, "UDP port = %d", set.udp_localPort);        
+          snprintf(snprintf_buf, snp_max, "UDP port = %d", set.udp_localPort);        
           DisplayPrintln(snprintf_buf);            
           #if defined UDP_Broadcast   
             UDP_remoteIP[2] = 4;     
@@ -412,9 +412,9 @@
       Debug.print(", remote port: "); Debug.println(set.udp_remotePort);
       DisplayPrintln("UDP client connected");
       DisplayPrintln("Remote IP =");
-      snprintf(snprintf_buf, max_col, "%s", UDP_remoteIP.toString().c_str());        
+      snprintf(snprintf_buf, snp_max, "%s", UDP_remoteIP.toString().c_str());        
       DisplayPrintln(snprintf_buf);        
-      snprintf(snprintf_buf, max_col, "Remote port = %d", set.udp_remotePort);        
+      snprintf(snprintf_buf, snp_max, "Remote port = %d", set.udp_remotePort);        
       DisplayPrintln(snprintf_buf);    
      }
   }

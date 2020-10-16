@@ -449,7 +449,7 @@ void setup()  {
     DisplayPrintln("RSSI Auto Select");     
   #else
     Debug.printf("RSSI Override for testing = %d%%\n", RSSI_Override);
-    snprintf(snprintf_buf, max_col, "RSSI Override %d%%", RSSI_Override);
+    snprintf(snprintf_buf, snp_max, "RSSI Override %d%%", RSSI_Override);
     DisplayPrint(snprintf_buf);      
   #endif
 
@@ -737,8 +737,9 @@ void loop() {
   
  //====================
  
-  ServiceWiFiRoutines();
-
+ #if ((defined ESP32) || (defined ESP8266)) 
+   ServiceWiFiRoutines();
+ #endif
 
  //====================
 
@@ -1465,8 +1466,6 @@ void MavToRingBuffer() {
 
 void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
 
-  static bool msgSent = false;
-
   if ((set.gs_io == gs_ser) || (set.gs_io == gs_bt) || (set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt) || (set.gs_sd == gs_on)) {
     
       if (set.gs_io == gs_ser) {  // Serial
@@ -1494,7 +1493,7 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
   #endif
 
   #if (defined wifiBuiltin)
-  
+    static bool msgSent = false;
     if ((set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt)) { //  WiFi
       
       if (wifiSuGood) {
