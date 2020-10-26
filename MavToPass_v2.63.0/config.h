@@ -11,7 +11,7 @@
 
 Complete change log and debugging options are at the bottom of this tab
                                         
-v2.63.0 2020-10-26  Add support for F.Port receivers (like Archer)                        
+v2.63.0 2020-10-26  Add support for FrSky ISRM/ACCESS F.Port receivers (like Archer)                        
                                               
 */
 //===========================================================================================

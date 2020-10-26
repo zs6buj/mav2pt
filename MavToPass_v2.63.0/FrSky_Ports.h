@@ -333,11 +333,17 @@ class     FrSkyPort
 
       FrSkyPort::CheckForTimeout();
 
-      if (set.frport == f_port) { 
-        if(mavGood && ((millis() - sp_millis) > 1)) {   // very necessary for Teensy 3.x
-          sp_millis=millis();
+      if (set.frport == f_port) {
+   
+        #if defined TEENSY3X 
+          if(mavGood && ((millis() - sp_millis) > 1)) {   // very necessary for Teensy 3.x
+            sp_millis=millis();
+            FPort_Read_And_Write(&FrSkyPort::frbuf[0]);
+          }
+          
+        #else   // ESP32 and ESP8266
           FPort_Read_And_Write(&FrSkyPort::frbuf[0]);
-        }
+        #endif   
 
       } else  
       if (set.frport == s_port) {  
