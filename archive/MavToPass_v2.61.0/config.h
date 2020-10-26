@@ -397,7 +397,7 @@ bool daylightSaving = false;
     #define BufStatusLed  99   
     #define FC_Mav_rxPin  27        // Mavlink to FC
     #define FC_Mav_txPin  17        // Mavlink from FC
-    #define Fr_rxPin      12        // SPort rx 
+    #define Fr_rxPin      13        // SPort rx 
     #define Fr_txPin      14        // SPort tx - Use me in single wire mode
     #define startWiFiPin  13        // Trigger WiFi startup   
     #if !defined OLED_Support       // I2C OLED board is built into Heltec WiFi Kit 32

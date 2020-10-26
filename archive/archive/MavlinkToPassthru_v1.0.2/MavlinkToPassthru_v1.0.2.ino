@@ -136,7 +136,9 @@ v1.0.2  2018-07-31  Add support for Maple Mini
 */
 
 #include <CircularBuffer.h>
-#include <GCS_MAVLink.h>
+#include <mavlink_types.h>
+#include <ardupilotmega/mavlink.h>
+#include <ardupilotmega/ardupilotmega.h>
 
 //************************************* Please select your options here before compiling **************************
 // Choose one (only) of these target boards
@@ -1428,5 +1430,3 @@ void ShowPeriod() {
   prev_millis=now_millis;
 }
 //***************************************************
-
-
