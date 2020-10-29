@@ -4593,9 +4593,6 @@ void WiFiEventHandler(WiFiEvent_t event)  {
         esp_bt_mem_release(ESP_BT_MODE_BTDM);
         btActive = false;
         btDisabled = true;
-        #if defined btBuiltin
-          #undef btBuiltin
-        #endif
         Debug.println("Bluetooth disabled to free up SRAM for web support. YOU MUST PROCEED TO REBOOT for BT to be restored!"); 
         DisplayPrintln("Bluetooth disabled");         
         #if ((defined ESP32) || (defined ESP8266)) && (defined Debug_SRAM)
