@@ -11,7 +11,7 @@
 
 Complete change log and debugging options are at the bottom of this tab
                                         
-v2.63.2 2020-11-02  Add switchable flight info page on display                     
+v2.63.2 2020-11-02  Add switchable flight info page on display                          
         2020-10-31  For mark home include GPS 3D Fix                                        
                                               
 */
@@ -22,7 +22,7 @@ v2.63.2 2020-11-02  Add switchable flight info page on display
 //===========================================================================================
 
 // Choose either S.Port or F.Port or None
-//#define FrSky_Port_Type 0   // No FrSky Port support needed "Mavlink Switch"
+//#define FrSky_Port_Type 0   // No FrSky Port support needed. Now I'm a "Mavlink Switch"
 #define FrSky_Port_Type 1   // S.Port
 //#define FrSky_Port_Type 2   // F.Port v1/v2 FrSky ISRM/ACCESS capable transmitters and receivers only
 
@@ -38,7 +38,7 @@ v2.63.2 2020-11-02  Add switchable flight info page on display
 #define displaySupport                 // Enable if you have a display attached - choose display type where board variant is defined 
 
 
-// #define Reset_Web_Defaults           // Reset settings in eeprom. Do this if you suspect eeprom settings are corrupt.
+//#define Reset_Web_Defaults           // Reset settings in eeprom. Do this if you suspect eeprom settings are corrupt.
 // USE THE ABOVE LINE SPARINGLY. 
 
 //#define AutoBaud                      // Auto detect Mavlink serial-in baud rate
@@ -94,10 +94,10 @@ v2.63.2 2020-11-02  Add switchable flight info page on display
 //                          S E L E C T   E S P   B O A R D   V A R I A N T   
 //=================================================================================================
 //================================================================================================= 
-//#define ESP32_Variant     1    //  ESP32 Dev Module - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
+#define ESP32_Variant     1    //  ESP32 Dev Module - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi
-#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS ith OTA)" - contributed by Noircogi
+//#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS ith OTA)" - contributed by Noircogi
 //#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD TFT Colour - 16Ch x 8 lines
 
@@ -401,7 +401,7 @@ bool daylightSaving = false;
       #define Pinfo         99        //    Digital pin to trigger information display              
       #define Pup           99        // 35 Board Button 1 to scroll the display up
       #define Pdn           99        //  0 Board Button 2 to scroll the display down  
-      #define Tinfo         99        // 02 Touch pin to trigger information display       
+      #define Tinfo         15        // 15 Touch pin to trigger information display       
       #define Tup           33        // 33 Touch pin to scroll the display up
       #define Tdn           32        // 32 Touch pin to scroll the display down   
       #define SDA           21        // I2C OLED board
