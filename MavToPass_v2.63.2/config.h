@@ -52,8 +52,8 @@ v2.63.2 2020-11-02  Add switchable flight info page on display
 //           D E F A U L T   T R A N S L A T I O N   M O D E   S E T T I N G S   
 //=================================================================================================       
 // Choose only one of these three translation modes
-#define Ground_Mode          // Translator between Taranis et al and LRS transceiver (like Dragonlink, ULRS, RFD900...)
-//#define Air_Mode             // Translator between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
+//#define Ground_Mode          // Translator between Taranis et al and LRS transceiver (like Dragonlink, ULRS, RFD900...)
+#define Air_Mode             // Translator between FrSky receiver (like XRS) and Flight Controller (like Pixhawk)
 //#define Relay_Mode           // Translator between LRS tranceiver (like Dragonlink) and FrSky receiver (like XRS) in relay box on the ground
 
 
