@@ -247,6 +247,9 @@ void LogScreenPrint(String);
 #if defined displaySupport
   void PaintLogScreen(uint8_t, last_row_t);
   void Scroll_Display(scroll_t);
+  void HandleDisplayButtons();
+  void SetupLogDisplayStyle();  
+  void DisplayFlightInfo();
 #endif
 
 
