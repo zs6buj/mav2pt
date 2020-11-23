@@ -166,6 +166,7 @@ void ServiceInboundWiFiClients();
 void CheckStaLinkStatus(); 
 void StartWiFiTimer();
 void RestartWiFiSta();
+void Start_Access_Point();
 bool NewOutboundTCPClient();
 bool Read_FC_To_RingBuffer();
 void RB_To_Decode_and_GCS();
@@ -247,6 +248,10 @@ void LogScreenPrint(String);
 #if defined displaySupport
   void PaintLogScreen(uint8_t, last_row_t);
   void Scroll_Display(scroll_t);
+  void SetupLogDisplayStyle(); 
+  void SetupInfoDisplayStyle();   
+  void DisplayFlightInfo(); 
+  void HandleDisplayButtons();  
 #endif
 
 
