@@ -12,7 +12,8 @@
 Complete change log and debugging options are at the bottom of this tab
                                           
 v2.63.5 2020-12-04  Support added for ILI9341 2.8" 320 x 240 colour display 
-                    Basic HUD for flight info display. Needs more work.            
+                    Basic HUD for flight info display. Needs more work.    
+        2020-12-07  Clear horizon line with blue, not black                     
                                     
 */
 //===========================================================================================
