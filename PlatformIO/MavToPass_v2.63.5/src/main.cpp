@@ -5023,12 +5023,12 @@ void WiFiEventHandler(WiFiEvent_t event)  {
      
       static bool ft = true;
       if (!ft) {
-        display.drawLine(px0, py0, px1, py1, ILI9341_BLACK);   // Erase old horizon line 
-        display.drawLine(xc-ptick_lean, pycp+tick_height, xc+ptick_lean, pycp-tick_height, ILI9341_BLACK); 
-        display.drawLine(xc-ptick_lean+1, pycp+tick_height, xc+ptick_lean+1, pycp-tick_height, ILI9341_BLACK);
-        display.drawLine(px0-ptick_lean+1, py0+tick_height, px0+ptick_lean+1, py0-tick_height, ILI9341_BLACK);
-        display.drawLine(px1-ptick_lean+1, py1+tick_height, px1+ptick_lean+1, py1-tick_height, ILI9341_BLACK);        
-        display.drawLine(px0+1, py0, px1+1, py1,ILI9341_BLACK);
+        display.drawLine(px0, py0, px1, py1, ILI9341_BLUE);   // Erase old horizon line 
+        display.drawLine(xc-ptick_lean, pycp+tick_height, xc+ptick_lean, pycp-tick_height, ILI9341_BLUE); 
+        display.drawLine(xc-ptick_lean+1, pycp+tick_height, xc+ptick_lean+1, pycp-tick_height, ILI9341_BLUE);
+        display.drawLine(px0-ptick_lean+1, py0+tick_height, px0+ptick_lean+1, py0-tick_height, ILI9341_BLUE);
+        display.drawLine(px1-ptick_lean+1, py1+tick_height, px1+ptick_lean+1, py1-tick_height, ILI9341_BLUE);        
+        display.drawLine(px0+1, py0, px1+1, py1,ILI9341_BLUE);
       }  
       ft = false;
       display.drawLine(x0, y0, x1, y1, ILI9341_WHITE);      // Horizon line over the top
