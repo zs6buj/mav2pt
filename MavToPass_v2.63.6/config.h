@@ -12,6 +12,7 @@
 Complete change log and debugging options are at the bottom of this tab
                                           
 v2.63.6 2020-12-08  Add home arrow and tidy up hud.
+                    Use ap_rssi (even in air  mode) on hud
                               
                                     
 */
@@ -127,7 +128,7 @@ v2.63.6 2020-12-08  Add home arrow and tidy up hud.
 #define APpw                 "password"         // Change me! Must be >= 8 chars
 #define APchannel            9                  // The wifi channel to use for our AP
 #define STAssid              "OmegaOffice"      // Target AP to connect to (in STA mode) <====
-#define STApw                "Navara@98"         // Target AP password (in STA mode). Must be >= 8 chars      
+#define STApw                "password"         // Target AP password (in STA mode). Must be >= 8 chars      
 
 // Choose one default mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
 //#define WiFi_Mode   1  //AP            

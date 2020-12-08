@@ -1102,7 +1102,7 @@ void PrintLoopPeriod() {
           xx = 17 * CHAR_W_PX;
           yy = 0 ;          
           display.setCursor(xx, yy);  
-          snprintf(snprintf_buf, snp_max, "RSSI:%d%%", pt_rssi); 
+          snprintf(snprintf_buf, snp_max, "RSSI:%d%%", ap_rssi); 
           display.fillRect(xx+(4*CHAR_W_PX), yy, 4 * CHAR_W_PX, CHAR_H_PX, ILI9341_BLUE); // clear the previous line               
           display.println(snprintf_buf);
               
