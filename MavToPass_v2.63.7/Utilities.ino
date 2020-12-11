@@ -943,6 +943,7 @@ void PrintLoopPeriod() {
     void Scroll_Display(scroll_t up_dn) {
       
       if (millis() - scroll_millis < 300) return;
+      show_log = true;
       scroll_millis = millis(); 
       
       if (up_dn == up) {
