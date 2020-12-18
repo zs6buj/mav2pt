@@ -11,9 +11,9 @@
 
 Complete change log and debugging options are at the bottom of this tab
                                           
-v2.63.8 2020-12-14  SSD1306 I2C OLED display option implemented for Teensy 3x.
-                              
-                                    
+v2.63.8 2020-12-18  Mavlite support in ground mode.
+                    Add Mav_Debug_Range
+                                                                 
 */
 //===========================================================================================
 //
@@ -33,7 +33,7 @@ v2.63.8 2020-12-14  SSD1306 I2C OLED display option implemented for Teensy 3x.
 #define FrSky_Port_Type 1   // S.Port
 //#define FrSky_Port_Type 2   // F.Port v1/v2 FrSky ISRM/ACCESS capable transmitters and receivers only
 
-//#define Uninverted_FrSky_Receiver_Pad // S.Port is usually INVERTED (idle low). F.Port is always UNINVERTED (idle high)
+//  #define Uninverted_FrSky_Receiver_Pad // S.Port is usually INVERTED (idle low). F.Port is always UNINVERTED (idle high)
 
 
 #define Device_sysid     251                     // Our Mavlink Identity - APM FC is 1, Mission Planner is 255, QGC default is 0 
@@ -100,10 +100,10 @@ v2.63.8 2020-12-14  SSD1306 I2C OLED display option implemented for Teensy 3x.
 //#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi - Select ESP32 Dev Board in IDE
-//#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
+#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
 //#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
-#define ESP32_Variant     7    // ESP32 Dev Board with ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
+//#define ESP32_Variant     7    // ESP32 Dev Board with ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
 
 //#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
 #define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - use Generic ESP8266 on IDE
@@ -194,7 +194,7 @@ bool daylightSaving = false;
 //#define ESP32_SoftwareSerial            // otherwise HardwareSerial is used 
 //#define ESP_Air_Relay_Blind_Inject_OK   // Blind inject instead of interleaving
 
-//#define Support_MavLite
+#define MavLite_Support
 
 //=================================================================================================   
 //                              Auto Determine Target Platform
@@ -1169,7 +1169,10 @@ bool daylightSaving = false;
 //#define Frs_Debug_Hud         // 0x50F2
 //#define Mav_Debug_Scaled_Pressure
 //#define Mav_Debug_Attitude    // #30
+
+//#define Mav_Debug_Range       // #173
 //#define Frs_Debug_AttiRange   // 0x5006
+
 //#define Mav_Debug_StatusText  // #253  
 //#define Frs_Debug_StatusText  // 0x5000
 //#define Mav_Debug_Mission
@@ -1185,12 +1188,17 @@ bool daylightSaving = false;
 //#define Debug_Eeprom
 //#define Mav_Debug_RPM
 //#define Debug_SD   
-//#define MavLite_Debug_Scheduler
+
 //#define Debug_WiFi
 
 //#define Debug_Loop_Period
 
+//#define Debug_FrPort_Stream 
+
+//#define MavLite_Debug_Scheduler
 //#define Debug_Mavlite 
+//#define Debug_Mavlite_SPort
+
 //#define Mav_Debug_Command_Ack
 //#define Debug_SRAM
 //#define Debug_Web_Settings
@@ -1202,7 +1210,7 @@ bool daylightSaving = false;
 //#define Debug_Param_Request_Read  // #20
 //#define Debug_Param_Request_List  // #21
 //#define Mav_Debug_Params
-//#define Debug_Mavlite_SPort
+
 //#define Debug_SPort   // both in and out
 //#define Debug_SPort_In   
 //#define Debug_SPort_Out 
@@ -1215,8 +1223,6 @@ bool daylightSaving = false;
 //#define CRC_Test_Case
 //#define Debug_CRC
 //#define Debug_FrPort_Serial_Loop
-
-//#define Debug_FrPort_Stream 
 
 //#define Debug_FrPort_Switching
 
@@ -1378,7 +1384,7 @@ v2.61.6             hasi123 patch for SiK radio rssi restored. It endures!
 v2.61.7 2020-08-10  Support board buttons on TTGO T-Display ESP32 for display up/down scrolling
                     More bi-directional mavlite.
 v2.61.8 2020-08-10  F.Port telemetry to SD card option.  
-v2.61.9 2020-09-04  Tidy up serial downlink capability. Add outgoing TCP client capability. 
+v2.61.9 2020-09-04  Tidy up serial gcs uplink capability. Add outgoing TCP client capability. 
                     Improve web setup data vetting. 
                     Show last line properly & reverse scroll buttons on ST7789.
                     Ignore heartbeats from or Gremsy Gimbal(26).       
@@ -1407,5 +1413,6 @@ v2.63.5 2020-12-04  Support added for ILI9341 2.8" 320 x 240 colour display
                     Basic HUD for flight info display. Needs more work.           
 v2.63.6 2020-12-08  Add home arrow and tidy up hud.
                     Use ap_rssi (even in air  mode) on hud      
-v2.63.7 2020-12-10  All display types tested, good                                                                                                                                                                                                                                                     
+v2.63.7 2020-12-10  All display types tested, good    
+v2.63.8 2020-12-14  SSD1306 I2C OLED display option implemented for Teensy 3x.                                                                                                                                                                                                                                                 
 */
