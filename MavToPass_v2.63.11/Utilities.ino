@@ -221,7 +221,7 @@
 
    if ( (set.fc_io == fc_wifi) && (set.gs_io == gs_wifi) ) {  // if user selects wifi fc uplink AND wifi gcs downlink simultaneously, then wifi mode must be ap_sta
      if (set.wfmode != ap_sta) {
-       Log.println("User selected wifi wifi fc duplink AND wifi gcs downlink simultaneously. Switching to AP_STA mode");  
+       Log.println("User selected wifi wifi fc uplink AND wifi gcs downlink simultaneously. Switching to AP_STA mode");  
        set.wfmode = ap_sta;    
      }
    }
