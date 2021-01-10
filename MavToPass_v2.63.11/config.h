@@ -12,7 +12,8 @@
 Complete change log and debugging options are at the bottom of this tab
                                           
 v2.63.11   2020-12-26  Documentation change, uplink is to FC, downlink is to GCS 
-           2021-01-09  Tidy up MavLITE, add command_ack                 
+           2021-01-09  Tidy up MavLITE, add command_ack 
+           2020-01-10  Web page downlink/uplink convention reversed                
                                                                  
 */
 //===========================================================================================

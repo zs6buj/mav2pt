@@ -195,7 +195,7 @@ int32_t String_long(String S) {
     settingsPage += "<!DOCTYPE html><html><body><h>Mavlink Switch</h><form action='' ";   
     settingsPage += "autocomplete='on'> <center> <b><h3>Mavlink Switch Setup</h3> </b></center> <style>text-align:left</style>";  
   #endif    
-  settingsPage += "DOWNLINK: &nbsp &nbsp";
+  settingsPage += "UPLINK: &nbsp &nbsp";
   sprintf(temp, "<input type='radio' class='big' name='_fc_io' value='Serial' %s> Serial &nbsp &nbsp", set.fc_io0);
   settingsPage += temp;
   #if (defined ESP32) && (defined btBuiltin) 
@@ -208,7 +208,7 @@ int32_t String_long(String S) {
     sprintf(temp, "<input type='radio' class='big' name='_fc_io' value='SD' %s> SD ", set.fc_io3);
     settingsPage += temp;  
   #endif    
-  settingsPage += "<br>UPLINK: &nbsp";
+  settingsPage += "<br>DOWNLINK: &nbsp";
   sprintf(temp, "<input type='radio' class='big' name='_gs_io' value='None' %s> None &nbsp", set.gs_io9);
   settingsPage += temp;
   sprintf(temp, "<input type='radio' onclick=checkserial(this.form) class='big' name='_gs_io' value='Serial' %s> Serial &nbsp", set.gs_io0);
