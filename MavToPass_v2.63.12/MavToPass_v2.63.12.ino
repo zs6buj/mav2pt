@@ -25,7 +25,6 @@
 
     Author: Eric Stockenstrom
     
-        
     Inspired by original S.Port firmware by Rolf Blomgren
     
     Acknowledgements and thanks to Craft and Theory (http://www.craftandtheoryllc.com/) for
@@ -162,7 +161,7 @@
 uint32_t GetBaud(uint8_t);
 void main_loop();
 void ServiceWiFiRoutines();
-void ServiceInboundWiFiClients();
+void ServiceInboundTCPClients();
 void CheckStaLinkStatus(); 
 void StartWiFiTimer();
 void RestartWiFiSta();
@@ -172,7 +171,7 @@ bool Read_FC_To_RingBuffer();
 void RB_To_Decode_and_GCS();
 void Read_From_GCS();
 void Decode_GCS_To_FC();
-void Write_To_FC(uint32_t);
+void Send_To_FC(uint32_t);
 void Send_FC_Heartbeat();
 void Mavlink_Param_Request_Read(int16_t, char *);
 void Mavlink_Request_Mission_List();
@@ -185,9 +184,9 @@ void checkLinkErrors(mavlink_message_t*);
 bool Read_Bluetooth(mavlink_message_t*);
 bool Send_Bluetooth(mavlink_message_t*);
 bool Read_TCP(mavlink_message_t*);
-bool Read_UDP(mavlink_message_t*);
+bool Read_UDP(io_side_t, mavlink_message_t*);
 bool Send_TCP(mavlink_message_t*);
-bool Send_UDP(mavlink_message_t*);
+bool Send_UDP(io_side_t, mavlink_message_t*);
 void DecodeOneMavFrame();
 void MarkHome();
 uint32_t Get_Volt_Average1(uint16_t);
@@ -836,7 +835,7 @@ void loop() {
 
   if (GCS_available) {
     Decode_GCS_To_FC();
-    Write_To_FC(G2Fmsg.msgid);  
+    Send_To_FC(G2Fmsg.msgid);  
     GCS_available = false;                      
    }
 
@@ -1002,6 +1001,7 @@ bool Read_FC_To_RingBuffer() {
 
   #if (defined wifiBuiltin)
     if (set.fc_io == fc_wifi)  {  //  WiFi
+      
       if ((set.wfproto == tcp) && (outbound_clientGood))  { // TCP  from FC side
  
         bool msgReceived = Read_TCP(&F2Rmsg);
@@ -1017,13 +1017,30 @@ bool Read_FC_To_RingBuffer() {
        return true;  
       }
       
-      if (set.wfproto == udp)  {// UDP from FC
-        bool msgReceived = Read_UDP(&F2Rmsg);
-       if (msgReceived) {
+      if (set.wfproto == udp)  {    // UDP from FC
+
+        if ((set.wfmode == ap_sta) || (set.wfmode == sta)) {// if AP_STA or STA mode                 
+          active_object_idx = 0;                            // Use STA UDP object for FC read        
+          udp_read_port = set.udp_remotePort;               // used by PrintRemoteIP() only. read port set by UDP.begin().
+          udp_send_port = set.udp_localPort;                   
+        } else {
+          if (set.wfmode == ap) {
+            active_object_idx = 1;                          // Use AP UDP object for FC read       
+            udp_read_port = set.udp_localPort;  
+            udp_send_port = set.udp_remotePort;                     
+          }                 
+        }     
+                  
+        bool msgReceived = Read_UDP(fc_side, &F2Rmsg);              // FC side
+        if (msgReceived) {
+
+          #if defined  Debug_Read_UDP || defined Debug_Read_UDP_FC  
+            Log.print("Read WiFi UDP from FC to G2Fmsg: msgReceived=" ); Log.println(msgReceived);
+          #endif
           
           MavToRingBuffer();   
          
-          #ifdef  Debug_FC_Down   
+          #if defined Debug_FC_Down || defined Debug_Read_UDP_FC 
             Log.print("Read from FC WiFi UDP to Ringbuffer: msgReceived=" ); Log.println(msgReceived);
             PrintMavBuffer(&F2Rmsg);
           #endif      
@@ -1127,15 +1144,27 @@ void Read_From_GCS() {
       }
       
       if (set.wfproto == udp)  { // UDP from GCS
-   
-        bool msgReceived = Read_UDP(&G2Fmsg);
+  
+        if ((set.wfmode == ap_sta) || (set.wfmode == ap)) { // if AP_STA mode                 
+          active_object_idx = 1;                            // Use AP UDP object for GCS read        
+          udp_read_port = set.udp_localPort;               // used by PrintRemoteIP() only. read port set by UDP.begin().
+          udp_send_port = set.udp_remotePort;                   
+        } else {
+          if (set.wfmode == sta) {
+            active_object_idx = 0;                          // Use STA UDP object for GCS read  
+            udp_read_port = set.udp_localPort;  
+            udp_send_port = set.udp_remotePort;                          
+          }               
+        }  
+            
+        bool msgReceived = Read_UDP(gcs_side, &G2Fmsg);               // GCS side
 
         if (msgReceived) {
           GCS_available = true;  // Record waiting to go to FC 
 
-          #ifdef  Debug_Read_UDP    
-            Log.print("Read WiFi UDP to G2Fmsg: msgReceived=" ); Log.println(msgReceived);
-            if (msgReceived) PrintMavBuffer(&G2Fmsg);
+          #if defined  Debug_Read_UDP || defined Debug_Read_UDP_GCS  
+            Log.printf("Read WiFi UDP from GCS to G2Fmsg: msgReceived=%d ==============================\n", msgReceived); 
+            PrintMavBuffer(&G2Fmsg);
           #endif      
         }   
       } 
@@ -1192,16 +1221,16 @@ void Read_From_GCS() {
     bool msgRcvd = false;
     mavlink_status_t _status;
 
-    for (int i = 0 ; i < max_clients ; ++i) {                    // check each connected client for waiting data  
-      if (NULL != clients[i]) {            // if null pointer go around
+    for (int i = 0 ; i < max_clients ; ++i) {  // check each connected client for waiting data  
+      if (NULL != tcp_client[i]) {             // if null pointer go around, tcp_client[0] is reserved for inbound
         // active client
         active_client_idx = i;
-        len = clients[active_client_idx]->available();     // is there some data to read
+        len = tcp_client[active_client_idx]->available();     // is there some data to read
         uint16_t tcp_count = len;
 
         if(tcp_count > 0) {           // if so, read until no more
           while(tcp_count--)  {
-            int result = clients[active_client_idx]->read();
+            int result = tcp_client[active_client_idx]->read();
             if (result >= 0)  {
 
                 msgRcvd = mavlink_parse_char(MAVLINK_COMM_2, result, msgptr, &_status);
@@ -1225,8 +1254,8 @@ void Read_From_GCS() {
             }
           }
         }
-      }  // end of active clients   
-    }    // end of clients for() loop
+      }  // end of active tcp_client   
+    }    // end of tcp_client for() loop
 
     return msgRcvd;
   }
@@ -1234,38 +1263,53 @@ void Read_From_GCS() {
 
 //================================================================================================= 
 #if (defined wifiBuiltin)
-  bool Read_UDP(mavlink_message_t* msgptr)  {
+  bool Read_UDP(io_side_t io_side,  mavlink_message_t* msgptr)  {
     if (!wifiSuGood) return false;  
     bool msgRcvd = false;
     mavlink_status_t _status;
-    
-    len = UDP.parsePacket();  // esp sometimes reboots here: WiFiUDP.cpp line 213 char * buf = new char[1460]; 
 
-    int udp_count = len;
-    if(udp_count > 0) {    
-        while(udp_count--)  {
+    // 2 possible udp objects, STA [0] and    AP [1]       
 
-            int result = UDP.read();
+        len = udp_object[active_object_idx]->parsePacket();
+        // esp sometimes reboots here: WiFiUDP.cpp line 213 char * buf = new char[1460]; 
+
+        int udp_count = len;
+        if(udp_count > 0) {  
+          //if (io_side == gcs_side) Log.printf("Read UDP io_side=%d object=%d port:%d\n", io_side, active_object_idx, udp_read_port);
+          while(udp_count--)  {
+
+            int result = udp_object[active_object_idx]->read();
             if (result >= 0)  {
 
                 msgRcvd = mavlink_parse_char(MAVLINK_COMM_2, result, msgptr, &_status);
                 if(msgRcvd) {
 
                     #if (not defined UDP_Broadcast)
-                      UDP_remoteIP = UDP.remoteIP();                     
+                      UDP_remoteIP = udp_object[active_object_idx]->remoteIP();                     
                       bool in_table = false;
-                      for (int i = 0 ; i < max_clients ; i++) {
-                        if (UDP_remoteIP_B3[i] == UDP_remoteIP[3]) {  // already in to table
-                          in_table = true;
-                          break;
+                      
+                      if (io_side == fc_side) {
+                        if (udpremoteip[0] != UDP_remoteIP) {
+                          udpremoteip[0] = UDP_remoteIP;   // IP [0] reserved for FC side. can only ever have one FC client at a time
+                          Log.printf("%s inserted in table\n", UDP_remoteIP.toString().c_str() ); 
+                        }                
+                      } else {     // gcs side
+                      
+                        for (int i = 1 ; i < max_clients ; i++) {
+                          if (udpremoteip[i] == UDP_remoteIP) {  // IP already in the table
+                        //    Log.printf("%s already in table\n", UDP_remoteIP.toString().c_str() );
+                            in_table = true;
+                            break;
+                          }
                         }
-                      }
-                      if (!in_table) {  // if not in table, add it into empty slot
-                        for (int i = 0 ; i < max_clients ; i++) {
-                          if (UDP_remoteIP_B3[i] == 0)  {   
-                            UDP_remoteIP_B3[i] = UDP_remoteIP[3];    // remember unique last byte of remote udp client so we can target it  
-                            FtRemIP = true;   
-                            break;      
+                        if (!in_table) {  // if not in table, add it into empty slot, but not [0] reserved for otgoing (FC side)
+                          for (int i = 1 ; i < max_clients ; i++) {
+                            if ((udpremoteip[i][0] == 0) || (udpremoteip[i][3] == 255)) {    // overwrite empty or broadcast ips
+                              udpremoteip[i] = UDP_remoteIP;    // remember unique IP of remote udp client so we can target it  
+                              Log.printf("%s inserted in UDP client table\n", UDP_remoteIP.toString().c_str() );
+                              FtRemIP = true;   
+                              break;      
+                            }
                           }
                         }
                       }
@@ -1288,12 +1332,13 @@ void Read_From_GCS() {
                     }
                     
                     break;
-                }
-            }
-        }
-    }
-    
-    return msgRcvd;
+                }  // if(msgRcvd) {
+            }      // if (result >= 0) 
+          }        // while(udp_count--)
+        }          // if(udp_count > 0)
+        return msgRcvd;
+
+
   }
 #endif
 
@@ -1415,7 +1460,7 @@ void Decode_GCS_To_FC() {
   }
 }
 //================================================================================================= 
-void Write_To_FC(uint32_t msg_id) {
+void Send_To_FC(uint32_t msg_id) {
   
   if (set.fc_io == fc_ser)  {   // Serial to FC
     len = mavlink_msg_to_send_buffer(FCbuf, &G2Fmsg);
@@ -1443,17 +1488,31 @@ void Write_To_FC(uint32_t msg_id) {
     if (set.fc_io == fc_wifi) {  // WiFi to FC
       if (wifiSuGood) { 
         if (set.wfproto == tcp)  { // TCP  
-           active_client_idx = 0;             // we only ever need 1
+           active_client_idx = 0;             // tcp_client[0] is reserved for inbound client (FC side)
            bool msgSent = Send_TCP(&G2Fmsg);  // to FC   
            #ifdef  Debug_GCS_Up
              Log.print("Sent to FC WiFi TCP from G2Fmsg: msgSent="); Log.println(msgSent);
              PrintMavBuffer(&G2Fmsg);
            #endif    
          }    
+         
          if (set.wfproto == udp)  { // UDP 
-           active_client_idx = 0;             // we only ever need 1 here   
-           bool msgSent = Send_UDP(&G2Fmsg);  // to FC    
-           #ifdef  Debug_GCS_Up
+
+          if ((set.wfmode == ap_sta) || (set.wfmode == sta)) {// if AP_STA or STA mode                 
+            active_object_idx = 0;                            // Use STA UDP object for FC send     
+            udp_read_port = set.udp_remotePort;           
+            udp_send_port = set.udp_localPort;                   
+          } else {
+            if (set.wfmode == ap) {
+              active_object_idx = 1;                          // Use AP UDP object for FC send 
+              udp_read_port = set.udp_localPort;  
+              udp_send_port = set.udp_remotePort;                            
+            }               
+          }   
+           UDP_remoteIP = udpremoteip[0];                     // Fc side can only ever have 1 client
+           //Log.printf("Send to FC udpremoteip[0]=%s UDP_remoteIP= %s\n", udpremoteip[0].toString().c_str(), UDP_remoteIP.toString().c_str());                   
+           bool msgSent = Send_UDP(fc_side, &G2Fmsg);  // to FC    
+           #if ( (defined  Debug_GCS_Up) || (defined Debug_Send_UDP_FC) ) 
              Log.print("Sent to FC WiFi UDP from G2Fmsg: msgSent="); Log.println(msgSent);
              if (msgSent) PrintMavBuffer(&G2Fmsg);
            #endif           
@@ -1517,9 +1576,10 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
     if ((set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt)) { //  WiFi
       
       if (wifiSuGood) {
+        
         if (set.wfproto == tcp)  { // TCP      
-          for (int i = 0 ; i < max_clients ; ++i) {       // send to each active client
-            if (NULL != clients[i]) {        // if active client
+          for (int i = 1 ; i < max_clients ; ++i) {       // send to each active client. Not to inbound client [0] (FC side)
+            if (NULL != tcp_client[i]) {        // if active client
               active_client_idx = i;
                            
               prev_millis = millis();
@@ -1540,25 +1600,42 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
           }    
         }
         
-        if (set.wfproto == udp)  { // UDP               
+        if (set.wfproto == udp)  { // UDP     
+
+          if ((set.wfmode == ap_sta) || (set.wfmode == ap)) { // if AP_STA or AP mode                 
+            active_object_idx = 1;                            // Use AP UDP object for FC send     
+            udp_read_port = set.udp_localPort;           
+            udp_send_port = set.udp_remotePort;                   
+          } else {
+            if (set.wfmode == sta) {
+              active_object_idx = 0;                          // Use STA UDP object for FC send 
+              //Log.printf("active_object_idx set to 0\n");  
+              udp_read_port = set.udp_localPort;  
+              udp_send_port = set.udp_remotePort;                       
+            }               
+          }   
           
-          #if defined UDP_Broadcast                     // broadcast to remote udp clients
-              msgSent = Send_UDP(&R2Gmsg);  // to GCS
-              msgSent = msgSent; // stop stupid compiler warnings                       
+          #if defined UDP_Broadcast                     // broadcast to remote udp clients 
+            UDP_remoteIP[3] = 255; 
+            msgSent = Send_UDP(gcs_side, &R2Gmsg);  // to GCS
+            msgSent = msgSent; // stop stupid compiler warnings                       
           #else
                    
-            for (int i = 0 ; i < max_clients ; i++) {   // send to each individual remote client udp ip
-              if (UDP_remoteIP_B3[i] != 0) {
-                UDP_remoteIP[3] =  UDP_remoteIP_B3[i];    // target the remote IP
-                msgSent = Send_UDP(&R2Gmsg);  // to GCS
-                msgSent = msgSent; // stop stupid compiler warnings                
+            for (int i = 1 ; i < max_clients ; i++) {   // send to each individual remote udp ip. Not to FC side client ip [0] 
+              if (udpremoteip[i][0] != 0) {
+                //Log.printf("Non-zero ip i=%d  ip=%s\n", i, udpremoteip[i].toString().c_str());
+                UDP_remoteIP =  udpremoteip[i];         // target the remote IP
+                msgSent = Send_UDP(gcs_side, &R2Gmsg);            // to GCS
+                msgSent = msgSent; // stop stupid compiler warnings    
+
+                #if (defined Debug_GCS_Down) || (defined Debug_Send_UDP_GCS)
+                  Log.print("Sent to GCS by WiFi UDP: msgSent="); Log.println(msgSent);
+                  PrintMavBuffer(&R2Gmsg);
+                #endif                          
               }
            }  
          #endif  
-         #ifdef  Debug_GCS_Down
-           Log.print("Sent to GCS by WiFi UDP: msgSent="); Log.println(msgSent);
-           PrintMavBuffer(&R2Gmsg);
-         #endif         
+  
         }                                                                     
       }  
     }
@@ -1619,7 +1696,7 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
     bool msgSent = false;
     uint16_t len = mavlink_msg_to_send_buffer(sendbuf, msgptr);
   
-    size_t sent =  clients[active_client_idx]->write(sendbuf,len);  
+    size_t sent =  tcp_client[active_client_idx]->write(sendbuf,len);  
 
     if (sent == len) {
       msgSent = true;
@@ -1631,29 +1708,33 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
 #endif
 //================================================================================================= 
 #if (defined wifiBuiltin)
-  bool Send_UDP(mavlink_message_t* msgptr) {
+  bool Send_UDP(io_side_t io_side, mavlink_message_t* msgptr) {
     if (!wifiSuGood) return false;  
+
+    // 2 possible udp objects, STA [0]  and    AP [1] 
+        
     bool msgSent = false;
 
     if (msgptr->msgid == MAVLINK_MSG_ID_HEARTBEAT) {
-      UDP_remoteIP = localIP;
-      UDP_remoteIP[3] = 255;       // always broadcast a heartbeat on the local LAN, either from the GCS or from the FC                 
+      UDP_remoteIP[3] = 255;       // always broadcast a heartbeat, either from the GCS or from the FC                 
    //   Log.print("Broadcast heartbeat UDP_remoteIP="); Log.println(UDP_remoteIP.toString());     
     } 
+    
+    //if (io_side == fc_side) Log.printf("Send UDP io_side=%d object=%d remote ip = %s:%d\n", io_side, active_object_idx, UDP_remoteIP.toString().c_str(), udp_send_port);
 
-    UDP.beginPacket(UDP_remoteIP, set.udp_remotePort);
-
+    udp_object[active_object_idx]->beginPacket(UDP_remoteIP, udp_send_port);  //  udp ports gets flipped for sta_ap mode
+    
     uint16_t len = mavlink_msg_to_send_buffer(sendbuf, msgptr);
   
-    size_t sent = UDP.write(sendbuf,len);
+    size_t sent = udp_object[active_object_idx]->write(sendbuf,len);
 
     if (sent == len) {
       msgSent = true;
       link_status.packets_sent++;
-      UDP.flush();
+      udp_object[active_object_idx]->flush();
     }
 
-    bool endOK = UDP.endPacket();
+    bool endOK = udp_object[active_object_idx]->endPacket();
  //   if (!endOK) Log.printf("msgSent=%d   endOK=%d\n", msgSent, endOK);
     return msgSent;
   }
@@ -2047,7 +2128,7 @@ void DecodeOneMavFrame() {
           ap27_zmag = mavlink_msg_raw_imu_get_zmag(&R2Gmsg);
           ap27_id = mavlink_msg_raw_imu_get_id(&R2Gmsg);         
           //  mav2
-          ap26_temp = mavlink_msg_scaled_imu_get_temperature(&R2Gmsg);           
+          ap27_temp = mavlink_msg_raw_imu_get_temperature(&R2Gmsg);           
           #if defined Mav_Debug_All || defined Mav_Debug_Raw_IMU
             Log.print("Mavlink from FC #27 Raw_IMU: ");
             Log.print("accX="); Log.print((float)ap27_xacc / 1000); 
@@ -2715,7 +2796,7 @@ void Send_FC_Heartbeat() {
   apo_system_status = MAV_STATE_ACTIVE;         // 4
    
   mavlink_msg_heartbeat_pack(apo_sysid, apo_compid, &G2Fmsg, apo_type, apo_autopilot, apo_base_mode, apo_system_status, 0); 
-  Write_To_FC(0); 
+  Send_To_FC(0); 
   #if defined Debug_Our_FC_Heartbeat
      Log.print("Our own heartbeat to FC: #0 Heartbeat: ");  
      Log.print("apo_sysid="); Log.print(apo_sysid);   
@@ -2739,7 +2820,7 @@ void Mavlink_Param_Request_Read(int16_t param_index, char * param_id) {  // #20
   
   mavlink_msg_param_request_read_pack(apo_sysid, apo_compid, &G2Fmsg,
                    apo_targsys, apo_targcomp, param_id, param_index);              
-  Write_To_FC(20);             
+  Send_To_FC(20);             
  }
 
 //================================================================================================= 
@@ -2753,7 +2834,7 @@ void Mavlink_Param_Request_Read(int16_t param_index, char * param_id) {  // #20
   mavlink_msg_param_request_list_pack(apo_sysid,  apo_compid, &G2Fmsg,
                     apo_targsys,  apo_targcomp);
               
-  Write_To_FC(21);
+  Send_To_FC(21);
                     
  }
  //================================================================================================= 
@@ -2766,7 +2847,7 @@ void Mavlink_Param_Request_Read(int16_t param_index, char * param_id) {  // #20
                                           
   mavlink_msg_param_set_pack(apo_sysid, apo_compid, &G2Fmsg,
                         apo_targsys, apo_targcomp, ap23_param_id, ap23_param_value, 10);  // 10=MAV_PARAM_TYPE_REAL64 https://mavlink.io/en/messages/common.html#MAV_PARAM_TYPE            
-  Write_To_FC(23);  // #23  
+  Send_To_FC(23);  // #23  
 
   #if defined Debug_Mavlite
      Log.printf("UPLINK: Mavlink sent #23 Param_Set. Parameter-id= %s  Value = %.5f\n", ap23_param_id, ap23_param_value);  
@@ -2784,7 +2865,7 @@ void RequestMission(uint16_t ms_seq) {         //  #40
   mavlink_msg_mission_request_pack(apo_sysid, aop_compid, &G2Fmsg,
                                apo_targsys, apo_targcomp, ms_seq, ap_mission_type);
 
-  Write_To_FC(40);
+  Send_To_FC(40);
   #if defined Mav_Debug_All || defined Mav_Debug_Mission
     Log.print("Mavlink to FC #40 Request Mission:  ms_seq="); Log.println(ms_seq);
   #endif  
@@ -2803,7 +2884,7 @@ void Mavlink_Request_Mission_List() {   // #43   get back #44 Mission_Count
   mavlink_msg_mission_request_list_pack(apo_sysid, apo_compid, &G2Fmsg,
                                apo_targsys, apo_targcomp, ap_mission_type);
                              
-  Write_To_FC(43);
+  Send_To_FC(43);
   #if defined Mav_Debug_All || defined Mav_Debug_Mission
     Log.println("Mavlink to FC #43 Request Mission List (count)");
   #endif  
@@ -2844,7 +2925,7 @@ void RequestDataStreams() {    //  REQUEST_DATA_STREAM ( #66 ) DEPRECATED. USE S
     mavlink_msg_request_data_stream_pack(apo_sysid, apo_compid, &G2Fmsg,
         apo_targsys, apo_targcomp, mavStreams[i], mavRates[i], 1);    // start_stop 1 to start sending, 0 to stop sending   
                           
-  Write_To_FC(66);
+  Send_To_FC(66);
     }
  // Log.println("Mavlink to FC #66 Request Data Streams:");
 }
@@ -2861,7 +2942,7 @@ void Mavlink_Command_Long() {  // #76
           apo_targsys, apo_targcomp, ap76_command, ap76_confirm, ap76_param[0], ap76_param[1], 
           ap76_param[2], ap76_param[3], ap76_param[4], ap76_param[5], ap76_param[6]); 
      
-  Write_To_FC(76);  // #76                
+  Send_To_FC(76);  // #76                
  }
  //================================================================================================= 
  
