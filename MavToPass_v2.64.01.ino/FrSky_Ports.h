@@ -792,7 +792,7 @@
     }
     //===========================
     void FrSkyPort::WriteByte(byte b) {
-
+      
       if ( (set.fr_io == fr_ser) || (set.fr_io == fr_ser_udp) || (set.fr_io == fr_ser_sd) || (set.fr_io == fr_ser_udp_sd) ) {
         frSerial.write(b); 
       }
@@ -1076,16 +1076,15 @@
       #endif    
 
       #if (defined wifiBuiltin)
-        if (set.fr_io == fr_udp){  // FrSky UDP out - start packet
-          if (wifiSuGood) { 
-            udp_send_port = set.udp_remotePort;                   
+        if  ( (set.fr_io == fr_udp) || (set.fr_io == fr_ser_udp) || (set.fr_io == fr_udp_sd) || (set.fr_io == fr_ser_udp_sd) )  {// FrSky UDP out - start packet
+          if (wifiSuGood) {                  
             //UDP_remoteIP should already be set for broadcast
-            frs_udp_object.beginPacket(UDP_remoteIP, udp_send_port);
+            frs_udp_object.beginPacket(UDP_remoteIP, set.udp_remotePort+1);  // use remote port + 1 for Frs out
           }
         }
       #endif   
 
-      sp_msg_id = sb[idx].msg_id;   // global msg_id for debug of sendong
+      sp_msg_id = sb[idx].msg_id;   // global msg_id for debug of sending
       msg_class = FrSkyPort::msg_class_now(sp_msg_id);
 
       //========================    RSSI special treatment
@@ -1207,7 +1206,7 @@
       sb[idx].inuse = 0;                                      // 0=free to use, 1=occupied - for passthru and mavlite
 
       #if (defined wifiBuiltin)
-        if (set.fr_io == fr_udp){  // FrSky send UDP packet
+        if  ( (set.fr_io == fr_udp) || (set.fr_io == fr_ser_udp) || (set.fr_io == fr_udp_sd) || (set.fr_io == fr_ser_udp_sd) ) { // FrSky send UDP packet
           if (wifiSuGood) { 
             bool endOK = frs_udp_object.endPacket();
             // if (!endOK) Log.printf("FrSky UDP msgSent=%d   endOK=%d\n", msgSent, endOK);

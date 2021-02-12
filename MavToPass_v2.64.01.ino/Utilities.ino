@@ -329,8 +329,6 @@
         }
 
         if ( (set.wfproto == udp) || (set.fr_io == fr_udp) || (set.fr_io == fr_ser_udp) || (set.fr_io == fr_udp_sd) || (set.fr_io == fr_ser_udp_sd) )  {  // UDP
-          WiFiUDP UDP_STA_Object;        
-          udp_object[0] = new WiFiUDP(UDP_STA_Object);
 
           if (set.wfmode == ap_sta) {                // in WIFI_AP_STA mode, we need to discriminate between sta and ap read ports 
             udp_read_port = set.udp_remotePort;      // so we flip read and send ports as a device
@@ -339,10 +337,16 @@
             udp_read_port = set.udp_localPort; 
             udp_send_port = set.udp_remotePort;                          
           }
-          
-          Log.printf("Using STA UDP object 0\n");                       
-          udp_object[0]->begin(udp_read_port);  
-           
+          if (set.wfproto == udp) {
+            WiFiUDP UDP_STA_Object;        
+            udp_object[0] = new WiFiUDP(UDP_STA_Object);   
+            Log.printf("Begin UDP using STA UDP object  read port:%d  send port:%d\n", udp_read_port, udp_send_port);                                                             
+            udp_object[0]->begin(udp_read_port);  
+          }
+          if ( (set.fr_io == fr_udp) || (set.fr_io == fr_ser_udp) || (set.fr_io == fr_udp_sd) || (set.fr_io == fr_ser_udp_sd) )  {
+            Log.printf("Begin UDP using Frs UDP object  read port:%d  send port:%d\n", set.udp_localPort+1, set.udp_remotePort+1);                       
+            frs_udp_object.begin(set.udp_localPort+1);          // use local port + 1 for Frs out                   
+          }
           UDP_remoteIP = localIP;        
           UDP_remoteIP[3] = 255;           // broadcast until we know which ip to target     
 
@@ -353,8 +357,8 @@
             udpremoteip[1] = UDP_remoteIP;                             // [1] IPs reserved for GCS side              
           }    
  
-          Log.printf("UDP for STA started, local %s:%d   remote %s:%d\n", localIP.toString().c_str(), 
-              udp_read_port, UDP_remoteIP.toString().c_str(), udp_send_port);
+          Log.printf("UDP for STA started, local %s   remote %s\n", localIP.toString().c_str(), 
+              UDP_remoteIP.toString().c_str());
           snprintf(snprintf_buf, snp_max, "Local port=%d", set.udp_localPort);     
           LogScreenPrintln(snprintf_buf);
        
@@ -439,7 +443,7 @@
           LogScreenPrintln(snprintf_buf);        
         }
 
-      if (set.wfproto == udp)  {      // UDP
+        if ( (set.wfproto == udp) || (set.fr_io == fr_udp) || (set.fr_io == fr_ser_udp) || (set.fr_io == fr_udp_sd) || (set.fr_io == fr_ser_udp_sd) )  {  // UDP
           WiFiUDP UDP_AP_Object;        
           udp_object[1] = new WiFiUDP(UDP_AP_Object); 
            
@@ -451,8 +455,16 @@
             udp_send_port = set.udp_localPort;                    
           }
           
-          Log.printf("Using AP UDP object 1\n");             
-          udp_object[1]->begin(udp_read_port);  
+          if (set.wfproto == udp) {
+            WiFiUDP UDP_STA_Object;        
+            udp_object[0] = new WiFiUDP(UDP_STA_Object);         
+            Log.printf("Begin UDP using STA UDP object  read port:%d  send port:%d\n", udp_read_port, udp_send_port);                 
+            udp_object[0]->begin(udp_read_port);  
+          }
+          if ( (set.fr_io == fr_udp) || (set.fr_io == fr_ser_udp) || (set.fr_io == fr_udp_sd) || (set.fr_io == fr_ser_udp_sd) )  {
+            Log.printf("Begin UDP using Frs UDP object  read port:%d  send port:%d\n", set.udp_localPort+1, set.udp_remotePort+1);                    
+            frs_udp_object.begin(set.udp_localPort+1);          // use local port + 1 for Frs out                   
+          }
                   
           UDP_remoteIP = WiFi.softAPIP();
           UDP_remoteIP[3] = 255;           // broadcast until we know which ip to target       
@@ -468,8 +480,8 @@
             udpremoteip[1] = UDP_remoteIP;                
           }  
         
-          Log.printf("UDP for AP started, local %s:%d   remote %s:%d\n", WiFi.softAPIP().toString().c_str(), 
-              udp_read_port, UDP_remoteIP.toString().c_str(), udp_send_port);         
+          Log.printf("UDP for AP started, local %s   remote %s\n", WiFi.softAPIP().toString().c_str(), 
+              UDP_remoteIP.toString().c_str());         
           snprintf(snprintf_buf, snp_max, "UDP port = %d", set.udp_localPort);        
           LogScreenPrintln(snprintf_buf);            
       }      

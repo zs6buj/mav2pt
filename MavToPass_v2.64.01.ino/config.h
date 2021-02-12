@@ -111,7 +111,7 @@ v2.64.01   2021-02-12  Add support for FrSky S/Fport udp out
 
 
 
-// NOTE: The Bluetooth class library uses a lot of application memory. During Compile/Flash
+// NOTE: The Bluetooth class library uses a lot of SRAM application memory. During Compile/Flash
 //       you may need to select Tools/Partition Scheme: "Minimal SPIFFS (1.9MB APP ...) or similar
 
 
@@ -1106,9 +1106,7 @@ bool daylightSaving = false;
     #define max_clients    6
     uint8_t active_client_idx = 0;  // for TCP 
     uint8_t active_object_idx = 0;  // for UDP
-     
-    //WiFiClient TCPclient; 
-     
+
     WiFiClient *tcp_client[max_clients] = {NULL}; // pointers to TCP client objects 
     
     WiFiServer TCPserver(TCP_localPort);          // dummy TCP local port(changes on TCPserver.begin() ).
