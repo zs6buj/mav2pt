@@ -253,7 +253,7 @@
           if (set.trmode == ground) {
             Log.printf(" and is 1-wire simplex on tx pin = %d\n", frTx);
           } else { 
-            Log.printf(" on pins rx = %d and tx = %d\n", frRx, frTx);
+            Log.printf(" on pins rx:%d and tx:%d\n", frRx, frTx);
           }  
 
           nbdelay(100);

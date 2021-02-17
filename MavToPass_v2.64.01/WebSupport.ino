@@ -509,10 +509,7 @@ void WriteSettingsToEEPROM() {
       EEPROMWrite8(3, set.fc_io);                    //  3
       EEPROMWrite8(4, set.gs_io);                    //  4  
       EEPROMWrite8(164, set.frport);                 //  164  came late to the party        
-      EEPROMWrite8(165, set.fr_io);                  //  165  came late to the party  
-      Log.printf("Write eeprom(164) set.pr_io:%d\n", set.fr_io);
-   uint8_t b = EEPROMRead8(164);    // fr io   
-      Log.printf("Read eeprom(164) b:%d\n", b);        
+      EEPROMWrite8(165, set.fr_io);                  //  165  came late to the party        
       EEPROMWrite8(5, set.gs_sd);                    //  5
       EEPROMWrite8(161, set.sport_sd);               //  161 came late to the party      
       EEPROMWrite8(6, set.wfmode);                   //  6
