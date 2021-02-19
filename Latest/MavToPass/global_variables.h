@@ -14,7 +14,7 @@ String    pgm_name;
 const uint8_t snp_max = 32;
 char          snprintf_buf[snp_max];       // for use with snprintf() formatting of display line
 
-volatile uint32_t debnceTimr;         // for pin interrupts
+volatile uint32_t debnceTimr;              // for pin interrupts
 volatile uint32_t delaytm = 100;
 
 uint8_t   MavLedState = LOW; 
@@ -626,7 +626,7 @@ int8_t    pt_ms_offset;             // Next WP bearing offset from COG
 uint16_t  pt_wind_speed;            // dm/s
 uint16_t  pt_direction;             // Wind direction relative to yaw, deg / 3
 
-//0xF103
+//0xF101
 uint32_t pt_rssi;
 //=================================================================================================   
 //                            Ring and Sensor Buffers 
@@ -664,7 +664,7 @@ uint32_t pt_rssi;
       gs_sd_t       gs_sd;             // position 161 in EEPROM
       sport_sd_t    sport_sd;
       wfmode_t      wfmode;
-      wf_proto_t    wfproto;
+      wf_proto_t    mav_wfproto;
       uint32_t      baud;
       uint8_t       channel;
       char          apSSID[30];
@@ -707,8 +707,8 @@ uint32_t pt_rssi;
       char*         wfmode2;      // sta
       char*         wfmode3;      // sta_ap    
       char*         wfmode4;      // ap_sta        
-      char*         wfproto1;     // tcp
-      char*         wfproto2;     // udp       
+      char*         mav_wfproto1; // tcp
+      char*         mav_wfproto2; // udp       
       char*         btmode1;      // master
       char*         btmode2;      // slave 
       char*         rssioverride; //rssi override        

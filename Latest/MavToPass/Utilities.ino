@@ -57,7 +57,7 @@
         snprintf(snprintf_buf, snp_max, "STA %d connected", AP_sta_count);                
         LogScreenPrintln(snprintf_buf); 
         
-        if ((set.fc_io == fc_wifi) && (set.wfproto == tcp))  {  // if we expect wifi from the fc, we are a client
+        if ((set.fc_io == fc_wifi) && (set.mav_wfproto == tcp))  {  // if we expect wifi from the fc, we are a client
           if (!outbound_clientGood) // and we don't have an active tcp session, start a new session
           outbound_clientGood = NewOutboundTCPClient();
         }                         
@@ -75,7 +75,7 @@
     
     if ((set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt)) {  // Only when we expect incoming remote tcp_client
       
-      if (set.wfproto == tcp)  {  // TCP  
+      if (set.mav_wfproto == tcp)  {  // TCP  
         if (wifiSuGood) {
 
           WiFiClient newClient = TCPserver.available();  // check if a new client wants to connect
@@ -303,7 +303,7 @@
         Log.println("WiFi connected!");
         Log.print("Local IP address: ");
         Log.print(localIP);
-        if (set.wfproto == tcp)  {   // TCP
+        if (set.mav_wfproto == tcp)  {   // TCP
           Log.print("  port: ");
           Log.println(set.tcp_localPort);    //  UDP port is printed lower down
         } else {
@@ -318,7 +318,7 @@
         LogScreenPrintln("Connected!");
         LogScreenPrintln(localIP.toString());
 
-        if (set.wfproto == tcp)  {   // TCP     
+        if (set.mav_wfproto == tcp)  {   // TCP     
           if (set.fc_io == fc_wifi) {  // if we expect wifi from the fc, we are a client, so need a new session
              outbound_clientGood = NewOutboundTCPClient();
           }
@@ -328,7 +328,7 @@
           LogScreenPrintln("TCP server started");
         }
 
-        if ( (set.wfproto == udp) || (set.fr_io == fr_udp) || (set.fr_io == fr_ser_udp) || (set.fr_io == fr_udp_sd) || (set.fr_io == fr_ser_udp_sd) )  {  // UDP
+        if ( (set.mav_wfproto == udp) || (set.fr_io & 0x02) ) {  // UDP
 
           if (set.wfmode == ap_sta) {                // in WIFI_AP_STA mode, we need to discriminate between sta and ap read ports 
             udp_read_port = set.udp_remotePort;      // so we flip read and send ports as a device
@@ -337,13 +337,13 @@
             udp_read_port = set.udp_localPort; 
             udp_send_port = set.udp_remotePort;                          
           }
-          if (set.wfproto == udp) {
+          if (set.mav_wfproto == udp) {
             WiFiUDP UDP_STA_Object;        
             udp_object[0] = new WiFiUDP(UDP_STA_Object);   
             Log.printf("Begin UDP using STA UDP object  read port:%d  send port:%d\n", udp_read_port, udp_send_port);                                                             
             udp_object[0]->begin(udp_read_port);  
           }
-          if ( (set.fr_io == fr_udp) || (set.fr_io == fr_ser_udp) || (set.fr_io == fr_udp_sd) || (set.fr_io == fr_ser_udp_sd) )  {
+          if (set.fr_io & 0x02)  {  // UDP
             Log.printf("Begin UDP using Frs UDP object  read port:%d  send port:%d\n", set.udp_localPort+1, set.udp_remotePort+1);                       
             frs_udp_object.begin(set.udp_localPort+1);          // use local port + 1 for Frs out                   
           }
@@ -436,14 +436,14 @@
       snprintf(snprintf_buf, snp_max, "%s", set.apSSID);        
       LogScreenPrintln(snprintf_buf);  
       
-      if (set.wfproto == tcp)  {         // TCP
+      if (set.mav_wfproto == tcp)  {         // TCP
           TCPserver.begin(set.tcp_localPort);   //  Server for TCP/IP traffic     
           Log.printf("TCP/IP started, local IP:port %s:%d\n", localIP.toString().c_str(), set.tcp_localPort);
           snprintf(snprintf_buf, snp_max, "TCP port = %d", set.tcp_localPort);        
           LogScreenPrintln(snprintf_buf);        
         }
 
-        if ( (set.wfproto == udp) || (set.fr_io == fr_udp) || (set.fr_io == fr_ser_udp) || (set.fr_io == fr_udp_sd) || (set.fr_io == fr_ser_udp_sd) )  {  // UDP
+        if ( (set.mav_wfproto == udp) || (set.fr_io & 0x02) ) {  // UDP
           WiFiUDP UDP_AP_Object;        
           udp_object[1] = new WiFiUDP(UDP_AP_Object); 
            
@@ -455,13 +455,13 @@
             udp_send_port = set.udp_localPort;                    
           }
           
-          if (set.wfproto == udp) {
+          if (set.mav_wfproto == udp) {
             WiFiUDP UDP_STA_Object;        
             udp_object[0] = new WiFiUDP(UDP_STA_Object);         
             Log.printf("Begin UDP using STA UDP object  read port:%d  send port:%d\n", udp_read_port, udp_send_port);                 
             udp_object[0]->begin(udp_read_port);  
           }
-          if ( (set.fr_io == fr_udp) || (set.fr_io == fr_ser_udp) || (set.fr_io == fr_udp_sd) || (set.fr_io == fr_ser_udp_sd) )  {
+        if (set.fr_io & 0x02) {  // UDP  
             Log.printf("Begin UDP using Frs UDP object  read port:%d  send port:%d\n", set.udp_localPort+1, set.udp_remotePort+1);                    
             frs_udp_object.begin(set.udp_localPort+1);          // use local port + 1 for Frs out                   
           }

@@ -4,6 +4,9 @@
 //                                    C O N F I G U R A T I O N 
 // 
 
+#define MAJOR_VERSION      2
+#define MINOR_VERSION      64
+#define PATCH_LEVEL        2
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -13,6 +16,8 @@ Complete change log and debugging options are at the bottom of this tab
                                           
 v2.64.00   2021-02-10  Upgrade to F.Port v2.3.7. Tests good.
 v2.64.01   2021-02-12  Add support for FrSky S/Fport udp out
+v2.64.02   2021-02-19  Start using GitHub Tags
+                       Embed version number constant
  
                                                                  
 */
@@ -159,8 +164,8 @@ v2.64.01   2021-02-12  Add support for FrSky S/Fport udp out
 #define WiFi_Mode   3  // (STA>AP) STA failover to AP 
 
 // Choose one default protocol - for ESP32 only
-//#define WiFi_Protocol 1    // TCP/IP
-#define WiFi_Protocol 2    // UDP 
+//#define Mav_WiFi_Protocol 1    // TCP/IP
+#define Mav_WiFi_Protocol 2    // UDP 
 
 //#define UDP_Broadcast      // Comment out (default) if you want to track and target remote udp client ips
 // NOTE; UDP is not a connection based protocol. To communicate with > 1 client at a time, we must broadcast on the subnet  
@@ -325,8 +330,8 @@ bool daylightSaving = false;
   #endif  
 
   #if (defined ESP32)
-    #ifndef WiFi_Protocol
-      #error Please define WiFi_Protocol
+    #ifndef Mav_WiFi_Protocol
+      #error Please define Mav_WiFi_Protocol
     #endif
   #endif
 

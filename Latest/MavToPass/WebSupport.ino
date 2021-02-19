@@ -195,14 +195,14 @@ int32_t String_long(String S) {
     settingsPage += temp;  
      
     settingsPage += "Frs Downlink &nbsp &nbsp";  
-    sprintf(temp, "<input type='checkbox' class='big' name='_fr_io_ser' value='Serial' %s> Serial &nbsp &nbsp", set.fr_io1);
+    sprintf(temp, "<input type='checkbox' class='big' name='_set.fr_io_ser' value='Serial' %s> Serial &nbsp &nbsp", set.fr_io1);
     settingsPage += temp; 
     #if (defined wifiBuiltin)  
-      sprintf(temp, "<input type='checkbox' class='big' name='_fr_io_udp' value='UDP' %s> UDP &nbsp &nbsp", set.fr_io2);
+      sprintf(temp, "<input type='checkbox' class='big' name='_set.fr_io_udp' value='UDP' %s> UDP &nbsp &nbsp", set.fr_io2);
       settingsPage += temp; 
     #endif  
     #if (defined sdBuiltin)     
-      sprintf(temp, "<input type='checkbox' class='big' name='_fr_io_sd' value='SD' %s> SD", set.fr_io3);
+      sprintf(temp, "<input type='checkbox' class='big' name='_set.fr_io_sd' value='SD' %s> SD", set.fr_io3);
       settingsPage += temp; 
     #endif  
   #else
@@ -265,9 +265,9 @@ int32_t String_long(String S) {
   //sprintf(temp, "<input type='radio' class='big' name='_wfmode' value='AP_STA' %s> AP_STA &nbsp <br>", set.wfmode4);
   //settingsPage += temp;
   settingsPage += "WiFi Protocol: &nbsp &nbsp ";
-  sprintf(temp, "<input type='radio' class='big' name='_wfproto' value='TCP' %s> TCP &nbsp &nbsp", set.wfproto1);
+  sprintf(temp, "<input type='radio' class='big' name='_mav_wfproto' value='TCP' %s> TCP &nbsp &nbsp", set.mav_wfproto1);
   settingsPage += temp;
-  sprintf(temp, "<input type='radio' class='big' name='_wfproto' value='UDP' %s> UDP &nbsp <br>", set.wfproto2);
+  sprintf(temp, "<input type='radio' class='big' name='_mav_wfproto' value='UDP' %s> UDP &nbsp <br>", set.mav_wfproto2);
   settingsPage += temp; 
   sprintf(temp, "Mavlink Baud: <input type='text' name='_baud' value='%d' size='3' minlength='4' required maxlength='6'> <br>", set.baud);
   settingsPage += temp;
@@ -348,7 +348,7 @@ byte b;
       set.frport = s_port;
     } 
         
-    b = EEPROMRead8(165);                         // fr_io 165
+    b = EEPROMRead8(165);                         // set.fr_io 165
     if (b == 0) {
       set.fr_io = fr_none;
     } else
@@ -430,9 +430,9 @@ byte b;
     } 
     b = EEPROMRead8(7);     // wifi protocol
     if (b == 1) {
-      set.wfproto = tcp;
+      set.mav_wfproto = tcp;
     } else if (b == 2) {
-      set.wfproto = udp;
+      set.mav_wfproto = udp;
     }  
     set.baud = EEPROMRead32(8);                  //  8 thru  11
     set.channel = EEPROMRead8(12);               //  12
@@ -475,13 +475,13 @@ byte b;
       Log.print("validity_check = "); Log.println(set.validity_check, HEX);
       Log.print("translator mode = "); Log.println(set.trmode);  
       Log.print("fr_port_type = "); Log.println(set.frport);      
-      Log.print("fr_io = "); Log.println(set.fr_io);             
+      Log.print("set.fr_io = "); Log.println(set.fr_io);             
       Log.print("fc_io = "); Log.println(set.fc_io);                
       Log.print("gcs_io = "); Log.println(set.gs_io);            
       Log.print("gcs_sd = "); Log.println(set.gs_sd);   
       Log.print("sport_sd = "); Log.println(set.sport_sd);            
       Log.print("wifi mode = "); Log.println(set.wfmode);
-      Log.print("wifi protocol = "); Log.println(set.wfproto);     
+      Log.print("wifi protocol = "); Log.println(set.mav_wfproto);     
       Log.print("baud = "); Log.println(set.baud);
       Log.print("wifi channel = "); Log.println(set.channel);  
       Log.print("apSSID = "); Log.println(set.apSSID);
@@ -509,11 +509,11 @@ void WriteSettingsToEEPROM() {
       EEPROMWrite8(3, set.fc_io);                    //  3
       EEPROMWrite8(4, set.gs_io);                    //  4  
       EEPROMWrite8(164, set.frport);                 //  164  came late to the party        
-      EEPROMWrite8(165, set.fr_io);                  //  165  came late to the party        
+      EEPROMWrite8(165, set.fr_io);                  //  165  came late to the party   
       EEPROMWrite8(5, set.gs_sd);                    //  5
       EEPROMWrite8(161, set.sport_sd);               //  161 came late to the party      
       EEPROMWrite8(6, set.wfmode);                   //  6
-      EEPROMWrite8(7, set.wfproto);                  //  7     
+      EEPROMWrite8(7, set.mav_wfproto);                  //  7     
       EEPROMWrite32(8,set.baud);                     //  8 thru 11
       EEPROMWrite8(12, set.channel);                 // 12
       EEPROMWriteString(13, set.apSSID);             // 13 thru 42 
@@ -536,13 +536,13 @@ void WriteSettingsToEEPROM() {
         Log.print("validity_check = "); Log.println(set.validity_check, HEX);
         Log.print("translator mode = "); Log.println(set.trmode); 
         Log.print("fr_port_type = "); Log.println(set.frport);        
-        Log.print("fr_io = "); Log.println(set.fr_io);                
+        Log.print("set.fr_io = "); Log.println(set.fr_io);                
         Log.print("fc_io = "); Log.println(set.fc_io);                
         Log.print("gcs_io = "); Log.println(set.gs_io);              
         Log.print("gcs_sd = "); Log.println(set.gs_sd);   
         Log.print("sport_sd = "); Log.println(set.sport_sd);               
         Log.print("wifi mode = "); Log.println(set.wfmode);
-        Log.print("wifi protocol = "); Log.println(set.wfproto);     
+        Log.print("wifi protocol = "); Log.println(set.mav_wfproto);     
         Log.print("baud = "); Log.println(set.baud);
         Log.print("wifi channel = "); Log.println(set.channel);  
         Log.print("apSSID = "); Log.println(set.apSSID);
@@ -592,15 +592,15 @@ void ReadSettingsFromForm() {
   #endif 
   
   uint8_t frio = 0;
-  S = server.arg("_fr_io_ser");      
+  S = server.arg("_set.fr_io_ser");      
   if (S == "Serial") {
     frio = frio + (uint8_t)fr_ser;  // bit 1     
   } 
-  S = server.arg("_fr_io_udp");   
+  S = server.arg("_set.fr_io_udp");   
   if (S == "UDP") {
     frio = frio + (uint8_t)fr_udp;  // bit 2
   } 
-  S = server.arg("_fr_io_sd");   
+  S = server.arg("_set.fr_io_sd");   
   if (S == "SD") {
     frio = frio + (uint8_t)fr_sd;   // bit 4  
   }  
@@ -671,12 +671,12 @@ void ReadSettingsFromForm() {
     set.wfmode = ap_sta;
   } 
    
-  S = server.arg("_wfproto");
+  S = server.arg("_mav_wfproto");
   if (S == "TCP") {
-    set.wfproto = tcp;
+    set.mav_wfproto = tcp;
   } else 
   if (S == "UDP") {
-    set.wfproto = udp;
+    set.mav_wfproto = udp;
   }   
   set.baud = String_long(server.arg("_baud"));
   set.channel = String_long(server.arg("_channel")); 
@@ -725,13 +725,13 @@ void ReadSettingsFromForm() {
         Log.print("validity_check = "); Log.println(set.validity_check, HEX);
         Log.print("translator mode = "); Log.println(set.trmode);   
         Log.print("fr_port_type = "); Log.println(set.frport);       
-        Log.print("fr_io = "); Log.println(set.fr_io);               
+        Log.print("set.fr_io = "); Log.println(set.fr_io);               
         Log.print("fc_io = "); Log.println(set.fc_io);                
         Log.print("gcs_io = "); Log.println(set.gs_io);           
         Log.print("gcs_sd = "); Log.println(set.gs_sd); 
         Log.print("sport_sd = "); Log.println(set.sport_sd);                     
         Log.print("wifi mode = "); Log.println(set.wfmode);
-        Log.print("wifi protocol = "); Log.println(set.wfproto);     
+        Log.print("wifi protocol = "); Log.println(set.mav_wfproto);     
         Log.print("baud = "); Log.println(set.baud);
         Log.print("wifi channel = "); Log.println(set.channel);  
         Log.print("apSSID = "); Log.println(set.apSSID);
@@ -783,13 +783,13 @@ void RefreshHTMLButtons() {
   set.fr_io1 = "";
   set.fr_io2 = "";
   set.fr_io3 = ""; 
-  if ( (set.fr_io == fr_ser) || (set.fr_io == fr_ser_udp) || (set.fr_io == fr_ser_sd) || (set.fr_io == fr_ser_udp_sd) ) {
+  if (set.fr_io & 0x01) {         // Serial
     set.fr_io1 = "checked";
   }  
-  if ( (set.fr_io == fr_udp) || (set.fr_io == fr_ser_udp) || (set.fr_io == fr_udp_sd) || (set.fr_io == fr_ser_udp_sd) ) {
+  if (set.fr_io & 0x02) {         // UDP
     set.fr_io2 = "checked";
   }  
-  if ( (set.fr_io == fr_sd) || (set.fr_io == fr_ser_sd) || (set.fr_io == fr_udp_sd) || (set.fr_io == fr_ser_udp_sd) ) {
+  if (set.fr_io & 0x04) {         // SD Card
     set.fr_io3 = "checked";
   }   
 
@@ -897,13 +897,13 @@ void RefreshHTMLButtons() {
     set.wfmode4 = "checked";     
   }
 
-  if (set.wfproto == tcp) {
-    set.wfproto1 = "checked";
-    set.wfproto2 = "";
+  if (set.mav_wfproto == tcp) {
+    set.mav_wfproto1 = "checked";
+    set.mav_wfproto2 = "";
   } else 
-  if (set.wfproto == udp) {
-    set.wfproto1 = "";
-    set.wfproto2 = "checked";
+  if (set.mav_wfproto == udp) {
+    set.mav_wfproto1 = "";
+    set.mav_wfproto2 = "checked";
   }
 
   if (set.btmode == master) {
@@ -1213,11 +1213,11 @@ void RawSettingsToStruct() {
     set.wfmode = ap_sta;
   } 
     
-  if (WiFi_Protocol == 1) {
-    set.wfproto = tcp;
+  if (Mav_WiFi_Protocol == 1) {
+    set.mav_wfproto = tcp;
   } else 
-  if (WiFi_Protocol == 2) {
-    set.wfproto = udp;
+  if (Mav_WiFi_Protocol == 2) {
+    set.mav_wfproto = udp;
   } 
          
   set.baud = mvBaud;          
@@ -1266,13 +1266,13 @@ void RawSettingsToStruct() {
       Log.print("validity_check = "); Log.println(set.validity_check, HEX);   
       Log.print("translator mode = "); Log.println(set.trmode);    
       Log.print("frport = "); Log.println(set.frport);           
-      Log.print("fr_io = "); Log.println(set.fr_io);         
+      Log.print("set.fr_io = "); Log.println(set.fr_io);         
       Log.print("fc_io = "); Log.println(set.fc_io);                
       Log.print("gcs_io = "); Log.println(set.gs_io);     
       Log.print("gcs_sd = "); Log.println(set.gs_sd);   
       Log.print("sport_sd = "); Log.println(set.sport_sd);              
       Log.print("wifi mode = "); Log.println(set.wfmode);
-      Log.print("wifi protocol = "); Log.println(set.wfproto);     
+      Log.print("wifi protocol = "); Log.println(set.mav_wfproto);     
       Log.print("baud = "); Log.println(set.baud);
       Log.print("wifi channel = "); Log.println(set.channel);  
       Log.print("apSSID = "); Log.println(set.apSSID);

@@ -225,10 +225,10 @@
       mt20[i].inuse = 0;
     }     
     
-    if ( (set.frport == f_port1) || (set.frport == f_port2) ) {  // check for fport2 later
+    if (set.frport == f_port1) {  // check for fport2 later
       frBaud = 115200; 
       frInvert = false;   // F.Port is normally idle high (not inverted)
-      Log.printf("FPort selected, expecting regular fport idle high, baud:%d", frBaud);     
+      Log.printf("FPort selected, expecting regular fport idle high/not inverted, baud:%d", frBaud);     
     } else 
       if (set.frport == s_port) {
         frBaud = 57600;
@@ -253,7 +253,7 @@
           if (set.trmode == ground) {
             Log.printf(" and is 1-wire simplex on tx pin = %d\n", frTx);
           } else { 
-            Log.printf(" on pins rx:%d and tx:%d\n", frRx, frTx);
+            Log.printf(" on pins rx = %d and tx = %d\n", frRx, frTx);
           }  
 
           nbdelay(100);
@@ -263,7 +263,7 @@
 
       #else  // HardwareSerial
           frSerial.begin(frBaud, SERIAL_8N1, frRx, frTx, frInvert); 
-          if ((set.trmode == air) || (set.trmode == relay) || (set.Support_MavLite)) {
+          if ((set.trmode == air) || (set.trmode == relay) || (set.mavlite_support)) {
             Log.printf(" half-duplex on pins rx = %d and tx = %d\n", frRx, frTx);  
             Log.println("For 1-wire applications a 2-wire to 1-wire converter or diode is required");
           } else          
@@ -340,7 +340,7 @@
           FrSkyPort::InjectUplinkFrame(fr_prime);        // Blind inject frame into Taranis et al 
           blind_inject_millis=millis();
         }
-        if (!set.Support_MavLite) {
+        if (!set.mavlite_support) {
           return; // no need to read fr_port if ground mode and no mavlite support needed
         }
       }  
@@ -792,25 +792,8 @@
     }
     //===========================
     void FrSkyPort::WriteByte(byte b) {
-      
-      if ( (set.fr_io == fr_ser) || (set.fr_io == fr_ser_udp) || (set.fr_io == fr_ser_sd) || (set.fr_io == fr_ser_udp_sd) ) {
-        frSerial.write(b); 
-      }
-
-      #if (defined wifiBuiltin)
-        if (wifiSuGood) { 
-          if ( (set.fr_io == fr_udp) || (set.fr_io == fr_ser_udp) || (set.fr_io == fr_udp_sd) || (set.fr_io == fr_ser_udp_sd) ) {
-            frs_udp_object.write(b);                                 
-          }
-        }
-      #endif 
-      
-      #if (defined sdBuiltin)   
-        if ( (set.fr_io == fr_sd) || (set.fr_io == fr_ser_sd) || (set.fr_io == fr_udp_sd) || (set.fr_io == fr_ser_udp_sd) ) {
-          SP_Byte_To_SD(b);         
-        }
-      #endif
-        
+      frSerial.write(b); 
+      if  (set.sport_sd == spsd_on) SP_Byte_To_SD(b);          // optionally to SD
       #if (defined Debug_FrPort_Stream) || (defined Debug_FrPort_Stream_Out) 
         Printbyte(b, false, '>');
       #endif         
@@ -1074,17 +1057,8 @@
       #if defined Frs_Debug_Period
         PrintFrPeriod(0);   
       #endif    
-
-      #if (defined wifiBuiltin)
-        if  ( (set.fr_io == fr_udp) || (set.fr_io == fr_ser_udp) || (set.fr_io == fr_udp_sd) || (set.fr_io == fr_ser_udp_sd) )  {// FrSky UDP out - start packet
-          if (wifiSuGood) {                  
-            //UDP_remoteIP should already be set for broadcast
-            frs_udp_object.beginPacket(UDP_remoteIP, set.udp_remotePort+1);  // use remote port + 1 for Frs out
-          }
-        }
-      #endif   
-
-      sp_msg_id = sb[idx].msg_id;   // global msg_id for debug of sending
+      
+      sp_msg_id = sb[idx].msg_id;   // global msg_id for debug of sendong
       msg_class = FrSkyPort::msg_class_now(sp_msg_id);
 
       //========================    RSSI special treatment
@@ -1204,22 +1178,13 @@
       }
   
       sb[idx].inuse = 0;                                      // 0=free to use, 1=occupied - for passthru and mavlite
-
-      #if (defined wifiBuiltin)
-        if  ( (set.fr_io == fr_udp) || (set.fr_io == fr_ser_udp) || (set.fr_io == fr_udp_sd) || (set.fr_io == fr_ser_udp_sd) ) { // FrSky send UDP packet
-          if (wifiSuGood) { 
-            bool endOK = frs_udp_object.endPacket();
-            // if (!endOK) Log.printf("FrSky UDP msgSent=%d   endOK=%d\n", msgSent, endOK);
-          }
-        }
-      #endif  
-
+  
     }
 
     //=========================  U P L I N K   T O   F C  ========================
  
     bool FrSkyPort::DecodeAndUplinkMavLite() {
-    #if defined Support_MavLite  
+    #if defined MavLite_Support  
       mt_seq = frbuf[3];
       if (mt_seq == 0) {
         mt_paylth = frbuf[4];
@@ -1328,7 +1293,7 @@
     }
 
     //===================================================================  
-    #if defined Support_MavLite
+    #if defined MavLite_Support
     
     bool FrSkyPort::UnchunkMavLitePayload() {   
           
@@ -1526,7 +1491,7 @@
     //=================================================================== 
  
     void FrSkyPort::Push_Param_Val_016(uint16_t msg_id) {   //  0x16 MavLite PARAM_VALUE ( #22 ) Downlink to GCS
-    #if defined Support_MavLite  
+    #if defined MavLite_Support  
  
       mt_msg_id = msg_id;                                // 0x16  #22 
       mt_paylth = 4 +strlen(ap22_param_id);              // payload = value + param = 17
@@ -1567,7 +1532,7 @@
     //===================================================================         
 
     void FrSkyPort::Push_Command_Ack_04d(uint16_t msg_id) {  //  0x4d MavLite COMMAND_ACK ( #77 ) Downlink to GCS 
-    #if defined Support_MavLite  
+    #if defined MavLite_Support  
  
       mt_msg_id = msg_id;                          // 0x4d #77
       mt_paylth = 1;                               // payload = 1 byte = result
@@ -1592,7 +1557,7 @@
      }
      
     //===================================================================     
-    #if defined Support_MavLite  // Downlink to GCS
+    #if defined MavLite_Support  // Downlink to GCS
     
     void FrSkyPort::ChunkMavLitePayload(uint8_t msg_id, uint8_t tlth) {
       mt_chunk = 0; 

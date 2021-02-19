@@ -273,7 +273,8 @@ void setup()  {
   pgm_path = __FILE__;  // ESP8266 __FILE__ macro returns pgm_name and no path
   pgm_name = pgm_path.substring(pgm_path.lastIndexOf("\\")+1);  
   pgm_name = pgm_name.substring(0, pgm_name.lastIndexOf('.'));  // remove the extension
-  Log.print("Starting "); Log.print(pgm_name); Log.println(" .....");
+  Log.print("Starting "); Log.print(pgm_name);
+  Log.printf(" version:%d.%02d.%02d\n", MAJOR_VERSION,  MINOR_VERSION, PATCH_LEVEL);
     
   #if ((defined ESP32) || (defined ESP8266)) && (defined Debug_WiFi)
    WiFi.onEvent(WiFiEventHandler);   
@@ -570,11 +571,11 @@ void setup()  {
      LogScreenPrintln("WiFi-mode=AP_STA");
    }
     
-   if (set.wfproto == tcp)  {
+   if (set.mav_wfproto == tcp)  {
      Log.println("Protocol is TCP/IP");
      LogScreenPrintln("Protocol=TCP/IP");
    }
-   else if  (set.wfproto == udp) {
+   else if  (set.mav_wfproto == udp) {
      Log.print("Protocol is UDP");
      LogScreenPrintln("Protocol = UDP");
      #if defined UDP_Broadcast
@@ -760,7 +761,7 @@ void setup()  {
     #else
       mvSerial.begin(set.baud);    
     #endif 
-    Log.printf("Mavlink serial on pins rx = %d and tx = %d\n", mav_rxPin, mav_txPin); 
+    Log.printf("Mavlink serial on pins rx:%d and tx:%d\n", mav_rxPin, mav_txPin); 
   }
   
   #if (defined frBuiltin)           
@@ -1024,7 +1025,7 @@ bool Read_FC_To_RingBuffer() {
   #if (defined wifiBuiltin)
     if (set.fc_io == fc_wifi)  {  //  WiFi
       
-      if ((set.wfproto == tcp) && (outbound_clientGood))  { // TCP  from FC side
+      if ((set.mav_wfproto == tcp) && (outbound_clientGood))  { // TCP  from FC side
  
         bool msgReceived = Read_TCP(&F2Rmsg);
         if (msgReceived) {
@@ -1039,7 +1040,7 @@ bool Read_FC_To_RingBuffer() {
        return true;  
       }
       
-      if (set.wfproto == udp)  {    // UDP from FC
+      if (set.mav_wfproto == udp)  {    // UDP from FC
 
         if ((set.wfmode == ap_sta) || (set.wfmode == sta)) {// if AP_STA or STA mode                 
           active_object_idx = 0;                            // Use STA UDP object for FC read        
@@ -1151,7 +1152,7 @@ void Read_From_GCS() {
   #if (defined wifiBuiltin)
     if ((set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt) ) {   //  WiFi
     
-      if ((set.wfproto == tcp) && (inbound_clientGood))  { // TCP from GCS side    
+      if ((set.mav_wfproto == tcp) && (inbound_clientGood))  { // TCP from GCS side    
     
         bool msgReceived = Read_TCP(&G2Fmsg);
 
@@ -1165,7 +1166,7 @@ void Read_From_GCS() {
         }
       }
       
-      if (set.wfproto == udp)  { // UDP from GCS
+      if (set.mav_wfproto == udp)  { // UDP from GCS
   
         if ((set.wfmode == ap_sta) || (set.wfmode == ap)) { // if AP_STA mode                 
           active_object_idx = 1;                            // Use AP UDP object for GCS read        
@@ -1509,7 +1510,7 @@ void Send_To_FC(uint32_t msg_id) {
   #if (defined wifiBuiltin)
     if (set.fc_io == fc_wifi) {  // WiFi to FC
       if (wifiSuGood) { 
-        if (set.wfproto == tcp)  { // TCP  
+        if (set.mav_wfproto == tcp)  { // TCP  
            active_client_idx = 0;             // tcp_client[0] is reserved for inbound client (FC side)
            bool msgSent = Send_TCP(&G2Fmsg);  // to FC   
            #ifdef  Debug_GCS_Up
@@ -1518,7 +1519,7 @@ void Send_To_FC(uint32_t msg_id) {
            #endif    
          }    
          
-         if (set.wfproto == udp)  { // UDP 
+         if (set.mav_wfproto == udp)  { // UDP 
 
           if ((set.wfmode == ap_sta) || (set.wfmode == sta)) {// if AP_STA or STA mode                 
             active_object_idx = 0;                            // Use STA UDP object for FC send     
@@ -1599,7 +1600,7 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
       
       if (wifiSuGood) {
         
-        if (set.wfproto == tcp)  { // TCP      
+        if (set.mav_wfproto == tcp)  { // TCP      
           for (int i = 1 ; i < max_clients ; ++i) {       // send to each active client. Not to inbound client [0] (FC side)
             if (NULL != tcp_client[i]) {        // if active client
               active_client_idx = i;
@@ -1622,7 +1623,7 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
           }    
         }
         
-        if (set.wfproto == udp)  { // UDP     
+        if (set.mav_wfproto == udp)  { // UDP     
 
           if ((set.wfmode == ap_sta) || (set.wfmode == ap)) { // if AP_STA or AP mode                 
             active_object_idx = 1;                            // Use AP UDP object for FC send     
