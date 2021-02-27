@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      64
-#define PATCH_LEVEL        2
+#define PATCH_LEVEL        3
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -18,7 +18,10 @@ v2.64.00   2021-02-10  Upgrade to F.Port v2.3.7. Tests good.
 v2.64.01   2021-02-12  Add support for FrSky S/Fport udp out
 v2.64.02   2021-02-19  Start using GitHub Tags
                        Embed version number constant
- 
+v2.64.03   2021-02-19  Correct char width for ST7789 display                   
+                       FrSky, uom was cA, now dA for current
+                       Correct HUD current
+           2021-02-27  Enable FrSky UDP out            
                                                                  
 */
 //===========================================================================================
@@ -46,7 +49,7 @@ v2.64.02   2021-02-19  Start using GitHub Tags
 #define Device_compid    MAV_COMP_ID_PERIPHERAL  // 158 Generic autopilot peripheral - APM FC is 1, MP is 190, QGC is  https://mavlink.io/en/messages/common.html
 
 #define webSupport                      // ESP only. Enable wifi web support, including OTA firmware updating. Browse to IP.
-#define webPassword      "changeme!"    // Web password 
+#define webPassword      "admin"    // Web password 
 
 #define displaySupport                 // Enable if you have a display attached - choose display type where board variant is defined 
 
@@ -891,15 +894,15 @@ bool daylightSaving = false;
 
       #if (SCR_ORIENT == 0)           // portrait
         #define SCR_H_CH     20       // characters not pixels
-        #define SCR_W_CH     30       // ?
+        #define SCR_W_CH     11       // ?
         #define CHAR_W_PX    12       // pixels    
-        #define CHAR_H_PX    15       // pixels 
+        #define CHAR_H_PX    12       // pixels 
         #define TEXT_SIZE     1                
       #elif (SCR_ORIENT == 1)         // landscape
         #define SCR_H_CH      8       // characters not pixels 
         #define SCR_W_CH     20  
-        #define CHAR_W_PX    16       // pixels x 8 = 128  rem 7   
-        #define CHAR_H_PX    21 
+        #define CHAR_W_PX    12       // 12 x 20 = 240  
+        #define CHAR_H_PX    16       // 16 x 8 =  128
         #define TEXT_SIZE     2                       
       #endif 
       

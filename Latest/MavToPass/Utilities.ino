@@ -571,7 +571,6 @@ void BlinkMavLed(uint32_t period) {
       }
 }
 
-//================================================================================================= 
 //=================================================================================================  
 
 void Printbyte(byte b, bool LF, char delimiter) {
@@ -748,14 +747,24 @@ uint16_t mav_checksum;          ///< X.25 crcout
   
 }
 //=================================================================================================  
-float RadToDeg (float _Rad) {
+float RadToDeg(float _Rad) {
   return _Rad * 180 / PI;  
 }
 //=================================================================================================  
-float DegToRad (float _Deg) {
+float DegToRad(float _Deg) {
   return _Deg * PI / 180;  
 }
+
 //=================================================================================================  
+uint32_t TenToPwr(uint8_t pwr) {
+  uint32_t ttp = 1;
+  for (int i = 1 ; i<=pwr ; i++) {
+    ttp*=10;
+  }
+  return ttp;
+} 
+//================================================================================================= 
+ 
 String MavSeverity(uint8_t sev) {
  switch(sev) {
     
@@ -1184,7 +1193,7 @@ void PrintLoopPeriod() {
           xx = 0;
           yy = 16 * CHAR_W_PX;        
           display.setCursor(xx, yy); 
-          snprintf(snprintf_buf, snp_max, "V:%.1fV", (float)ap_voltage_battery1/1000);     
+          snprintf(snprintf_buf, snp_max, "V:%.1fV", ap_voltage_battery1 * 0.1F);     
           display.fillRect(xx+(2*CHAR_W_PX), yy, (6*CHAR_W_PX), CHAR_H_PX, ILI9341_BLUE); // clear the previous line   
           display.println(snprintf_buf); 
           
@@ -1192,7 +1201,7 @@ void PrintLoopPeriod() {
           xx = 9 * CHAR_W_PX;
           yy = 16 * CHAR_W_PX;        
           display.setCursor(xx, yy); 
-          snprintf(snprintf_buf, snp_max, "A:%.0f", (float)ap_current_battery1/100);     
+          snprintf(snprintf_buf, snp_max, "A:%.0f", ap_current_battery1* 0.1F);     
           display.fillRect(xx+(2*CHAR_W_PX), yy, (6*CHAR_W_PX), CHAR_H_PX, ILI9341_BLUE); // clear the previous line   
           display.println(snprintf_buf); 
           
@@ -1200,7 +1209,7 @@ void PrintLoopPeriod() {
           xx = 18 * CHAR_W_PX;
           yy = 16 * CHAR_W_PX;        
           display.setCursor(xx, yy); 
-          snprintf(snprintf_buf, snp_max, "Ah:%.1f", (float)pt_bat1_mAh/ 1000);     
+          snprintf(snprintf_buf, snp_max, "Ah:%.1f", )pt_bat1_mAh 0.001F);     
           display.fillRect(xx+(3*CHAR_W_PX), yy, (5*CHAR_W_PX), CHAR_H_PX, ILI9341_BLUE); // clear the previous line   
           display.println(snprintf_buf);           
           
@@ -1229,7 +1238,7 @@ void PrintLoopPeriod() {
           yy = 0;
           display.setCursor(xx,yy);       
           snprintf(snprintf_buf, snp_max, "Lat %.7f", cur.lat);
-          display.fillRect(xx+(3*CHAR_W_PX), yy, 11 * CHAR_W_PX, CHAR_H_PX, SCR_BACKGROUND); // clear the previous data           
+          display.fillRect(xx+(4*CHAR_W_PX), yy, 11 * CHAR_W_PX, CHAR_H_PX, SCR_BACKGROUND); // clear the previous data           
           display.println(snprintf_buf);  
 
           // Longitude
@@ -1237,14 +1246,14 @@ void PrintLoopPeriod() {
           yy = 1.8 * CHAR_H_PX;    
           display.setCursor(xx, yy);                 
           snprintf(snprintf_buf, snp_max, "Lon %.7f", cur.lon);
-          display.fillRect(xx+(3*CHAR_W_PX), yy, 11 * CHAR_W_PX, CHAR_H_PX, SCR_BACKGROUND);        
+          display.fillRect(xx+(4*CHAR_W_PX), yy, 11 * CHAR_W_PX, CHAR_H_PX, SCR_BACKGROUND);        
           display.println(snprintf_buf); 
 
           // Volts, Amps and Ah 
           xx = 0;
           yy = 3.6 * CHAR_H_PX;      
           display.setCursor(xx, yy);               
-          snprintf(snprintf_buf, snp_max, "%.1fV %.1fA %.1fAh", (float)ap_voltage_battery1/1000, (float)ap_current_battery1/100, (float)pt_bat1_mAh/ 1000);     
+          snprintf(snprintf_buf, snp_max, "%.1fV %.0fA %.1fAh", pt_bat1_volts * 0.1F, pt_bat1_amps * 0.1F, pt_bat1_mAh * 0.001F);     
           display.fillRect(xx, yy, SCR_W_PX, CHAR_H_PX, SCR_BACKGROUND); // clear the whole line  
           display.println(snprintf_buf); 
 
@@ -1603,17 +1612,17 @@ uint32_t Get_Volt_Average1(uint16_t mV)  {
   return bat1.avg_mV;
 }
 //=================================================================================================  
-uint32_t Get_Current_Average1(uint16_t dA)  {   // in 10*milliamperes (1 = 10 milliampere)
+uint32_t Get_Current_Average1(uint16_t cA)  {   // in 100*milliamperes (1 = 100 milliampere)
   
-  Accum_mAh1(dA);  
+  Accum_mAh1(cA);  
   
-  if (bat1.avg_dA < 1){
-    bat1.avg_dA = dA;  // Initialise first time
+  if (bat1.avg_cA < 1){
+    bat1.avg_cA = cA;  // Initialise first time
   }
 
-  bat1.avg_dA = (bat1.avg_dA * 0.6666) + (dA * 0.333);  // moving average
+  bat1.avg_cA = (bat1.avg_cA * 0.6666F) + (cA * 0.333F);  // moving average
 
-  return bat1.avg_dA;
+  return bat1.avg_cA;
   }
 
 void Accum_Volts1(uint32_t mVlt) {    //  mV   milli-Volts
@@ -1621,7 +1630,7 @@ void Accum_Volts1(uint32_t mVlt) {    //  mV   milli-Volts
   bat1.samples++;
 }
 
-void Accum_mAh1(uint32_t dAs) {        //  dA    10 = 1A
+void Accum_mAh1(uint32_t cAs) {        //  cA    100 = 1A
   if (bat1.ft) {
     bat1.prv_millis = millis() -1;   // prevent divide zero
     bat1.ft = false;
@@ -1631,9 +1640,9 @@ void Accum_mAh1(uint32_t dAs) {        //  dA    10 = 1A
     
   double hrs = (float)(period / 3600000.0f);  // ms to hours
 
-  bat1.mAh = dAs * hrs;     //  Tiny dAh consumed this tiny period di/dt
+  bat1.mAh = cAs * hrs;     //  Tiny cAh consumed this tiny period di/dt
  // bat1.mAh *= 100;        //  dA to mA  
-  bat1.mAh *= 10;           //  dA to mA ?
+  bat1.mAh *= 10;           //  cA to mA 
   bat1.mAh *= 1.0625;       // Emirical adjustment Markus Greinwald 2019/05/21
   bat1.tot_mAh += bat1.mAh;   //   Add them all in
 }
@@ -1655,22 +1664,22 @@ uint32_t Get_Volt_Average2(uint16_t mV)  {
   return bat2.avg_mV;
 }
   
-uint32_t Get_Current_Average2(uint16_t dA)  {
+uint32_t Get_Current_Average2(uint16_t cA)  {
 
-  if (bat2.avg_dA == 0) bat2.avg_dA = dA;  // Initialise first time
+  if (bat2.avg_cA == 0) bat2.avg_cA = cA;  // Initialise first time
 
-  bat2.avg_dA = (bat2.avg_dA * 0.666) + (dA * 0.333);  // moving average
+  bat2.avg_cA = (bat2.avg_cA * 0.666) + (cA * 0.333);  // moving average
 
-  Accum_mAh2(dA);  
-  return bat2.avg_dA;
+  Accum_mAh2(cA);  
+  return bat2.avg_cA;
   }
 
-void Accum_Volts2(uint32_t mVlt) {    //  mV   milli-Volts
-  bat2.tot_volts += (mVlt / 1000);    // Volts
+void Accum_Volts2(uint32_t mVlt) {      //  mV   milli-Volts
+  bat2.tot_volts += (mVlt * 0.001F);    // Volts
   bat2.samples++;
 }
 
-void Accum_mAh2(uint32_t dAs) {        //  dA    10 = 1A
+void Accum_mAh2(uint32_t cAs) {        //  cA    100 = 1A
   if (bat2.ft) {
     bat2.prv_millis = millis() -1;   // prevent divide zero
     bat2.ft = false;
@@ -1680,9 +1689,9 @@ void Accum_mAh2(uint32_t dAs) {        //  dA    10 = 1A
     
  double hrs = (float)(period / 3600000.0f);  // ms to hours
 
-  bat2.mAh = dAs * hrs;   //  Tiny dAh consumed this tiny period di/dt
- // bat2.mAh *= 100;        //  dA to mA  
-  bat2.mAh *= 10;        //  dA to mA ?
+  bat2.mAh = cAs * hrs;   //  Tiny cAh consumed this tiny period di/dt
+ // bat2.mAh *= 100;        //  cA to mA  
+  bat2.mAh *= 10;        //  cA to mA ?
   bat2.mAh *= 1.0625;       // Emirical adjustment Markus Greinwald 2019/05/21 
   bat2.tot_mAh += bat2.mAh;   //   Add them all in
 }
