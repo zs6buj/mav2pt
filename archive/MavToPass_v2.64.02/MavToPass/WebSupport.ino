@@ -186,16 +186,14 @@ int32_t String_long(String S) {
     sprintf(temp, "<input type='radio' class='big' name='_trmode' value='Relay' %s> Relay", set.trmode3);
     settingsPage += temp;
     
-    settingsPage += "<br>FrSky Port Type: &nbsp ";    
-    sprintf(temp, "<input type='radio' class='big' name='_frport' value='FPort1' %s> FPort1 &nbsp ", set.frport1);
+    settingsPage += "<br>FrSky Port Type: &nbsp &nbsp ";  
+    sprintf(temp, "<input type='radio' class='big' name='_frport' value='SPort' %s> SPort &nbsp &nbsp", set.frport3);
+    settingsPage += temp;      
+    sprintf(temp, "<input type='radio' class='big' name='_frport' value='FPort1' %s> FPort1 &nbsp &nbsp ", set.frport1);
     settingsPage += temp;
-    sprintf(temp, "<input type='radio' class='big' name='_frport' value='FPort2' %s> FPort2 &nbsp ", set.frport2);
+    sprintf(temp, "<input type='radio' class='big' name='_frport' value='FPort2' %s> FPort2 <br>", set.frport2);
     settingsPage += temp;  
-    sprintf(temp, "<input type='radio' class='big' name='_frport' value='SPort' %s> SPort &nbsp ", set.frport3);
-    settingsPage += temp;    
-    sprintf(temp, "<input type='radio' class='big' name='_frport' value='Auto' %s> Auto <br>", set.frport4);
-    settingsPage += temp;    
-           
+     
     settingsPage += "Frs Downlink &nbsp &nbsp";  
     sprintf(temp, "<input type='checkbox' class='big' name='_set.fr_io_ser' value='Serial' %s> Serial &nbsp &nbsp", set.fr_io1);
     settingsPage += temp; 
@@ -348,9 +346,7 @@ byte b;
       set.frport = f_port2;      
     }  else if (b == 3) {
       set.frport = s_port;
-    }  else if (b == 4) {
-      set.frport = f_auto;
-    }     
+    } 
         
     b = EEPROMRead8(165);                         // set.fr_io 165
     if (b == 0) {
@@ -566,26 +562,6 @@ void WriteSettingsToEEPROM() {
 //=================================================================================
 void ReadSettingsFromForm() {
   String S;
-
-  #if (defined frBuiltin)
-    S = server.arg("_frport");
-    if (S == "None") {
-      set.frport = f_none;
-   } else 
-   if (S == "FPort1") {
-      set.frport = f_port1;
-   }  else 
-   if (S == "FPort2") {
-      set.frport = f_port2;
-   }  else 
-   if (S == "SPort") {
-     set.frport = s_port; 
-   } else 
-   if (S == "Auto") {
-     set.frport = f_auto; 
-   }
-  #endif 
-
   #if (defined frBuiltin)
     S = server.arg("_trmode");
     if (S == "Ground") {
@@ -598,6 +574,22 @@ void ReadSettingsFromForm() {
      set.trmode = relay;
    }
   #endif
+  
+  #if (defined frBuiltin)
+    S = server.arg("_frport");
+     if (S == "None") {
+      set.frport = f_none;
+   } else 
+   if (S == "SPort") {
+     set.frport = s_port;
+   } else 
+   if (S == "FPort1") {
+      set.frport = f_port1;
+   }  else 
+   if (S == "FPort2") {
+      set.frport = f_port2;
+   }  
+  #endif 
   
   uint8_t frio = 0;
   S = server.arg("_set.fr_io_ser");      
@@ -773,32 +765,21 @@ void RefreshHTMLButtons() {
     set.trmode2 = "";
     set.trmode3 = "checked";
   } 
-
+  if (set.frport == s_port) {
+    set.frport3 = "checked";
+    set.frport1 = "";
+    set.frport2 = "";     
+  } else 
   if (set.frport == f_port1) {
+    set.frport3 = "";
     set.frport1 = "checked";
-    set.frport2 = "";
-    set.frport3 = ""; 
-    set.frport4 = "";          
+    set.frport2 = "";     
   }  else 
   if (set.frport == f_port2) {
+    set.frport3 = "";
     set.frport1 = "";
-    set.frport2 = "checked";
-    set.frport3 = "";   
-    set.frport4 = "";         
-  }  else
-   if (set.frport == s_port) {
-    set.frport1 = "";
-    set.frport2 = "";
-    set.frport3 = "checked"; 
-    set.frport4 = "";          
-  } else
-   if (set.frport == f_auto) {
-    set.frport1 = "";
-    set.frport2 = "";
-    set.frport3 = ""; 
-    set.frport4 = "checked";          
-  } 
-  
+    set.frport2 = "checked";     
+  }   
   set.fr_io1 = "";
   set.fr_io2 = "";
   set.fr_io3 = ""; 
@@ -1155,19 +1136,7 @@ void RawSettingsToStruct() {
   #elif  defined Relay_Mode 
     set.trmode = relay;
   #endif
-  
-  #if (FrSky_Port_Type == 0)
-    set.frport = f_none;
-  #elif (FrSky_Port_Type == 1)
-    set.frport = f_port1;
-  #elif (FrSky_Port_Type == 2)
-    set.frport = f_port2;   
-   #elif (FrSky_Port_Type == 3)
-    set.frport = s_port;   
-  #elif (FrSky_Port_Type == 4)
-    set.frport = f_auto;    
-  #endif
-  
+
   if (FC_Mavlink_IO == 0) {
     set.fc_io = fc_ser;
   } else  
@@ -1269,6 +1238,16 @@ void RawSettingsToStruct() {
     set.btmode = slave; 
   }  
   strcpy(set.btConnectToSlave, BT_ConnectToSlave); 
+  
+  #if (FrSky_Port_Type == 0)
+    set.frport = f_none;
+  #elif (FrSky_Port_Type == 3)
+    set.frport = s_port;
+  #elif (FrSky_Port_Type == 1)
+    set.frport = f_port1;
+  #elif (FrSky_Port_Type == 2)
+    set.frport = f_port2;   
+  #endif
   
   #if (defined webSupport)   
     set.web_support =  true;   // this flag is not saved in eeprom

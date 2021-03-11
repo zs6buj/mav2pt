@@ -158,6 +158,7 @@
 //                     F O R W A R D    D E C L A R A T I O N S
 //=================================================================================================
 
+uint32_t GetBaud(uint8_t);
 void main_loop();
 void ServiceWiFiRoutines();
 void ServiceInboundTCPClients();
@@ -196,7 +197,7 @@ void Accum_mAh1(uint32_t);
 void Accum_mAh2(uint32_t);
 void Accum_Volts1(uint32_t); 
 void Accum_Volts2(uint32_t); 
-uint32_t getConsistent(uint8_t);
+uint32_t GetConsistent(uint8_t);
 uint32_t SenseUart(uint8_t);
 void OpenSDForWrite();  
 void ServiceMavStatusLed();
@@ -751,23 +752,19 @@ void setup()  {
 //=================================================================================================  
 
   if ((set.fc_io == fc_ser) || (set.gs_io == gs_ser))  {  //  Serial
-    #if defined MavAutoBaud
-      set.baud = FrPort.getBaud(mav_rxPin, idle_high); // mavlink port is a regular non-inverted port
-      Log.printf("Mavlink baud detected at %d b/s on rx:%d\n", set.baud, mav_rxPin);  
-      String s_baud=String(set.baud);   // integer to string. "String" overloaded
-      LogScreenPrintln("Mav baud:"+ s_baud);        
+    #if defined AutoBaud
+      set.baud = GetBaud(mav_rxPin);
     #endif   
     #if (defined ESP32)   
-      delay(100);
       // system can wait here for a few seconds (timeout) if there is no telemetry in
       mvSerial.begin(set.baud, SERIAL_8N1, mav_rxPin, mav_txPin);   //  rx,tx, cts, rts  
-      delay(10);
     #else
       mvSerial.begin(set.baud);    
     #endif 
-    Log.printf("Mavlink serial on pins rx:%d and tx:%d  baud:%d\n", mav_rxPin, mav_txPin, set.baud); 
+    Log.printf("Mavlink serial on pins rx:%d and tx:%d\n", mav_rxPin, mav_txPin); 
   }
-  #if (defined frBuiltin)       
+  
+  #if (defined frBuiltin)           
     FrPort.initialise();
   #endif
   
@@ -1852,26 +1849,24 @@ void DecodeOneMavFrame() {
           if (!mavGood) break;
 
           ap_onboard_control_sensors_health = mavlink_msg_sys_status_get_onboard_control_sensors_health(&R2Gmsg);
-          ap_voltage_battery1 = Get_Volt_Average1(mavlink_msg_sys_status_get_voltage_battery(&R2Gmsg));        // V  from Get_Volt_Average1()
-          ap_current_battery1 = Get_Current_Average1(mavlink_msg_sys_status_get_current_battery(&R2Gmsg));     // dA,  100 = 1A
+          ap_voltage_battery1= Get_Volt_Average1(mavlink_msg_sys_status_get_voltage_battery(&R2Gmsg));        // 1000 = 1V  i.e mV
+          ap_current_battery1= Get_Current_Average1(mavlink_msg_sys_status_get_current_battery(&R2Gmsg));     //  100 = 1A, i.e dA
           if(ap_voltage_battery1> 21000) ap_ccell_count1= 6;
             else if (ap_voltage_battery1> 16800 && ap_ccell_count1!= 6) ap_ccell_count1= 5;
             else if(ap_voltage_battery1> 12600 && ap_ccell_count1!= 5) ap_ccell_count1= 4;
             else if(ap_voltage_battery1> 8400 && ap_ccell_count1!= 4) ap_ccell_count1= 3;
             else if(ap_voltage_battery1> 4200 && ap_ccell_count1!= 3) ap_ccell_count1= 2;
             else ap_ccell_count1= 0;
-            
-          pt_bat1_volts = ap_voltage_battery1 * 0.01F;         // mV -> dV
-          pt_bat1_amps = ap_current_battery1 * 0.1F;           // cA -> dA 
-                     
+          
           #if defined Mav_Debug_All || defined Mav_Debug_SysStatus || defined Debug_Batteries
             Log.print("Mavlink from FC #1 Sys_status: ");     
             Log.print(" Sensor health=");
             Log.print(ap_onboard_control_sensors_health);   // 32b bitwise 0: error, 1: healthy.
             Log.print(" Bat volts=");
-            Log.print(ap_voltage_battery1 * 0.001F, 3);   // mV -> V
+            Log.print((float)ap_voltage_battery1/ 1000, 3);   // now V
             Log.print("  Bat amps=");
-            Log.print(ap_current_battery1 * 0.01F, 3);    // dA -> A
+            Log.print((float)ap_current_battery1/ 100, 1);   // now A
+              
             Log.print("  mAh="); Log.print(bat1.mAh, 6);    
             Log.print("  Total mAh="); Log.print(bat1.tot_mAh, 3);  // Consumed so far, calculated in Average module
          
@@ -2667,7 +2662,7 @@ void DecodeOneMavFrame() {
          case MAVLINK_MSG_ID_BATTERY_STATUS:      // #147   https://mavlink.io/en/messages/common.html
           if (!mavGood) break;       
           ap_battery_id = mavlink_msg_battery_status_get_id(&R2Gmsg);  
-          ap_current_battery = mavlink_msg_battery_status_get_current_battery(&R2Gmsg);      // cA (10*milliamperes) (1 = 10 milliampere)
+          ap_current_battery = mavlink_msg_battery_status_get_current_battery(&R2Gmsg);      // in 10*milliamperes (1 = 10 milliampere)
           ap_current_consumed = mavlink_msg_battery_status_get_current_consumed(&R2Gmsg);    // mAh
           ap147_battery_remaining = mavlink_msg_battery_status_get_battery_remaining(&R2Gmsg);  // (0%: 0, 100%: 100)  
 
@@ -2680,7 +2675,7 @@ void DecodeOneMavFrame() {
           #if defined Mav_Debug_All || defined Debug_Batteries
             Log.print("Mavlink from FC #147 Battery Status: ");
             Log.print(" bat id= "); Log.print(ap_battery_id); 
-            Log.print(" bat current mA= "); Log.print(ap_current_battery*10); // now shows mA
+            Log.print(" bat current mA= "); Log.print(ap_current_battery*10); 
             Log.print(" ap_current_consumed mAh= ");  Log.print(ap_current_consumed);   
             if (ap_battery_id == 0) {
               Log.print(" my di/dt mAh= ");  

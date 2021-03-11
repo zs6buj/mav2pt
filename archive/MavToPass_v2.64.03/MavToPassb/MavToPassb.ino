@@ -158,6 +158,7 @@
 //                     F O R W A R D    D E C L A R A T I O N S
 //=================================================================================================
 
+uint32_t GetBaud(uint8_t);
 void main_loop();
 void ServiceWiFiRoutines();
 void ServiceInboundTCPClients();
@@ -196,7 +197,7 @@ void Accum_mAh1(uint32_t);
 void Accum_mAh2(uint32_t);
 void Accum_Volts1(uint32_t); 
 void Accum_Volts2(uint32_t); 
-uint32_t getConsistent(uint8_t);
+uint32_t GetConsistent(uint8_t);
 uint32_t SenseUart(uint8_t);
 void OpenSDForWrite();  
 void ServiceMavStatusLed();
@@ -751,23 +752,19 @@ void setup()  {
 //=================================================================================================  
 
   if ((set.fc_io == fc_ser) || (set.gs_io == gs_ser))  {  //  Serial
-    #if defined MavAutoBaud
-      set.baud = FrPort.getBaud(mav_rxPin, idle_high); // mavlink port is a regular non-inverted port
-      Log.printf("Mavlink baud detected at %d b/s on rx:%d\n", set.baud, mav_rxPin);  
-      String s_baud=String(set.baud);   // integer to string. "String" overloaded
-      LogScreenPrintln("Mav baud:"+ s_baud);        
+    #if defined AutoBaud
+      set.baud = GetBaud(mav_rxPin);
     #endif   
     #if (defined ESP32)   
-      delay(100);
       // system can wait here for a few seconds (timeout) if there is no telemetry in
       mvSerial.begin(set.baud, SERIAL_8N1, mav_rxPin, mav_txPin);   //  rx,tx, cts, rts  
-      delay(10);
     #else
       mvSerial.begin(set.baud);    
     #endif 
-    Log.printf("Mavlink serial on pins rx:%d and tx:%d  baud:%d\n", mav_rxPin, mav_txPin, set.baud); 
+    Log.printf("Mavlink serial on pins rx:%d and tx:%d\n", mav_rxPin, mav_txPin); 
   }
-  #if (defined frBuiltin)       
+  
+  #if (defined frBuiltin)           
     FrPort.initialise();
   #endif
   

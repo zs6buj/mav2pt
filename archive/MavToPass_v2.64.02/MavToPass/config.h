@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      64
-#define PATCH_LEVEL        4
+#define PATCH_LEVEL        2
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -14,15 +14,12 @@
 
 Complete change log and debugging options are at the bottom of this tab
                                           
-v2.64.03   2021-02-19  Correct char width for ST7789 display                   
-                       FrSky, uom was cA, now dA for current
-                       Correct HUD current
-           2021-02-27  Enable FrSky UDP out            
-V2.64.4    2021-03-01  Add serial port polarity detection and auto invert.
-                       Add auto FrSky serial port speed detection option. S.Port vs F.Port.
-           2021-03-04  Hud rssi blank fix. 
-                       Always auto detect FrSky serial speed. Remove option. 
-           2021-03-11  fport1 || fport2                                                                         
+v2.64.00   2021-02-10  Upgrade to F.Port v2.3.7. Tests good.
+v2.64.01   2021-02-12  Add support for FrSky S/Fport udp out
+v2.64.02   2021-02-19  Start using GitHub Tags
+                       Embed version number constant
+ 
+                                                                 
 */
 //===========================================================================================
 //
@@ -36,25 +33,27 @@ V2.64.4    2021-03-01  Add serial port polarity detection and auto invert.
                                        // Most of the settings below are saved to EEPROM the first time mav2pt runs
 //#define Reset_Web_Defaults           // Reset settings in eeprom. Do this if you suspect eeprom settings are corrupt USE SPARINGLY
 
-// Choose only one setting for FrSky Port Type 
+
+// Choose either S.Port or F.Port or None
 //#define FrSky_Port_Type 0   // No FrSky Port support needed. Now I'm a "Mavlink Switch"
-//#define FrSky_Port_Type 1   // F.Port v1
-//#define FrSky_Port_Type 2   // F.Port v2 FrSky ISRM/ACCESS capable transmitters and receivers only
-#define FrSky_Port_Type 3   // S.Port / legacy
-//#define FrSky_Port_Type 4   // Auto detect
+#define FrSky_Port_Type 1   // S.Port
+//#define FrSky_Port_Type 2   // F.Port v1/v2 FrSky ISRM/ACCESS capable transmitters and receivers only
+
+//  #define Inverted_Inverted_FrSky_Receiver_Pad // S.Port is usually INVERTED (idle low). F.Port is always UNINVERTED (idle high)
 
 
 #define Device_sysid     251                     // Our Mavlink Identity - APM FC is 1, Mission Planner is 255, QGC default is 0 
 #define Device_compid    MAV_COMP_ID_PERIPHERAL  // 158 Generic autopilot peripheral - APM FC is 1, MP is 190, QGC is  https://mavlink.io/en/messages/common.html
 
 #define webSupport                      // ESP only. Enable wifi web support, including OTA firmware updating. Browse to IP.
-#define webPassword      "admin"    // Web password 
+#define webPassword      "changeme!"    // Web password 
 
 #define displaySupport                 // Enable if you have a display attached - choose display type where board variant is defined 
-                                       // NOTE: Set mvBaud = 57600 for Dragonlink and RFD900X
-#define mvBaud                 57600   // Mavlink to/from the flight controller - max 921600 - must match FC or long range radio
-//#define MavAutoBaud                    // Auto detect Mavlink telemetry speed             
-                                       // Default for FrSky is auto detect telemetry speed    
+
+//#define AutoBaud                      // Auto detect Mavlink serial-in baud rate
+                                        // NOTE: Set mvBaud = 57600 for Dragonlink and RFD900X
+#define mvBaud                 57600    // Mavlink to/from the flight controller - max 921600 - must match FC or long range radio
+
 // Do not enable for FlightDeck
 #define PlusVersion  // Added support for 0x5009 Mission WPs, 0x50F1 Servo_Channels, 0x50F2 VFR_Hud
 
@@ -86,8 +85,8 @@ V2.64.4    2021-03-01  Add serial port polarity detection and auto invert.
 // These are optional, and in addition to the F.Port telemetry output
 //#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
-//#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
+#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
 
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with GCS I/O
 
@@ -102,7 +101,7 @@ V2.64.4    2021-03-01  Add serial port polarity detection and auto invert.
 // How does FrSky telemetry leave this translator? 
 // Select one option or combination only
 
-//#define FrSky_IO     0     // None  - Mav2PT becomes a Mavlink Switch
+//#define FrSky_IO     0     // None
 #define FrSky_IO     1     // Serial  
 //#define FrSky_IO     2     // UDP  
 //#define FrSky_IO     3     // Serial & UDP
@@ -126,11 +125,11 @@ V2.64.4    2021-03-01  Add serial port polarity detection and auto invert.
 //                          S E L E C T   E S P   B O A R D   V A R I A N T   
 //=================================================================================================
 //================================================================================================= 
-#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
+//#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi - Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
-//#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
+#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     7    // ESP32 Dev Board with ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
 
@@ -157,7 +156,7 @@ V2.64.4    2021-03-01  Add serial port polarity detection and auto invert.
 #define APpw                 "password"         // Change me! Must be >= 8 chars
 #define APchannel            9                  // The wifi channel to use for our AP
 #define STAssid              "OmegaOffice"      // Target AP to connect to (in STA mode) <====
-#define STApw                "Navara@98"         // Target AP password (in STA mode). Must be >= 8 chars      
+#define STApw                "password"         // Target AP password (in STA mode). Must be >= 8 chars      
 
 // Choose one default mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
 //#define WiFi_Mode   1  //AP            
@@ -354,7 +353,7 @@ bool daylightSaving = false;
 #endif
 
 
-  #if (FrSky_Port_Type == 1) || (FrSky_Port_Type == 2) || (FrSky_Port_Type == 3) || (FrSky_Port_Type == 4) 
+  #if (FrSky_Port_Type == 1 || FrSky_Port_Type == 2)
     #define frBuiltin     //  for S.Port or F.Port we need FrSky_Port support compiled in
   #endif
 
@@ -381,7 +380,7 @@ bool daylightSaving = false;
  #endif
  
 #if (not defined FrSky_Port_Type)
-  #error define FrSky_Port_Type, None or SPort_Version or FPort_Version 1 or 2 or Auto
+  #error define FrSky_Port_Type, None or SPort_Version or FPort_Version
 #endif    
 
  
@@ -892,15 +891,15 @@ bool daylightSaving = false;
 
       #if (SCR_ORIENT == 0)           // portrait
         #define SCR_H_CH     20       // characters not pixels
-        #define SCR_W_CH     11       // ?
+        #define SCR_W_CH     30       // ?
         #define CHAR_W_PX    12       // pixels    
-        #define CHAR_H_PX    12       // pixels 
+        #define CHAR_H_PX    15       // pixels 
         #define TEXT_SIZE     1                
       #elif (SCR_ORIENT == 1)         // landscape
         #define SCR_H_CH      8       // characters not pixels 
         #define SCR_W_CH     20  
-        #define CHAR_W_PX    12       // 12 x 20 = 240  
-        #define CHAR_H_PX    16       // 16 x 8 =  128
+        #define CHAR_W_PX    16       // pixels x 8 = 128  rem 7   
+        #define CHAR_H_PX    21 
         #define TEXT_SIZE     2                       
       #endif 
       
@@ -1220,7 +1219,7 @@ bool daylightSaving = false;
 //#define Frs_Debug_Mission   
 //#define Mav_Debug_System_Time   
 //#define Decode_Non_Essential_Mav 
-
+//#define Debug_Baud 
 //#define Debug_Radio_Status  
 //#define Debug_GCS_Unknown
 //#define Debug_Param_Request_Read
@@ -1277,10 +1276,6 @@ bool daylightSaving = false;
 
 //#define Derive_PWM
 //#define Debug_PWM_Channels
-//#define Debug_Baud 
-
-//#define Debug_FrSPort_Loop_Period
-
 //=================================================================================================   
 //                                   C H A N G E   L O G
 //=================================================================================================
@@ -1441,7 +1436,7 @@ v2.62.4 2020-09-16  Fix BT slave name truncated by 1 chr
 v2.62.8 2020-10-07  Improve display scrolling
         2020-10-12  Tested WiFi TCP output to AntTracker v2.15   
 v2.62.9  2020-10-14 Add support for LILYGO® TTGO T2 SD TFT Colour 
-v2.63.0 2020-10-26  S.Port bug introduced here. Add support for FrSky ISRM/ACCESS F.Port receivers (like Archer)  
+v2.63.0 2020-10-26  Add support for FrSky ISRM/ACCESS F.Port receivers (like Archer)  
 v2.63.1 2020-10-29  Add option "no FrSky port support". Fw becomes "Mavlink Switch".
                     Restore Bluetooth support in web interface.   
 v2.63.2 2020-11-02  Add switchable flight info page on display                         
@@ -1460,9 +1455,5 @@ v2.63.9/10 2020-12-18  Mavlite support in ground mode.
 v2.63.11   2020-12-26  Documentation change, uplink is to FC, downlink is to GCS 
            2021-01-09  Tidy up MavLITE, add command_ack 
            2020-01-10  Web page downlink/uplink convention reversed   
-v2.63.12   2021-01-22  Debug and test simultaneous udp wifi uplink and downlink  
-v2.64.00   2021-02-10  Upgrade to F.Port v2.3.7. Tests good.
-v2.64.01   2021-02-12  Add support for FrSky S/Fport udp out
-v2.64.02   2021-02-19  Start using GitHub Tags
-                       Embed version number constant                                                                                                                                                                                                                                                                        
+v2.63.12   2021-01-22  Debug and test simultaneous udp wifi uplink and downlink                                                                                                                                                                                                                                                                          
 */

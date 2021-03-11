@@ -264,7 +264,7 @@
       WiFi.begin(set.staSSID, set.staPw);
       while (WiFi.status() != WL_CONNECTED){
         retry++;
-        if (retry > 20) {
+        if (retry > 10) {
           Log.println();
           Log.println("Failed to connect in STA mode");
           LogScreenPrintln("No connect STA Mode");
@@ -571,6 +571,7 @@ void BlinkMavLed(uint32_t period) {
       }
 }
 
+//================================================================================================= 
 //=================================================================================================  
 
 void Printbyte(byte b, bool LF, char delimiter) {
@@ -747,24 +748,14 @@ uint16_t mav_checksum;          ///< X.25 crcout
   
 }
 //=================================================================================================  
-float RadToDeg(float _Rad) {
+float RadToDeg (float _Rad) {
   return _Rad * 180 / PI;  
 }
 //=================================================================================================  
-float DegToRad(float _Deg) {
+float DegToRad (float _Deg) {
   return _Deg * PI / 180;  
 }
-
 //=================================================================================================  
-uint32_t TenToPwr(uint8_t pwr) {
-  uint32_t ttp = 1;
-  for (int i = 1 ; i<=pwr ; i++) {
-    ttp*=10;
-  }
-  return ttp;
-} 
-//================================================================================================= 
- 
 String MavSeverity(uint8_t sev) {
  switch(sev) {
     
@@ -1185,7 +1176,7 @@ void PrintLoopPeriod() {
           xx = 18 * CHAR_W_PX;
           yy = 14 * CHAR_W_PX;        
           display.setCursor(xx, yy); 
-          snprintf(snprintf_buf, snp_max, "Alt:%d", cur.alt / 1000);    // mm => m 
+          snprintf(snprintf_buf, snp_max, "Alt:%d", ap33_alt_ag / 1000);    // mm => m 
           display.fillRect(xx+(4*CHAR_W_PX), yy, (4*CHAR_W_PX), CHAR_H_PX, ILI9341_BLUE); // clear the previous line   
           display.println(snprintf_buf); 
 
@@ -1193,7 +1184,7 @@ void PrintLoopPeriod() {
           xx = 0;
           yy = 16 * CHAR_W_PX;        
           display.setCursor(xx, yy); 
-          snprintf(snprintf_buf, snp_max, "V:%.1fV", ap_voltage_battery1 * 0.1F);     
+          snprintf(snprintf_buf, snp_max, "V:%.1fV", (float)ap_voltage_battery1/1000);     
           display.fillRect(xx+(2*CHAR_W_PX), yy, (6*CHAR_W_PX), CHAR_H_PX, ILI9341_BLUE); // clear the previous line   
           display.println(snprintf_buf); 
           
@@ -1201,7 +1192,7 @@ void PrintLoopPeriod() {
           xx = 9 * CHAR_W_PX;
           yy = 16 * CHAR_W_PX;        
           display.setCursor(xx, yy); 
-          snprintf(snprintf_buf, snp_max, "A:%.0f", ap_current_battery1* 0.1F);     
+          snprintf(snprintf_buf, snp_max, "A:%.0f", (float)ap_current_battery1/100);     
           display.fillRect(xx+(2*CHAR_W_PX), yy, (6*CHAR_W_PX), CHAR_H_PX, ILI9341_BLUE); // clear the previous line   
           display.println(snprintf_buf); 
           
@@ -1209,7 +1200,7 @@ void PrintLoopPeriod() {
           xx = 18 * CHAR_W_PX;
           yy = 16 * CHAR_W_PX;        
           display.setCursor(xx, yy); 
-          snprintf(snprintf_buf, snp_max, "Ah:%.1f", )pt_bat1_mAh 0.001F);     
+          snprintf(snprintf_buf, snp_max, "Ah:%.1f", (float)pt_bat1_mAh/ 1000);     
           display.fillRect(xx+(3*CHAR_W_PX), yy, (5*CHAR_W_PX), CHAR_H_PX, ILI9341_BLUE); // clear the previous line   
           display.println(snprintf_buf);           
           
@@ -1238,7 +1229,7 @@ void PrintLoopPeriod() {
           yy = 0;
           display.setCursor(xx,yy);       
           snprintf(snprintf_buf, snp_max, "Lat %.7f", cur.lat);
-          display.fillRect(xx+(4*CHAR_W_PX), yy, 11 * CHAR_W_PX, CHAR_H_PX, SCR_BACKGROUND); // clear the previous data           
+          display.fillRect(xx+(3*CHAR_W_PX), yy, 11 * CHAR_W_PX, CHAR_H_PX, SCR_BACKGROUND); // clear the previous data           
           display.println(snprintf_buf);  
 
           // Longitude
@@ -1246,14 +1237,14 @@ void PrintLoopPeriod() {
           yy = 1.8 * CHAR_H_PX;    
           display.setCursor(xx, yy);                 
           snprintf(snprintf_buf, snp_max, "Lon %.7f", cur.lon);
-          display.fillRect(xx+(4*CHAR_W_PX), yy, 11 * CHAR_W_PX, CHAR_H_PX, SCR_BACKGROUND);        
+          display.fillRect(xx+(3*CHAR_W_PX), yy, 11 * CHAR_W_PX, CHAR_H_PX, SCR_BACKGROUND);        
           display.println(snprintf_buf); 
 
           // Volts, Amps and Ah 
           xx = 0;
           yy = 3.6 * CHAR_H_PX;      
           display.setCursor(xx, yy);               
-          snprintf(snprintf_buf, snp_max, "%.1fV %.0fA %.1fAh", pt_bat1_volts * 0.1F, pt_bat1_amps * 0.1F, pt_bat1_mAh * 0.001F);     
+          snprintf(snprintf_buf, snp_max, "%.1fV %.1fA %.1fAh", (float)ap_voltage_battery1/1000, (float)ap_current_battery1/100, (float)pt_bat1_mAh/ 1000);     
           display.fillRect(xx, yy, SCR_W_PX, CHAR_H_PX, SCR_BACKGROUND); // clear the whole line  
           display.println(snprintf_buf); 
 
@@ -1262,8 +1253,7 @@ void PrintLoopPeriod() {
           yy = 5.4 * CHAR_H_PX;      
           display.setCursor(xx, yy);            
           snprintf(snprintf_buf, snp_max, "Sats %d RSSI %ld%%", ap24_sat_visible, pt_rssi); 
-          display.fillRect(xx+(5*CHAR_W_PX), yy, (3 * CHAR_W_PX), CHAR_H_PX, SCR_BACKGROUND);  
-          display.fillRect(xx+(12*CHAR_W_PX), yy, (4 * CHAR_W_PX), CHAR_H_PX, SCR_BACKGROUND);   // blank rssi  
+          display.fillRect(xx+(5*CHAR_W_PX), yy, 10 * CHAR_W_PX, CHAR_H_PX, SCR_BACKGROUND);     
           display.println(snprintf_buf);       
 
            
@@ -1613,17 +1603,17 @@ uint32_t Get_Volt_Average1(uint16_t mV)  {
   return bat1.avg_mV;
 }
 //=================================================================================================  
-uint32_t Get_Current_Average1(uint16_t cA)  {   // in 100*milliamperes (1 = 100 milliampere)
+uint32_t Get_Current_Average1(uint16_t dA)  {   // in 10*milliamperes (1 = 10 milliampere)
   
-  Accum_mAh1(cA);  
+  Accum_mAh1(dA);  
   
-  if (bat1.avg_cA < 1){
-    bat1.avg_cA = cA;  // Initialise first time
+  if (bat1.avg_dA < 1){
+    bat1.avg_dA = dA;  // Initialise first time
   }
 
-  bat1.avg_cA = (bat1.avg_cA * 0.6666F) + (cA * 0.333F);  // moving average
+  bat1.avg_dA = (bat1.avg_dA * 0.6666) + (dA * 0.333);  // moving average
 
-  return bat1.avg_cA;
+  return bat1.avg_dA;
   }
 
 void Accum_Volts1(uint32_t mVlt) {    //  mV   milli-Volts
@@ -1631,7 +1621,7 @@ void Accum_Volts1(uint32_t mVlt) {    //  mV   milli-Volts
   bat1.samples++;
 }
 
-void Accum_mAh1(uint32_t cAs) {        //  cA    100 = 1A
+void Accum_mAh1(uint32_t dAs) {        //  dA    10 = 1A
   if (bat1.ft) {
     bat1.prv_millis = millis() -1;   // prevent divide zero
     bat1.ft = false;
@@ -1641,9 +1631,9 @@ void Accum_mAh1(uint32_t cAs) {        //  cA    100 = 1A
     
   double hrs = (float)(period / 3600000.0f);  // ms to hours
 
-  bat1.mAh = cAs * hrs;     //  Tiny cAh consumed this tiny period di/dt
+  bat1.mAh = dAs * hrs;     //  Tiny dAh consumed this tiny period di/dt
  // bat1.mAh *= 100;        //  dA to mA  
-  bat1.mAh *= 10;           //  cA to mA 
+  bat1.mAh *= 10;           //  dA to mA ?
   bat1.mAh *= 1.0625;       // Emirical adjustment Markus Greinwald 2019/05/21
   bat1.tot_mAh += bat1.mAh;   //   Add them all in
 }
@@ -1665,22 +1655,22 @@ uint32_t Get_Volt_Average2(uint16_t mV)  {
   return bat2.avg_mV;
 }
   
-uint32_t Get_Current_Average2(uint16_t cA)  {
+uint32_t Get_Current_Average2(uint16_t dA)  {
 
-  if (bat2.avg_cA == 0) bat2.avg_cA = cA;  // Initialise first time
+  if (bat2.avg_dA == 0) bat2.avg_dA = dA;  // Initialise first time
 
-  bat2.avg_cA = (bat2.avg_cA * 0.666) + (cA * 0.333);  // moving average
+  bat2.avg_dA = (bat2.avg_dA * 0.666) + (dA * 0.333);  // moving average
 
-  Accum_mAh2(cA);  
-  return bat2.avg_cA;
+  Accum_mAh2(dA);  
+  return bat2.avg_dA;
   }
 
-void Accum_Volts2(uint32_t mVlt) {      //  mV   milli-Volts
-  bat2.tot_volts += (mVlt * 0.001F);    // Volts
+void Accum_Volts2(uint32_t mVlt) {    //  mV   milli-Volts
+  bat2.tot_volts += (mVlt / 1000);    // Volts
   bat2.samples++;
 }
 
-void Accum_mAh2(uint32_t cAs) {        //  cA    100 = 1A
+void Accum_mAh2(uint32_t dAs) {        //  dA    10 = 1A
   if (bat2.ft) {
     bat2.prv_millis = millis() -1;   // prevent divide zero
     bat2.ft = false;
@@ -1690,9 +1680,9 @@ void Accum_mAh2(uint32_t cAs) {        //  cA    100 = 1A
     
  double hrs = (float)(period / 3600000.0f);  // ms to hours
 
-  bat2.mAh = cAs * hrs;   //  Tiny cAh consumed this tiny period di/dt
- // bat2.mAh *= 100;        //  cA to mA  
-  bat2.mAh *= 10;        //  cA to mA ?
+  bat2.mAh = dAs * hrs;   //  Tiny dAh consumed this tiny period di/dt
+ // bat2.mAh *= 100;        //  dA to mA  
+  bat2.mAh *= 10;        //  dA to mA ?
   bat2.mAh *= 1.0625;       // Emirical adjustment Markus Greinwald 2019/05/21 
   bat2.tot_mAh += bat2.mAh;   //   Add them all in
 }
@@ -1704,7 +1694,153 @@ float Total_mAh2() {
 float Total_mWh2() {                                     // Total energy consumed bat1
   return bat2.tot_mAh * (bat2.tot_volts / bat2.samples);
 }
+//=================================================================================================  
+uint32_t GetBaud(uint8_t rxPin) {
+  Log.printf("AutoBaud - Sensing mav_rxPin %2d \n", rxPin );
+  uint8_t i = 0;
+  uint8_t col = 0;
+  pinMode(rxPin, INPUT);       
+  digitalWrite (rxPin, HIGH); // pull up enabled for noise reduction ?
 
+  uint32_t gb_baud = GetConsistent(rxPin);
+  while (gb_baud == 0) {
+    if(ftGetBaud) {
+      ftGetBaud = false;
+    }
+
+    i++;
+    if ((i % 5) == 0) {
+      Log.print(".");
+      col++; 
+    }
+    if (col > 60) {
+      Log.println(); 
+      Log.printf("No telemetry found on pin %2d\n", rxPin); 
+      col = 0;
+      i = 0;
+    }
+    gb_baud = GetConsistent(rxPin);
+  } 
+  if (!ftGetBaud) {
+    Log.println();
+  }
+
+  Log.print("Telem found at "); Log.print(gb_baud);  Log.println(" b/s");
+  LogScreenPrintln("Telem found at " + String(gb_baud));
+
+  return(gb_baud);
+}
+//=================================================================================================  
+uint32_t GetConsistent(uint8_t rxPin) {
+  uint32_t t_baud[5];
+
+  while (true) {  
+    t_baud[0] = SenseUart(rxPin);
+    delay(10);
+    t_baud[1] = SenseUart(rxPin);
+    delay(10);
+    t_baud[2] = SenseUart(rxPin);
+    delay(10);
+    t_baud[3] = SenseUart(rxPin);
+    delay(10);
+    t_baud[4] = SenseUart(rxPin);
+    #if defined Debug_All || defined Debug_Baud
+      Log.print("  t_baud[0]="); Log.print(t_baud[0]);
+      Log.print("  t_baud[1]="); Log.print(t_baud[1]);
+      Log.print("  t_baud[2]="); Log.print(t_baud[2]);
+      Log.print("  t_baud[3]="); Log.println(t_baud[3]);
+    #endif  
+    if (t_baud[0] == t_baud[1]) {
+      if (t_baud[1] == t_baud[2]) {
+        if (t_baud[2] == t_baud[3]) { 
+          if (t_baud[3] == t_baud[4]) {   
+            #if defined Debug_All || defined Debug_Baud    
+              Log.print("Consistent baud found="); Log.println(t_baud[3]); 
+            #endif   
+            return t_baud[3]; 
+          }          
+        }
+      }
+    }
+  }
+}
+//=================================================================================================  
+uint32_t SenseUart(uint8_t  rxPin) {
+
+uint32_t pw = 999999;  //  Pulse width in uS
+uint32_t min_pw = 999999;
+uint32_t su_baud = 0;
+const uint32_t su_timeout = 5000; // uS !
+
+#if defined Debug_All || defined Debug_Baud
+  Log.print("rxPin ");  Log.println(rxPin);
+#endif  
+
+  while(digitalRead(rxPin) == 1){ }  // wait for low bit to start
+  
+  for (int i = 1; i <= 10; i++) {            // 1 start bit, 8 data and 1 stop bit
+    pw = pulseIn(rxPin,LOW, su_timeout);     // default timeout 1000mS! Returns the length of the pulse in uS
+    #if (defined wifiBuiltin)
+      ServiceWiFiRoutines();
+    #endif  
+    if (pw !=0) {
+      min_pw = (pw < min_pw) ? pw : min_pw;  // Choose the lowest
+    } else {
+       return 0;  // timeout - no telemetry
+    }
+  }
+ 
+  #if defined Debug_All || defined Debug_Baud
+    Log.print("pw="); Log.print(pw); Log.print("  min_pw="); Log.println(min_pw);
+  #endif
+
+  switch(min_pw) {   
+    case 1:     
+     su_baud = 921600;
+      break;
+    case 2:     
+     su_baud = 460800;
+      break;     
+    case 4 ... 11:     
+     su_baud = 115200;
+      break;
+    case 12 ... 19:  
+     su_baud = 57600;
+      break;
+     case 20 ... 28:  
+     su_baud = 38400;
+      break; 
+    case 29 ... 39:  
+     su_baud = 28800;
+      break;
+    case 40 ... 59:  
+     su_baud = 19200;
+      break;
+    case 60 ... 79:  
+     su_baud = 14400;
+      break;
+    case 80 ... 149:  
+     su_baud = 9600;
+      break;
+    case 150 ... 299:  
+     su_baud = 4800;
+      break;
+     case 300 ... 599:  
+     su_baud = 2400;
+      break;
+     case 600 ... 1199:  
+     su_baud = 1200;  
+      break;                        
+    default:  
+     su_baud = 0;    // no signal        
+ }
+
+ return su_baud;
+} 
+
+
+
+//=================================================================================================  
 //=================================================================================================  
 int8_t PWM_To_63(uint16_t PWM) {       // PWM 1000 to 2000   ->    nominal -63 to 63
 int8_t myint;

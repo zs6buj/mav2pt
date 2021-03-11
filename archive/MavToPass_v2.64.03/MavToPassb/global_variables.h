@@ -44,6 +44,7 @@ bool      clientPrev = true;
 bool      btActive = false;
 bool      btDisabled = false;
 bool      timeGood = false;
+bool      ftGetBaud = true;
 bool      gshbGood = false;
 
 uint8_t   sdStatus = 0; // 0=no reader, 1=reader found, 2=SD found, 3=open for append 4 = open for read, 9=failed
@@ -642,8 +643,7 @@ uint32_t pt_rssi;
 //                S E T T I N G S   A N D   O P T I O N S   S T R U C T U R E
 //=================================================================================================
 
-    typedef enum polarity_set { idle_low = 0, idle_high = 1, no_traffic = 2 } pol_t;  
-    typedef enum frport_type_set { f_none = 0, f_port1 = 1, f_port2 = 2, s_port = 3, f_auto = 4} frport_t; 
+    typedef enum frport_type_set { f_none = 0, f_port1 = 1, f_port2 = 2, s_port = 3 } frport_t; 
     typedef enum trmode_set { ground = 1 , air = 2, relay = 3 } trmode_t;                    // translator operation mode
     typedef enum fr_io_set { fr_none = 0, fr_ser = 1, fr_udp = 2, fr_ser_udp = 3, fr_sd = 4, fr_ser_sd = 5, fr_udp_sd = 6, fr_ser_udp_sd = 7} fr_io_t;       
     typedef enum fc_io_set { fc_ser = 0, fc_bt = 1 , fc_wifi = 2, fc_sd = 3 } fc_io_t;
@@ -683,7 +683,8 @@ uint32_t pt_rssi;
       // NOT saved in EEPROM
       uint8_t       rssi_override;    
       bool          Support_MavLite;   
-      bool          web_support;                             
+      bool          web_support;                
+                
       char*         trmode1;      // ground
       char*         trmode2;      // air
       char*         trmode3;      // relay      
@@ -712,10 +713,9 @@ uint32_t pt_rssi;
       char*         btmode1;      // master
       char*         btmode2;      // slave 
       char*         rssioverride; //rssi override        
+      char*         frport3;      // S.Port
       char*         frport1;      // F.Port1    
-      char*         frport2;      // F.Port2  
-      char*         frport3;      // S.Port 
-      char*         frport4;      // Auto                   
+      char*         frport2;      // F.Port2           
       } settings_struct_t;
       
     settings_struct_t set;  

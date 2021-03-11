@@ -1,4 +1,4 @@
-     //=================================================================================================  
+//=================================================================================================  
 //================================================================================================= 
 //
 //                                    F . P O R T   C L A S S
@@ -103,7 +103,6 @@
     static const uint16_t  fr_max = 48;           // frport frame buffer  35 + 2 + headroom 
     byte      frbuf[fr_max];
 
-    bool ftgetBaud = true;
     
     //=================================================================================
     //                      S  C  H  E  D  U  L  E  R
@@ -146,19 +145,15 @@
     uint16_t        sb_unsent;                    // how many sb rows in use  
     uint16_t        mt_unsent;                    // how many mt rows in use  
 
-    // Member function prototypes
+    // Member function declarations
   public:  
     void          initialise();   
     void          HandleTraffic();
     void          PushMessage(uint16_t msg_id, uint8_t sub_id); 
     void          ReportFrPortOnlineStatus();      
-    uint16_t      MatchWaitingParamRequests(char * paramid); 
-    uint32_t      getBaud(uint8_t rxpin, pol_t pl);      
+    uint16_t      MatchWaitingParamRequests(char * paramid);   
             
   private:  
-    pol_t         getPolarity(uint8_t rxpin);
-    uint32_t      getConsistent(uint8_t rxpin, pol_t pl);
-    uint32_t      SenseUart(uint8_t  rxpin, pol_t pl);          
     frport_t      Sense_FrPort(); 
     void          FPort_Read_And_Write(uint8_t *buf, frport_t  frport_type);  
     void          SPort_Read_And_Write(uint8_t *buf);           
@@ -229,81 +224,24 @@
     
     for (int i = 0 ; i < mt20_rows ; i++) {  // initialise MavLite uplink table
       mt20[i].inuse = 0;
-    }   
-
-    typedef enum wires_set { one_wire = 1, two_wire = 2 } wire_t;  
-    wire_t wire_mode;
-    uint8_t sense_pin = 0;
-    #if (defined TEENSY3X) 
-      wire_mode = one_wire;
-    #else
-      wire_mode = two_wire;
-    #endif
-
-    pol_t pol = no_traffic;
-    if (wire_mode == one_wire) {
-      sense_pin = fr_txPin;
-    } else {
-      sense_pin = fr_rxPin;  
-    }
+    }     
     
-    if (set.frport == f_auto) {
-        pol = (pol_t)getPolarity(sense_pin);   
-        bool ftp = true;
-        static int8_t cdown = 20;     
-        while ( (pol == no_traffic) && (cdown) ){
-          if (ftp) {
-            Log.printf("FrSky Port: No telem on pin:%d. Retrying ", sense_pin);
-            String sPin=String(sense_pin);   // integer to string
-            LogScreenPrintln("No telem on rxpin:"+ sPin);            
-            ftp = false;
-          }
-          Log.print(cdown); Log.print(" ");
-          pol = (pol_t)getPolarity(sense_pin);
-          delay(500);      
-          if (cdown-- == 1 ) {
-            Log.println();
-            Log.println("Auto sensing abandoned. Defaulting to S.Port");
-            LogScreenPrintln("Default to SPort!");
-            pol = idle_low;  
-            set.frport = s_port;  
-            ftp = true;     
-          }
-        }  // end of while()
-        
-        if (!ftp) Log.println();
-      
-        if (pol == idle_low) {
-          frInvert = true;
-          Log.printf("Serial port pin %d is IDLE_LOW, inverting polarity\n", sense_pin);
-        } else {
-          frInvert = false;
-          Log.printf("Serial port pin %d is IDLE_HIGH, regular rx polarity retained\n", sense_pin);        
-        }
-      
-        if (set.frport == f_auto) {
-          frBaud = getBaud(sense_pin, pol);
-          Log.print("Baud rate detected is ");  Log.print(frBaud); Log.println(" b/s"); 
-          String s_baud=String(frBaud);   // integer to string. "String" overloaded
-          LogScreenPrintln("Telem at "+ s_baud);  
-        }
-    }    // end of f_auto   
+    if ( (set.frport == f_port1) || (set.frport == f_port2) ) {  // check for fport2 later
+      frBaud = 115200; 
+      frInvert = false;   // F.Port is normally idle high (not inverted)
+      Log.printf("FPort selected, expecting regular fport idle high, baud:%d", frBaud);     
+    } else 
+      if (set.frport == s_port) {
+        frBaud = 57600;
+        #if defined Inverted_Inverted_FrSky_Receiver_Pad // note S.Port is normally idle low (inverted)
+          frInvert = false;  
+          Log.printf("SPort selected, expecting inverted inverted/idle high, baud:%d", frBaud); 
+        #else
+          frInvert = true;  
+          Log.printf("SPort selected, now expecting regular sport inverted/idle low, baud:%d", frBaud);           
+        #endif  
+      }
     
-    if (set.frport == s_port) {
-        frInvert = true;
-        frBaud = 57600;  
-        Log.printf("Default S.Port on rxpin:%d is IDLE_LOW, inverting rx polarity\n", fr_rxPin);  
-        Log.printf("Default S.Port baud:%d b/s\n", frBaud);           
-    } 
-       
-    if ( (set.frport == f_port1) || (set.frport == f_port2) ) {  
-        frInvert = false;
-        frBaud = 115200; 
-        Log.printf("Default F.Port on rxpin:%d is IDLE_HIGH, regular rx polarity retained\n", fr_rxPin);   
-        Log.printf("Default F.Port baud :%d b/s\n", frBaud);               
-    }  // end of polarity and baud setup            
-
-
     #if (defined ESP32) || (defined ESP8266) // ESP only
       int8_t frRx;
       int8_t frTx;
@@ -312,10 +250,11 @@
       frTx = fr_txPin;
 
       #if ( (defined ESP8266) || ( (defined ESP32) && (defined ESP32_SoftwareSerial)) )
+  
           if (set.trmode == ground) {
-            Log.printf("FrSky is 1-wire simplex on tx pin:%d\n", frTx);
+            Log.printf(" and is 1-wire simplex on tx pin = %d\n", frTx);
           } else { 
-            Log.printf("FrSky on pins rx:%d and tx:%d\n", frRx, frTx);
+            Log.printf(" on pins rx = %d and tx = %d\n", frRx, frTx);
           }  
 
           nbdelay(100);
@@ -323,18 +262,18 @@
           nbdelay(100);
           Log.println("Using SoftwareSerial for F.Port");
 
-      #else  // ESP HardwareSerial
+      #else  // HardwareSerial
           frSerial.begin(frBaud, SERIAL_8N1, frRx, frTx, frInvert); 
           if ((set.trmode == air) || (set.trmode == relay) || (set.Support_MavLite)) {
-            Log.printf("FrSky half-duplex on pins rx:%d and tx:%d\n", frRx, frTx);  
+            Log.printf(" half-duplex on pins rx = %d and tx = %d\n", frRx, frTx);  
             Log.println("For 1-wire applications a 2-wire to 1-wire converter or diode is required");
           } else          
           if (set.trmode == ground)  {                        
-            Log.printf("FrSky simplex on tx pin = %d\n", frTx);
-          }    
-      #endif    
-       
-    #endif  // end of ESP block
+            Log.printf(" simplex on tx pin = %d\n", frTx);
+          } 
+   
+      #endif
+    #endif
     
     #if (defined TEENSY3X) 
       frSerial.begin(frBaud); // Teensy 3.x    tx pin hard wired
@@ -347,7 +286,7 @@
        }
        #if (defined Teensy_One_Wire)  // default
          UART0_C1 = 0xA0;       // Switch Serial1 to single wire (half-duplex) mode  
-         Log.printf("FrSky 1-wire half-duplex on Teensy3.x pin %d \n", fr_txPin);          
+         Log.printf(" and 1-wire half-duplex on Teensy3.x pin %d \n", fr_txPin);          
        #else
          Log.printf(" and 2-wire full-duplex on Teensy3.x pins rx=%d  tx=%x\n", fr_rxPin, fr_txPin);  
        #endif
@@ -377,59 +316,62 @@
     } // end of member function
 
     //===================================================================
-    void FrSkyPort::HandleTraffic() { 
-      if (frport_type == f_none) {
-        if (set.frport== f_auto) {     
-          frport_type = Sense_FrPort();         
-          if (frport_type == s_port) {
-            Log.println("SPort detected");         
-          } else
-          if (frport_type == f_port1) {        
-            Log.println("FPort1 detected");   
-          } else
-          if (frport_type == f_port2) {        
-            Log.println("FPort2 detected");   
-          }
+    void FrSkyPort::HandleTraffic() {  
+       
+      if (frport_type == f_none) {   // detect FrPort Type
+        if (set.frport == s_port) {
+          frport_type = s_port;      //  convenient to use eeprom setting because sport has different baud rate
         } else {
-          frport_type = set.frport;
-        } 
+       frport_type = Sense_FrPort();            
+        }  
+      } else {
+         
+      static bool ft = true;
+      if (ft) {
+         if (frport_type == s_port) {
+           Log.println("SPort detected");         
+         } else
+         Log.printf("FrPort V%d detected\n",  frport_type); 
+        ft = false; 
       }
 
       if (set.trmode == ground) {   
-          if(mavGood  && ((millis() - blind_inject_millis) > 18)) {  
-            fr_prime = 0x10;
-            FrSkyPort::InjectUplinkFrame(fr_prime);        // Blind inject frame into Taranis et al 
-            blind_inject_millis=millis();
-          }
-          if (!set.Support_MavLite) {
-            return; // no need to read fr_port if ground mode and no mavlite support needed
-          }
+        if(mavGood  && ((millis() - blind_inject_millis) > 18)) {  
+          fr_prime = 0x10;
+          FrSkyPort::InjectUplinkFrame(fr_prime);        // Blind inject frame into Taranis et al 
+          blind_inject_millis=millis();
+        }
+        if (!set.Support_MavLite) {
+          return; // no need to read fr_port if ground mode and no mavlite support needed
+        }
       }  
 
       FrSkyPort::CheckForTimeouts();
-      
+
+
       if ( (frport_type == f_port1) || (frport_type == f_port2) ) { 
 
-          #if defined TEENSY3X 
-            if(mavGood && ((millis() - sp_millis) > 1)) {   // very necessary for Teensy 3.x
-              sp_millis=millis();
-              FPort_Read_And_Write(&FrSkyPort::frbuf[0], frport_type);
-            }
-          
-          #else   // ESP32 and ESP8266
+        #if defined TEENSY3X 
+          if(mavGood && ((millis() - sp_millis) > 1)) {   // very necessary for Teensy 3.x
+            sp_millis=millis();
             FPort_Read_And_Write(&FrSkyPort::frbuf[0], frport_type);
-          #endif   
+          }
+          
+        #else   // ESP32 and ESP8266
+          FPort_Read_And_Write(&FrSkyPort::frbuf[0], frport_type);
+        #endif   
 
       } else  
-        if (frport_type == s_port) {  
-          if(mavGood && ((millis() - sp_millis) > 2)) {   // timing very necessary for S.Port !! especially for Teensy 3.x
-            sp_millis=millis();
-            SPort_Read_And_Write(&FrSkyPort::frbuf[0]);
-          }
+      if (set.frport == s_port) {  
+        if(mavGood && ((millis() - sp_millis) > 2)) {   // timing very necessary for S.Port !! especially for Teensy 3.x
+          sp_millis=millis();
+          SPort_Read_And_Write(&FrSkyPort::frbuf[0]);
+        }
       }  
-      
+     }
     }
-    //===================================================================  
+
+     //===================================================================  
     frport_t FrSkyPort::Sense_FrPort() {
 
       FrSkyPort::setMode(rx);
@@ -476,49 +418,7 @@
       prev_b = b;
       return f_none;  // non blocking function
 
-    }  
-
-    //===================================================================
-    
-    void FrSkyPort::SPort_Read_And_Write(uint8_t *buf) {
-
-    #if defined Debug_FrSPort_Loop_Period
-      PrintLoopPeriod();
-    #endif
-      
-      FrSkyPort::setMode(rx);  
-
-      uint8_t byt = 0;
-
-      while (frSerial.available())   {  // Receive sensor IDs from X receiver
-
-        byt =  FrSkyPort::ReadByte();        // no bytestuff
-        if (fr_idx > fr_max -1) {
-         // Log.println("S.Port from X Receiver read buff overflow ignored");
-          fr_idx--;
-        }
-
-        if ((prevbyt == 0x7E) && (byt == 0x1B)) {   // Real-Time DIY downlink slot found, slot ours in, and send right now 
-           FrSkyPort::frGood = true;            
-           FrSkyPort::frGood_millis = millis();         
-           inject_delay = micros();       
-           FrSkyPort::InjectUplinkFrame(0x10);      // Interleave a packet with prime = 0x10 right now!    
-           return;  
-        }
-
-        if (byt == 0x7E) {
-          if ((*(buf+1) == 0x0D) && (*(buf+2) == 0x30)) { // MavLite uplink (to FC) match found
-            DecodeAndUplinkMavLite();        
-          }      
-          fr_idx = 0;
-        }   
-        *(buf + fr_idx) = byt;
-        fr_idx++;
-        prevbyt=byt;
-      } 
-      
-    } 
-      
+    }    
     //===================================================================
     
     void FrSkyPort::FPort_Read_And_Write(uint8_t *buf, frport_t  frport_type) {
@@ -687,7 +587,42 @@
       // No start/stop 
 
     }
+       //===================================================================
+    
+    void FrSkyPort::SPort_Read_And_Write(uint8_t *buf) {
+      
+      FrSkyPort::setMode(rx);  
 
+      uint8_t byt = 0;
+
+      while (frSerial.available())   {  // Receive sensor IDs from X receiver
+
+        byt =  FrSkyPort::ReadByte();        // no bytestuff
+        if (fr_idx > fr_max -1) {
+         // Log.println("S.Port from X Receiver read buff overflow ignored");
+          fr_idx--;
+        }
+
+        if ((prevbyt == 0x7E) && (byt == 0x1B)) {   // Real-Time DIY downlink slot found, slot ours in, and send right now 
+           FrSkyPort::frGood = true;            
+           FrSkyPort::frGood_millis = millis();         
+           inject_delay = micros();       
+           FrSkyPort::InjectUplinkFrame(0x10);      // Interleave a packet with prime = 0x10 right now!    
+           return;  
+        }
+
+        if (byt == 0x7E) {
+          if ((*(buf+1) == 0x0D) && (*(buf+2) == 0x30)) { // MavLite uplink (to FC) match found
+            DecodeAndUplinkMavLite();        
+          }      
+          fr_idx = 0;
+        }   
+        *(buf + fr_idx) = byt;
+        fr_idx++;
+        prevbyt=byt;
+      } 
+      
+    } 
     
     //===================================================================   
  
@@ -1547,7 +1482,7 @@
         sb_row++; 
         if (sb_row >= sb_rows-1) {
           if ( (sb_buf_full_gear == 0) || (sb_buf_full_gear%40000 == 0)) {
-            Log.println("FrPort scheduler buffer full. Check FrPort Downlink to Taranis/Horus");  // Report every so often
+            Log.println("FrPort scheduler buffer full. Check FrPort Downlink to GCS");  // Report every so often
           }
           sb_buf_full_gear++;
           return;     
@@ -2523,14 +2458,12 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
       uint8_t *bytes = 0;
       uint8_t sz = 0;
       
-      char in_or_out;
+      char t_dir;
       if (telem_direction == uplink) {
-        in_or_out = '<';
+        t_dir = '<';
       } else
       if (telem_direction == downlink) {  
-        in_or_out = '>';
-      } else {
-        in_or_out = ' ';
+        t_dir = '>';
       }
 
       bool dbg_mavlite = false;
@@ -2552,7 +2485,7 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
       if ( (msg_class == passthru) && (dbg_mavlite) )  return;
        
       for (int i = 0 ; i < sz ; i++) {
-        Printbyte(bytes[i], 0, in_or_out);   
+        Printbyte(bytes[i], 0, t_dir);   
       }
        
       Log.print("\t");
@@ -2703,198 +2636,8 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
        }
     } 
     
-    //=================================================================== 
-
-    pol_t FrSkyPort::getPolarity(uint8_t s_pin) {
-      bool teensy = false;
-      #if defined TEENSY3X
-        teensy = true;
-      #endif
-      
-      uint16_t hi = 0;
-      uint16_t lo = 0;  
-      const uint16_t mx = 1000;
-      while ((lo <= mx) && (hi <= mx)) {
-
-        if (digitalRead(s_pin) == 0) { 
-          lo++;
-        } else 
-        if (digitalRead(s_pin) == 1) {  
-          hi++;
-        }
-
-        if (lo > mx) {
-          if ( (hi == 0) && (teensy != true) ) 
-          {
-            return no_traffic;   
-          } else {
-            return idle_low; 
-          }
-        }
-        if (hi > mx) {
-          if (lo == 0) {
-            return no_traffic; 
-          } else {
-            return idle_high; 
-          }
-        }
-        delayMicroseconds(200);
-       //Log.printf("s_pin:%d  %d\t\t%d  teensy:%d \n",s_pin, lo, hi, teensy);  
-     } 
-     return idle_low; 
-    } 
-    //===================================================================     
-
-    uint32_t FrSkyPort::getBaud(uint8_t s_pin, pol_t pl) {
-      Log.print("autoBaud - sensing s_pin "); Log.println(s_pin);
-    // Log.printf("AutoBaud - sensing s_pin %2d \n", s_pin );
-      uint8_t i = 0;
-      uint8_t col = 0;
-      pinMode(s_pin, INPUT);       
-      digitalWrite (s_pin, HIGH); // pull up enabled for noise reduction ?
-
-      uint32_t gb_baud = getConsistent(s_pin, pl);
-      while (gb_baud == 0) {
-        if(ftgetBaud) {
-          ftgetBaud = false;
-      }
-
-        i++;
-        if ((i % 5) == 0) {
-          Log.print(".");
-          col++; 
-        }
-        if (col > 60) {
-          Log.println(); 
-            Log.print("No telemetry found on pin "); Log.println(s_pin);
-            // Log.printf("No telemetry found on pin %2d\n", s_pin); 
-          col = 0;
-          i = 0;
-        }
-        gb_baud = getConsistent(s_pin, pl);
-      } 
-      if (!ftgetBaud) {
-        Log.println();
-      }
-
-      //Log.print("Telem found at "); Log.print(gb_baud);  Log.println(" b/s");
-      //LogScreenPrintln("Telem found at " + String(gb_baud));
-      
-      return(gb_baud);  
-    }
-    //===================================================================   
-    uint32_t FrSkyPort::getConsistent(uint8_t s_pin, pol_t pl) {
-      uint32_t t_baud[5];
-
-      while (true) {  
-        t_baud[0] = SenseUart(s_pin, pl);
-        delay(10);
-        t_baud[1] = SenseUart(s_pin, pl);
-        delay(10);
-        t_baud[2] = SenseUart(s_pin, pl);
-        delay(10);
-        t_baud[3] = SenseUart(s_pin, pl);
-        delay(10);
-        t_baud[4] = SenseUart(s_pin, pl);
-        #if defined Debug_All || defined Debug_Baud
-          Log.print("  t_baud[0]="); Log.print(t_baud[0]);
-          Log.print("  t_baud[1]="); Log.print(t_baud[1]);
-          Log.print("  t_baud[2]="); Log.print(t_baud[2]);
-          Log.print("  t_baud[3]="); Log.println(t_baud[3]);
-        #endif  
-        if (t_baud[0] == t_baud[1]) {
-          if (t_baud[1] == t_baud[2]) {
-            if (t_baud[2] == t_baud[3]) { 
-              if (t_baud[3] == t_baud[4]) {   
-                #if defined Debug_All || defined Debug_Baud    
-                  Log.print("Consistent baud found="); Log.println(t_baud[3]); 
-                #endif   
-                return t_baud[3]; 
-              }          
-            }
-          }
-        }
-      }
-    }
-    //===================================================================   
-    uint32_t FrSkyPort::SenseUart(uint8_t  s_pin, pol_t pl) {
-
-    uint32_t pw = 999999;  //  Pulse width in uS
-    uint32_t min_pw = 999999;
-    uint32_t su_baud = 0;
-    const uint32_t su_timeout = 5000; // uS !  Default timeout 1000mS!
-
-      #if defined Debug_All || defined Debug_Baud
-        Log.printf("s_pin:%d  rxInvert:%d\n", s_pin, frInvert);  
-      #endif  
-
-      if (pl == idle_low) {       
-        while(digitalRead(s_pin) == 0){ };  // idle_low, wait for high bit (low pulse) to start
-      } else {
-        while(digitalRead(s_pin) == 1){ };  // idle_high, wait for high bit (high pulse) to start  
-      }
-
-      for (int i = 0; i < 10; i++) {
-
-      if (pl == idle_low) {                //  Returns the length of the pulse in uS
-          pw = pulseIn(s_pin,HIGH, su_timeout);     
-        } else {
-          pw = pulseIn(s_pin,LOW, su_timeout);    
-        }    
-
-        if (pw !=0) {
-          min_pw = (pw < min_pw) ? pw : min_pw;  // Choose the lowest
-          //Log.printf("i:%d  pw:%d  min_pw:%d\n", i, pw, min_pw);      
-        } 
-      } 
-      #if defined Debug_All || defined Debug_Baud
-        Log.printf("pw:%d  min_pw:%d\n", pw, min_pw);
-      #endif
-
-      switch(min_pw) {   
-        case 1:     
-        su_baud = 921600;
-          break;
-        case 2:     
-        su_baud = 460800;
-          break;     
-        case 4 ... 11:     
-        su_baud = 115200;
-          break;
-        case 12 ... 19:  
-        su_baud = 57600;
-          break;
-        case 20 ... 28:  
-        su_baud = 38400;
-          break; 
-        case 29 ... 39:  
-        su_baud = 28800;
-         break;
-        case 40 ... 59:  
-        su_baud = 19200;
-          break;
-        case 60 ... 79:  
-        su_baud = 14400;
-          break;
-        case 80 ... 149:  
-        su_baud = 9600;
-          break;
-        case 150 ... 299:  
-        su_baud = 4800;
-          break;
-        case 300 ... 599:  
-        su_baud = 2400;
-          break;
-        case 600 ... 1199:  
-        su_baud = 1200;  
-          break;                        
-        default:  
-        su_baud = 0;    // no signal        
-      }
-      return su_baud;
-    }  
-    //===================================================================   
-   
+   //=================================================================== 
+       
 #endif  // end of FrSky port support
 
 

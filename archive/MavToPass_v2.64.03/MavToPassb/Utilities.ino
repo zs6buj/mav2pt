@@ -264,7 +264,7 @@
       WiFi.begin(set.staSSID, set.staPw);
       while (WiFi.status() != WL_CONNECTED){
         retry++;
-        if (retry > 20) {
+        if (retry > 10) {
           Log.println();
           Log.println("Failed to connect in STA mode");
           LogScreenPrintln("No connect STA Mode");
@@ -1185,7 +1185,7 @@ void PrintLoopPeriod() {
           xx = 18 * CHAR_W_PX;
           yy = 14 * CHAR_W_PX;        
           display.setCursor(xx, yy); 
-          snprintf(snprintf_buf, snp_max, "Alt:%d", cur.alt / 1000);    // mm => m 
+          snprintf(snprintf_buf, snp_max, "Alt:%d", ap33_alt_ag / 1000);    // mm => m 
           display.fillRect(xx+(4*CHAR_W_PX), yy, (4*CHAR_W_PX), CHAR_H_PX, ILI9341_BLUE); // clear the previous line   
           display.println(snprintf_buf); 
 
@@ -1262,8 +1262,7 @@ void PrintLoopPeriod() {
           yy = 5.4 * CHAR_H_PX;      
           display.setCursor(xx, yy);            
           snprintf(snprintf_buf, snp_max, "Sats %d RSSI %ld%%", ap24_sat_visible, pt_rssi); 
-          display.fillRect(xx+(5*CHAR_W_PX), yy, (3 * CHAR_W_PX), CHAR_H_PX, SCR_BACKGROUND);  
-          display.fillRect(xx+(12*CHAR_W_PX), yy, (4 * CHAR_W_PX), CHAR_H_PX, SCR_BACKGROUND);   // blank rssi  
+          display.fillRect(xx+(5*CHAR_W_PX), yy, 10 * CHAR_W_PX, CHAR_H_PX, SCR_BACKGROUND);     
           display.println(snprintf_buf);       
 
            
@@ -1704,7 +1703,153 @@ float Total_mAh2() {
 float Total_mWh2() {                                     // Total energy consumed bat1
   return bat2.tot_mAh * (bat2.tot_volts / bat2.samples);
 }
+//=================================================================================================  
+uint32_t GetBaud(uint8_t rxPin) {
+  Log.printf("AutoBaud - Sensing mav_rxPin %2d \n", rxPin );
+  uint8_t i = 0;
+  uint8_t col = 0;
+  pinMode(rxPin, INPUT);       
+  digitalWrite (rxPin, HIGH); // pull up enabled for noise reduction ?
 
+  uint32_t gb_baud = GetConsistent(rxPin);
+  while (gb_baud == 0) {
+    if(ftGetBaud) {
+      ftGetBaud = false;
+    }
+
+    i++;
+    if ((i % 5) == 0) {
+      Log.print(".");
+      col++; 
+    }
+    if (col > 60) {
+      Log.println(); 
+      Log.printf("No telemetry found on pin %2d\n", rxPin); 
+      col = 0;
+      i = 0;
+    }
+    gb_baud = GetConsistent(rxPin);
+  } 
+  if (!ftGetBaud) {
+    Log.println();
+  }
+
+  Log.print("Telem found at "); Log.print(gb_baud);  Log.println(" b/s");
+  LogScreenPrintln("Telem found at " + String(gb_baud));
+
+  return(gb_baud);
+}
+//=================================================================================================  
+uint32_t GetConsistent(uint8_t rxPin) {
+  uint32_t t_baud[5];
+
+  while (true) {  
+    t_baud[0] = SenseUart(rxPin);
+    delay(10);
+    t_baud[1] = SenseUart(rxPin);
+    delay(10);
+    t_baud[2] = SenseUart(rxPin);
+    delay(10);
+    t_baud[3] = SenseUart(rxPin);
+    delay(10);
+    t_baud[4] = SenseUart(rxPin);
+    #if defined Debug_All || defined Debug_Baud
+      Log.print("  t_baud[0]="); Log.print(t_baud[0]);
+      Log.print("  t_baud[1]="); Log.print(t_baud[1]);
+      Log.print("  t_baud[2]="); Log.print(t_baud[2]);
+      Log.print("  t_baud[3]="); Log.println(t_baud[3]);
+    #endif  
+    if (t_baud[0] == t_baud[1]) {
+      if (t_baud[1] == t_baud[2]) {
+        if (t_baud[2] == t_baud[3]) { 
+          if (t_baud[3] == t_baud[4]) {   
+            #if defined Debug_All || defined Debug_Baud    
+              Log.print("Consistent baud found="); Log.println(t_baud[3]); 
+            #endif   
+            return t_baud[3]; 
+          }          
+        }
+      }
+    }
+  }
+}
+//=================================================================================================  
+uint32_t SenseUart(uint8_t  rxPin) {
+
+uint32_t pw = 999999;  //  Pulse width in uS
+uint32_t min_pw = 999999;
+uint32_t su_baud = 0;
+const uint32_t su_timeout = 5000; // uS !
+
+#if defined Debug_All || defined Debug_Baud
+  Log.print("rxPin ");  Log.println(rxPin);
+#endif  
+
+  while(digitalRead(rxPin) == 1){ }  // wait for low bit to start
+  
+  for (int i = 1; i <= 10; i++) {            // 1 start bit, 8 data and 1 stop bit
+    pw = pulseIn(rxPin,LOW, su_timeout);     // default timeout 1000mS! Returns the length of the pulse in uS
+    #if (defined wifiBuiltin)
+      ServiceWiFiRoutines();
+    #endif  
+    if (pw !=0) {
+      min_pw = (pw < min_pw) ? pw : min_pw;  // Choose the lowest
+    } else {
+       return 0;  // timeout - no telemetry
+    }
+  }
+ 
+  #if defined Debug_All || defined Debug_Baud
+    Log.print("pw="); Log.print(pw); Log.print("  min_pw="); Log.println(min_pw);
+  #endif
+
+  switch(min_pw) {   
+    case 1:     
+     su_baud = 921600;
+      break;
+    case 2:     
+     su_baud = 460800;
+      break;     
+    case 4 ... 11:     
+     su_baud = 115200;
+      break;
+    case 12 ... 19:  
+     su_baud = 57600;
+      break;
+     case 20 ... 28:  
+     su_baud = 38400;
+      break; 
+    case 29 ... 39:  
+     su_baud = 28800;
+      break;
+    case 40 ... 59:  
+     su_baud = 19200;
+      break;
+    case 60 ... 79:  
+     su_baud = 14400;
+      break;
+    case 80 ... 149:  
+     su_baud = 9600;
+      break;
+    case 150 ... 299:  
+     su_baud = 4800;
+      break;
+     case 300 ... 599:  
+     su_baud = 2400;
+      break;
+     case 600 ... 1199:  
+     su_baud = 1200;  
+      break;                        
+    default:  
+     su_baud = 0;    // no signal        
+ }
+
+ return su_baud;
+} 
+
+
+
+//=================================================================================================  
 //=================================================================================================  
 int8_t PWM_To_63(uint16_t PWM) {       // PWM 1000 to 2000   ->    nominal -63 to 63
 int8_t myint;
