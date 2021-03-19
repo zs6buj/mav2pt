@@ -2580,7 +2580,11 @@ void DecodeOneMavFrame() {
           ap77_target_system =  mavlink_msg_command_ack_get_target_system(&R2Gmsg);
           ap77_target_component =  mavlink_msg_command_ack_get_target_component(&R2Gmsg);  
 
-          FrPort.PushMessage(0x4d, 0);    // MavLite COMMAND_ACK ( #77 ) 
+          #if (defined frBuiltin)
+            #if (defined Support_MavLite)
+              FrPort.PushMessage(0x4d, 0);    // MavLite COMMAND_ACK ( #77 ) 
+            #endif
+          #endif
           
           #if defined Mav_Debug_All || defined Mav_Debug_Command_Ack || defined Debug_Mavlite                
             Log.print("Mavlink from FC #77 Command_Ack: ");
