@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      64
-#define PATCH_LEVEL        4
+#define PATCH_LEVEL        5
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -14,15 +14,7 @@
 
 Complete change log and debugging options are at the bottom of this tab
                                           
-v2.64.03   2021-02-19  Correct char width for ST7789 display                   
-                       FrSky, uom was cA, now dA for current
-                       Correct HUD current
-           2021-02-27  Enable FrSky UDP out            
-V2.64.4    2021-03-01  Add serial port polarity detection and auto invert.
-                       Add auto FrSky serial port speed detection option. S.Port vs F.Port.
-           2021-03-04  Hud rssi blank fix. 
-                       Always auto detect FrSky serial speed. Remove option. 
-           2021-03-11  fport1 || fport2                                                                         
+V2.64.5    2021-03-21  Two small PRs by Risto and a small patch to assist disply definition on Dev Kit                                                                                  
 */
 //===========================================================================================
 //
@@ -157,7 +149,7 @@ V2.64.4    2021-03-01  Add serial port polarity detection and auto invert.
 #define APpw                 "password"         // Change me! Must be >= 8 chars
 #define APchannel            9                  // The wifi channel to use for our AP
 #define STAssid              "OmegaOffice"      // Target AP to connect to (in STA mode) <====
-#define STApw                "Navara@98"         // Target AP password (in STA mode). Must be >= 8 chars      
+#define STApw                "password"         // Target AP password (in STA mode). Must be >= 8 chars      
 
 // Choose one default mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
 //#define WiFi_Mode   1  //AP            
@@ -437,7 +429,7 @@ bool daylightSaving = false;
     #define fr_rxPin      13        // FPort- Not used in 1-wire mode DON'T use 12!
     #define fr_txPin       4        // FPorttx - Use me in single wire mode
     #define startWiFiPin   5        // 5 Trigger WiFi startup  
-    
+    //#define displaySupport     // activate me if you have a display
     #if (defined displaySupport)   // Display type defined with board variant
       #define SSD1306_Display         // OLED display type    
       /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
@@ -871,18 +863,19 @@ bool daylightSaving = false;
     uint32_t  last_log_millis = 0;
     const uint16_t db_period = 1000; // debounce period mS
 
-/*
-    // Generic colour definitions
-    #define BLACK           0x0000
-    #define BLUE            0x001F
-    #define RED             0xF800
-    #define GREEN           0x07E0
-    #define CYAN            0x07FF
-    #define MAGENTA         0xF81F
-    #define YELLOW          0xFFE0
-    #define WHITE           0xFFFF 
-*/
-    //==========================================================
+    #if (ESP32_Variant == 6)
+      // Generic colour definitions
+      #define BLACK           0x0000
+      #define BLUE            0x001F
+      #define RED             0xF800
+      #define GREEN           0x07E0
+      #define CYAN            0x07FF
+      #define MAGENTA         0xF81F
+      #define YELLOW          0xFFE0
+      #define WHITE           0xFFFF 
+    #endif
+
+  //==========================================================
     
     #if (defined ST7789_Display)      // TTGO T_Display 1.14 TFT display 135 x 240 SPI
       #include <TFT_eSPI.h>           // Remember to select the T_Display board in User_Setup_Select.h in TFT_eSPI library (135 x 240) 
@@ -1464,5 +1457,14 @@ v2.63.12   2021-01-22  Debug and test simultaneous udp wifi uplink and downlink
 v2.64.00   2021-02-10  Upgrade to F.Port v2.3.7. Tests good.
 v2.64.01   2021-02-12  Add support for FrSky S/Fport udp out
 v2.64.02   2021-02-19  Start using GitHub Tags
-                       Embed version number constant                                                                                                                                                                                                                                                                        
+                       Embed version number constant 
+v2.64.03   2021-02-19  Correct char width for ST7789 display                   
+                       FrSky, uom was cA, now dA for current
+                       Correct HUD current
+           2021-02-27  Enable FrSky UDP out            
+V2.64.4    2021-03-01  Add serial port polarity detection and auto invert.
+                       Add auto FrSky serial port speed detection option. S.Port vs F.Port.
+           2021-03-04  Hud rssi blank fix. 
+                       Always auto detect FrSky serial speed. Remove option. 
+           2021-03-11  fport1 || fport2                                                                                                                                                                                                                                                                                                
 */

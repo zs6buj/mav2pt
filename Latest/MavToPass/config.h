@@ -22,7 +22,8 @@ V2.64.4    2021-03-01  Add serial port polarity detection and auto invert.
                        Add auto FrSky serial port speed detection option. S.Port vs F.Port.
            2021-03-04  Hud rssi blank fix. 
                        Always auto detect FrSky serial speed. Remove option. 
-           2021-03-11  fport1 || fport2                                                                         
+           2021-03-11  fport1 || fport2  
+V2.64.5    2021-03-21  Two small PRs by Risto and a small patch to assist disply definition on Dev Kit                                                                                  
 */
 //===========================================================================================
 //
@@ -157,7 +158,7 @@ V2.64.4    2021-03-01  Add serial port polarity detection and auto invert.
 #define APpw                 "password"         // Change me! Must be >= 8 chars
 #define APchannel            9                  // The wifi channel to use for our AP
 #define STAssid              "OmegaOffice"      // Target AP to connect to (in STA mode) <====
-#define STApw                "Navara@98"         // Target AP password (in STA mode). Must be >= 8 chars      
+#define STApw                "password"         // Target AP password (in STA mode). Must be >= 8 chars      
 
 // Choose one default mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
 //#define WiFi_Mode   1  //AP            
@@ -437,7 +438,7 @@ bool daylightSaving = false;
     #define fr_rxPin      13        // FPort- Not used in 1-wire mode DON'T use 12!
     #define fr_txPin       4        // FPorttx - Use me in single wire mode
     #define startWiFiPin   5        // 5 Trigger WiFi startup  
-    
+    //#define displaySupport     // activate me if you have a display
     #if (defined displaySupport)   // Display type defined with board variant
       #define SSD1306_Display         // OLED display type    
       /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
