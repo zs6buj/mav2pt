@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      64
-#define PATCH_LEVEL        4
+#define PATCH_LEVEL        5
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
