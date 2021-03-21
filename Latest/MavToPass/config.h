@@ -871,18 +871,19 @@ bool daylightSaving = false;
     uint32_t  last_log_millis = 0;
     const uint16_t db_period = 1000; // debounce period mS
 
-/*
-    // Generic colour definitions
-    #define BLACK           0x0000
-    #define BLUE            0x001F
-    #define RED             0xF800
-    #define GREEN           0x07E0
-    #define CYAN            0x07FF
-    #define MAGENTA         0xF81F
-    #define YELLOW          0xFFE0
-    #define WHITE           0xFFFF 
-*/
-    //==========================================================
+    #if (ESP32_Variant == 6)
+      // Generic colour definitions
+      #define BLACK           0x0000
+      #define BLUE            0x001F
+      #define RED             0xF800
+      #define GREEN           0x07E0
+      #define CYAN            0x07FF
+      #define MAGENTA         0xF81F
+      #define YELLOW          0xFFE0
+      #define WHITE           0xFFFF 
+    #endif
+
+  //==========================================================
     
     #if (defined ST7789_Display)      // TTGO T_Display 1.14 TFT display 135 x 240 SPI
       #include <TFT_eSPI.h>           // Remember to select the T_Display board in User_Setup_Select.h in TFT_eSPI library (135 x 240) 
