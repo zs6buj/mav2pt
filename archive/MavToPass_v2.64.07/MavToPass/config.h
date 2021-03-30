@@ -18,7 +18,7 @@ GitHub Tag
 ----------                                            
 
 V2.64.6    2021-03-25  Fix screen scroll low limit when actve row < screen height  
-V2.64.7    2021-03-30  Update getPolarity() technique. Minor, for very slow baud rates.                                                                              
+V2.84.7    2021-03-30  Update getPolarity() technique. Minor, for very slow baud rates.                                                                              
 */
 //===========================================================================================
 //
