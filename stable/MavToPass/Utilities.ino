@@ -997,13 +997,13 @@ void PrintLoopPeriod() {
       show_log = true;    
       scroll_millis = millis(); 
       
-      if (up_dn == up) {
+      if (up_dn == up) {  // towards last line painted, so lines move up
          scroll_row--;
          scroll_row = constrain(scroll_row, SCR_H_CH, row);
          upButton = false; 
          PaintLogScreen(scroll_row, show_last_row);   // paint down to scroll_row
       }
-      if (up_dn == down) {
+      if (up_dn == down) {  // towards first line painted, so lines move down
           scroll_row++; 
           scroll_row = constrain(scroll_row, SCR_H_CH, row);       
           dnButton = false; 
@@ -1025,8 +1025,15 @@ void PrintLoopPeriod() {
           display.clearDisplay();
         #endif  
         display.setCursor(0,0);  
-        int8_t first_row = (last_row_action==omit_last_row) ? (new_row - SCR_H_CH +1) : (new_row - SCR_H_CH); 
-        int8_t last_row = (last_row_action==omit_last_row) ? new_row : (new_row );        
+        int8_t first_row;
+        int8_t last_row;
+        if (row < SCR_H_CH) {
+          first_row = (last_row_action==omit_last_row) ? 1 : 0; 
+          last_row = (last_row_action==omit_last_row) ? new_row : new_row ;           
+        } else {
+          first_row = (last_row_action==omit_last_row) ? (new_row - SCR_H_CH +1) : (new_row - SCR_H_CH); 
+          last_row = (last_row_action==omit_last_row) ? new_row : (new_row );            
+        }     
         for (int i = first_row ; i < last_row; i++) { // drop first line, display rest of old lines & leave space for new line          
           display.println(ScreenRow[i].x);
         }
@@ -1045,9 +1052,11 @@ void PrintLoopPeriod() {
       if (display_mode != logg) {
           SetupLogDisplayStyle();
           display_mode = logg; 
-      }   
-      if (row >= SCR_H_CH) {                 // if the new line exceeds the page lth, re-display existing lines
-        PaintLogScreen(row, omit_last_row);
+          PaintLogScreen(row, omit_last_row);
+      } else {   
+        if (row >= SCR_H_CH) {                      // if the new line exceeds the page lth, re-display existing lines
+          PaintLogScreen(row, omit_last_row);
+        }
       }
       uint16_t lth = strlen(S.c_str());           // store the new line a char at a time
       if (lth > max_col-1) {
@@ -1083,16 +1092,16 @@ void PrintLoopPeriod() {
     //===================================
    
     void LogScreenPrint(String S) {
-    #if defined displaySupport  
-
+    #if defined displaySupport   
+    
       if (display_mode != logg) {
           SetupLogDisplayStyle();
           display_mode = logg; 
-      }   
-
-     // scroll_row = row; 
-      if (row >= SCR_H_CH) {              // if the new line exceeds the page lth, re-display existing lines
-        PaintLogScreen(row, omit_last_row);
+          PaintLogScreen(row, omit_last_row);
+      } else {   
+        if (row >= SCR_H_CH) {                      // if the new line exceeds the page lth, re-display existing lines
+          PaintLogScreen(row, omit_last_row);
+        }
       }
       display.print(S);                         // the new line
       #if (defined SSD1306_Display)
@@ -1165,7 +1174,7 @@ void PrintLoopPeriod() {
           yy = 0 ;          
           display.setCursor(xx, yy);  
           snprintf(snprintf_buf, snp_max, "RSSI:%ld%%", ap_rssi); 
-          display.fillRect(xx+(4*CHAR_W_PX), yy, 4 * CHAR_W_PX, CHAR_H_PX, ILI9341_BLUE); // clear the previous line               
+          display.fillRect(xx+(5*CHAR_W_PX), yy, 4 * CHAR_W_PX, CHAR_H_PX, ILI9341_BLUE); // clear the previous line               
           display.println(snprintf_buf);
               
           // distance to home
@@ -1209,7 +1218,7 @@ void PrintLoopPeriod() {
           xx = 18 * CHAR_W_PX;
           yy = 16 * CHAR_W_PX;        
           display.setCursor(xx, yy); 
-          snprintf(snprintf_buf, snp_max, "Ah:%.1f", )pt_bat1_mAh 0.001F);     
+          snprintf(snprintf_buf, snp_max, "Ah:%.1f", pt_bat1_mAh * 0.001F);     
           display.fillRect(xx+(3*CHAR_W_PX), yy, (5*CHAR_W_PX), CHAR_H_PX, ILI9341_BLUE); // clear the previous line   
           display.println(snprintf_buf);           
           

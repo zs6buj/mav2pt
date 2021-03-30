@@ -6,24 +6,19 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      64
-#define PATCH_LEVEL        5
+#define PATCH_LEVEL        7
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
 =================================================================================================== 
 
 Complete change log and debugging options are at the bottom of this tab
-                                          
-v2.64.03   2021-02-19  Correct char width for ST7789 display                   
-                       FrSky, uom was cA, now dA for current
-                       Correct HUD current
-           2021-02-27  Enable FrSky UDP out            
-V2.64.4    2021-03-01  Add serial port polarity detection and auto invert.
-                       Add auto FrSky serial port speed detection option. S.Port vs F.Port.
-           2021-03-04  Hud rssi blank fix. 
-                       Always auto detect FrSky serial speed. Remove option. 
-           2021-03-11  fport1 || fport2  
-V2.64.5    2021-03-21  Two small PRs by Risto and a small patch to assist disply definition on Dev Kit                                                                                  
+
+GitHub Tag
+----------                                            
+
+V2.64.6    2021-03-25  Fix screen scroll low limit when actve row < screen height  
+V2.84.7    2021-03-30  Update getPolarity() technique. Minor, for very slow baud rates.                                                                              
 */
 //===========================================================================================
 //
@@ -127,11 +122,11 @@ V2.64.5    2021-03-21  Two small PRs by Risto and a small patch to assist disply
 //                          S E L E C T   E S P   B O A R D   V A R I A N T   
 //=================================================================================================
 //================================================================================================= 
-#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
+//#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi - Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
-//#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
+#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     7    // ESP32 Dev Board with ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
 
@@ -1466,5 +1461,15 @@ v2.63.12   2021-01-22  Debug and test simultaneous udp wifi uplink and downlink
 v2.64.00   2021-02-10  Upgrade to F.Port v2.3.7. Tests good.
 v2.64.01   2021-02-12  Add support for FrSky S/Fport udp out
 v2.64.02   2021-02-19  Start using GitHub Tags
-                       Embed version number constant                                                                                                                                                                                                                                                                        
+                       Embed version number constant  
+v2.64.03   2021-02-19  Correct char width for ST7789 display                   
+                       FrSky, uom was cA, now dA for current
+                       Correct HUD current
+           2021-02-27  Enable FrSky UDP out            
+V2.64.4    2021-03-01  Add serial port polarity detection and auto invert.
+                       Add auto FrSky serial port speed detection option. S.Port vs F.Port.
+           2021-03-04  Hud rssi blank fix. 
+                       Always auto detect FrSky serial speed. Remove option. 
+           2021-03-11  fport1 || fport2  
+V2.64.5    2021-03-21  Two small PRs by Risto and a small patch to assist disply definition on Dev Kit                                                                                                                                                                                                                                                                                              
 */

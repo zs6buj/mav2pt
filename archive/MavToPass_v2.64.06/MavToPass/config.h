@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      64
-#define PATCH_LEVEL        7
+#define PATCH_LEVEL        6
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -17,8 +17,7 @@ Complete change log and debugging options are at the bottom of this tab
 GitHub Tag
 ----------                                            
 
-V2.64.6    2021-03-25  Fix screen scroll low limit when actve row < screen height  
-V2.84.7    2021-03-30  Update getPolarity() technique. Minor, for very slow baud rates.                                                                              
+V2.64.6    2021-03-25  Fix screen scroll low limit when actve row < screen height                                                                                 
 */
 //===========================================================================================
 //
@@ -122,22 +121,20 @@ V2.84.7    2021-03-30  Update getPolarity() technique. Minor, for very slow baud
 //                          S E L E C T   E S P   B O A R D   V A R I A N T   
 //=================================================================================================
 //================================================================================================= 
-#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
+//#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi - Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
 //#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
-//#define ESP32_Variant     7    // ESP32 Dev Board with ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
+#define ESP32_Variant     7    // ESP32 Dev Board with ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
 
 //#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
 #define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - use Generic ESP8266 on IDE
 //#define ESP8266_Variant   3   // ESP-12F - Wemos® LOLIN D1 Mini
 
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-
+//=================================================================================================
 //                      D E F A U L T   B L U E T O O T H   S E T T I N G S   
 //=================================================================================================
 //#define BT_Mode  1           // Master Mode - active, initiate connection with slave (name)
