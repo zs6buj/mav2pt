@@ -330,10 +330,10 @@
 
         if ( (set.mav_wfproto == udp) || (set.fr_io & 0x02) ) {  // UDP
 
-          if (set.wfmode == ap_sta) {                // in WIFI_AP_STA mode, we need to discriminate between sta and ap read ports 
-            udp_read_port = set.udp_remotePort;      // so we flip read and send ports as a device
+          if (set.wfmode == ap_sta) {           // in WIFI_AP_STA mode, we need to discriminate between sta and ap read ports 
+            udp_read_port = set.udp_remotePort; // so we swap read and send ports as a device
             udp_send_port = set.udp_localPort;           
-          } else {    
+          } else {                              // simple sta mode
             udp_read_port = set.udp_localPort; 
             udp_send_port = set.udp_remotePort;                          
           }
@@ -444,26 +444,18 @@
         }
 
         if ( (set.mav_wfproto == udp) || (set.fr_io & 0x02) ) {  // UDP
-          WiFiUDP UDP_AP_Object;        
-          udp_object[1] = new WiFiUDP(UDP_AP_Object); 
            
-          if (set.wfmode == ap_sta) {               // NB in WIFI_AP_STA mode, we need to discriminate between sta and ap read ports 
-            udp_read_port = set.udp_localPort;      // so we flip read and send ports as a device
-            udp_send_port = set.udp_remotePort;              
-          } else {    
-            udp_read_port = set.udp_remotePort;  
-            udp_send_port = set.udp_localPort;                    
-          }
+          udp_read_port = set.udp_localPort;                // we don't ever swap send and receive ports here
+          udp_send_port = set.udp_remotePort;              
           
-          if (set.mav_wfproto == udp) {
-            WiFiUDP UDP_STA_Object;        
-            udp_object[0] = new WiFiUDP(UDP_STA_Object);         
-            Log.printf("Begin UDP using STA UDP object  read port:%d  send port:%d\n", udp_read_port, udp_send_port);                 
-            udp_object[0]->begin(udp_read_port);  
-          }
-        if (set.fr_io & 0x02) {  // UDP  
+          if (set.fr_io & 0x02) {  // FrSky UDP  
             Log.printf("Begin UDP using Frs UDP object  read port:%d  send port:%d\n", set.udp_localPort+1, set.udp_remotePort+1);                    
             frs_udp_object.begin(set.udp_localPort+1);          // use local port + 1 for Frs out                   
+          } else {                 // Mavlink UDP  
+            WiFiUDP UDP_STA_Object;    
+            udp_object[1] = new WiFiUDP(UDP_STA_Object);         
+            Log.printf("Begin UDP using AP UDP object  read port:%d  send port:%d\n", udp_read_port, udp_send_port);                 
+            udp_object[1]->begin(udp_read_port);             
           }
                   
           UDP_remoteIP = WiFi.softAPIP();

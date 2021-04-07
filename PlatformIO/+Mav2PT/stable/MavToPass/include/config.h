@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      64
-#define PATCH_LEVEL        8
+#define PATCH_LEVEL        9
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -16,10 +16,9 @@ Complete change log and debugging options are at the bottom of this tab
 
 GitHub Tag
 ----------                                            
-
-V2.64.6    2021-03-25  Fix screen scroll low limit when actve row < screen height  
-V2.64.7    2021-03-30  Update getPolarity() technique. Minor, for very slow baud rates.  
+ 
 V2.64.8    2021-04-07  Fixed AP mode web setting trying STA mode first.
+V2.64.9    2021-04-07  Fixed pure AP mode UDP object / no port swap
                                                                            
 */
 //===========================================================================================
@@ -84,8 +83,8 @@ V2.64.8    2021-04-07  Fixed AP mode web setting trying STA mode first.
 // These are optional, and in addition to the F.Port telemetry output
 //#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
-//#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
+#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
 
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with GCS I/O
 
@@ -139,6 +138,9 @@ V2.64.8    2021-04-07  Fixed AP mode web setting trying STA mode first.
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+
+
 
 //                      D E F A U L T   B L U E T O O T H   S E T T I N G S   
 //=================================================================================================
@@ -1184,7 +1186,9 @@ bool daylightSaving = false;
 //#define Debug_GCS_Up          // traffic up from GCS to FC
 
 //#define Debug_Read_UDP_GCS  
+
 //#define Debug_Send_UDP_GCS
+
 //#define Debug_Read_UDP_FC  
 //#define Debug_Send_UDP_FC  
 
@@ -1257,7 +1261,7 @@ bool daylightSaving = false;
 
 //#define Frs_Debug_Period
 
- //#define Support_SBUS_Out 
+//#define Support_SBUS_Out 
 
 //#define Debug_Read_TCP
 //#define Debug_Read_UDP
@@ -1477,5 +1481,7 @@ V2.64.4    2021-03-01  Add serial port polarity detection and auto invert.
            2021-03-04  Hud rssi blank fix. 
                        Always auto detect FrSky serial speed. Remove option. 
            2021-03-11  fport1 || fport2  
-V2.64.5    2021-03-21  Two small PRs by Risto and a small patch to assist disply definition on Dev Kit                                                                                                                                                                                                                                                                                              
+V2.64.5    2021-03-21  Two small PRs by Risto and a small patch to assist disply definition on Dev Kit    
+V2.64.6    2021-03-25  Fix screen scroll low limit when actve row < screen height  
+V2.64.7    2021-03-30  Update getPolarity() technique. Minor, for very slow baud rates.                                                                                                                                                                                                                                                                                           
 */

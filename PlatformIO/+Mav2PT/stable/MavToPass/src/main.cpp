@@ -1190,7 +1190,7 @@ void Read_From_GCS() {
         if (msgReceived) {
           GCS_available = true;  // Record waiting to go to FC 
 
-          #if defined  Debug_Read_UDP || defined Debug_Read_UDP_GCS  
+          #if defined  Debug_Read_UDP || defined Debug_GCS_Up || defined Debug_Read_UDP_GCS  
             Log.printf("Read WiFi UDP from GCS to G2Fmsg: msgReceived=%d ==============================\n", msgReceived); 
             PrintMavBuffer(&G2Fmsg);
           #endif      
@@ -1296,13 +1296,14 @@ void Read_From_GCS() {
     bool msgRcvd = false;
     mavlink_status_t _status;
 
-    // 2 possible udp objects, STA [0] and    AP [1]       
+    // 2 possible udp objects, STA [0]    and    AP [1]       
 
         len = udp_object[active_object_idx]->parsePacket();
         // esp sometimes reboots here: WiFiUDP.cpp line 213 char * buf = new char[1460]; 
-
+   
         int udp_count = len;
         if(udp_count > 0) {  
+          //Log.printf("Read UDP io_side=%d object=%d port:%d  len:%d\n", io_side, active_object_idx, udp_read_port, len);
           //if (io_side == gcs_side) Log.printf("Read UDP io_side=%d object=%d port:%d\n", io_side, active_object_idx, udp_read_port);
           while(udp_count--)  {
 
@@ -1574,7 +1575,6 @@ void MavToRingBuffer() {
 void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
   
   if ((set.gs_io == gs_ser) || (set.gs_io == gs_bt) || (set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt) || (set.gs_sd == gs_on)) {
-
       if (set.gs_io == gs_ser) {  // Serial
         len = mavlink_msg_to_send_buffer(GCSbuf, &R2Gmsg);
         mvSerial.write(GCSbuf,len);  
@@ -1602,9 +1602,7 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
   #if (defined wifiBuiltin)
     static bool msgSent = false;
     if ((set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt)) { //  WiFi
-      
       if (wifiSuGood) {
-        
         if (set.mav_wfproto == tcp)  { // TCP      
           for (int i = 1 ; i < max_clients ; ++i) {       // send to each active client. Not to inbound client [0] (FC side)
             if (NULL != tcp_client[i]) {        // if active client
@@ -1629,7 +1627,6 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
         }
         
         if (set.mav_wfproto == udp)  { // UDP     
-
           if ((set.wfmode == ap_sta) || (set.wfmode == ap)) { // if AP_STA or AP mode                 
             active_object_idx = 1;                            // Use AP UDP object for FC send     
             udp_read_port = set.udp_localPort;           
@@ -1647,15 +1644,13 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
             UDP_remoteIP[3] = 255; 
             msgSent = Send_UDP(gcs_side, &R2Gmsg);  // to GCS
             msgSent = msgSent; // stop stupid compiler warnings                       
-          #else
-                   
+          #else         
             for (int i = 1 ; i < max_clients ; i++) {   // send to each individual remote udp ip. Not to FC side client ip [0] 
               if (udpremoteip[i][0] != 0) {
                 //Log.printf("Non-zero ip i=%d  ip=%s\n", i, udpremoteip[i].toString().c_str());
                 UDP_remoteIP =  udpremoteip[i];         // target the remote IP
                 msgSent = Send_UDP(gcs_side, &R2Gmsg);            // to GCS
                 msgSent = msgSent; // stop stupid compiler warnings    
-
                 #if (defined Debug_GCS_Down) || (defined Debug_Send_UDP_GCS)
                   Log.print("Sent to GCS by WiFi UDP: msgSent="); Log.println(msgSent);
                   PrintMavBuffer(&R2Gmsg);
@@ -2982,8 +2977,7 @@ void Mavlink_Command_Long() {  // #76
  }
  //================================================================================================= 
  
-
- //=================================================================================================  
+//=================================================================================================  
 //================================================================================================= 
 //
 //                                       U T I L I T I E S
@@ -3315,10 +3309,10 @@ void Mavlink_Command_Long() {  // #76
 
         if ( (set.mav_wfproto == udp) || (set.fr_io & 0x02) ) {  // UDP
 
-          if (set.wfmode == ap_sta) {                // in WIFI_AP_STA mode, we need to discriminate between sta and ap read ports 
-            udp_read_port = set.udp_remotePort;      // so we flip read and send ports as a device
+          if (set.wfmode == ap_sta) {           // in WIFI_AP_STA mode, we need to discriminate between sta and ap read ports 
+            udp_read_port = set.udp_remotePort; // so we swap read and send ports as a device
             udp_send_port = set.udp_localPort;           
-          } else {    
+          } else {                              // simple sta mode
             udp_read_port = set.udp_localPort; 
             udp_send_port = set.udp_remotePort;                          
           }
@@ -3429,26 +3423,18 @@ void Mavlink_Command_Long() {  // #76
         }
 
         if ( (set.mav_wfproto == udp) || (set.fr_io & 0x02) ) {  // UDP
-          WiFiUDP UDP_AP_Object;        
-          udp_object[1] = new WiFiUDP(UDP_AP_Object); 
            
-          if (set.wfmode == ap_sta) {               // NB in WIFI_AP_STA mode, we need to discriminate between sta and ap read ports 
-            udp_read_port = set.udp_localPort;      // so we flip read and send ports as a device
-            udp_send_port = set.udp_remotePort;              
-          } else {    
-            udp_read_port = set.udp_remotePort;  
-            udp_send_port = set.udp_localPort;                    
-          }
+          udp_read_port = set.udp_localPort;                // we don't ever swap send and receive ports here
+          udp_send_port = set.udp_remotePort;              
           
-          if (set.mav_wfproto == udp) {
-            WiFiUDP UDP_STA_Object;        
-            udp_object[0] = new WiFiUDP(UDP_STA_Object);         
-            Log.printf("Begin UDP using STA UDP object  read port:%d  send port:%d\n", udp_read_port, udp_send_port);                 
-            udp_object[0]->begin(udp_read_port);  
-          }
-        if (set.fr_io & 0x02) {  // UDP  
+          if (set.fr_io & 0x02) {  // FrSky UDP  
             Log.printf("Begin UDP using Frs UDP object  read port:%d  send port:%d\n", set.udp_localPort+1, set.udp_remotePort+1);                    
             frs_udp_object.begin(set.udp_localPort+1);          // use local port + 1 for Frs out                   
+          } else {                 // Mavlink UDP  
+            WiFiUDP UDP_STA_Object;    
+            udp_object[1] = new WiFiUDP(UDP_STA_Object);         
+            Log.printf("Begin UDP using AP UDP object  read port:%d  send port:%d\n", udp_read_port, udp_send_port);                 
+            udp_object[1]->begin(udp_read_port);             
           }
                   
           UDP_remoteIP = WiFi.softAPIP();
