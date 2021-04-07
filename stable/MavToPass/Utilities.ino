@@ -233,8 +233,8 @@
        set.wfmode = ap_sta;    
      }
    }
-   
-   if ((set.wfmode == sta) || (set.wfmode == ap_sta) || (set.wfmode = sta_ap) )  {  // STA mode or AP_STA mode or STA failover to AP mode
+ 
+   if ((set.wfmode == sta) || (set.wfmode == ap_sta) || (set.wfmode == sta_ap) )  {  // STA mode or AP_STA mode or STA failover to AP mode
      if (!apFailover) {   
      
       uint8_t retry = 0;
