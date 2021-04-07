@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      64
-#define PATCH_LEVEL        7
+#define PATCH_LEVEL        8
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -18,7 +18,9 @@ GitHub Tag
 ----------                                            
 
 V2.64.6    2021-03-25  Fix screen scroll low limit when actve row < screen height  
-V2.84.7    2021-03-30  Update getPolarity() technique. Minor, for very slow baud rates.                                                                              
+V2.64.7    2021-03-30  Update getPolarity() technique. Minor, for very slow baud rates.  
+V2.64.8    2021-04-07  Fixed AP mode web setting trying STA mode first.
+                                                                           
 */
 //===========================================================================================
 //
@@ -43,16 +45,16 @@ V2.84.7    2021-03-30  Update getPolarity() technique. Minor, for very slow baud
 #define Device_sysid     251                     // Our Mavlink Identity - APM FC is 1, Mission Planner is 255, QGC default is 0 
 #define Device_compid    MAV_COMP_ID_PERIPHERAL  // 158 Generic autopilot peripheral - APM FC is 1, MP is 190, QGC is  https://mavlink.io/en/messages/common.html
 
-#define webSupport                      // ESP only. Enable wifi web support, including OTA firmware updating. Browse to IP.
-#define webPassword      "admin"    // Web password 
+#define webSupport                     // ESP only. Enable wifi web support, including OTA firmware updating. Browse to IP.
+#define webPassword      "admin"       // Web password 
 
 #define displaySupport                 // Enable if you have a display attached - choose display type where board variant is defined 
                                        // NOTE: Set mvBaud = 57600 for Dragonlink and RFD900X
-#define mvBaud                 57600   // Mavlink to/from the flight controller - max 921600 - must match FC or long range radio
+#define mvBaud            57600        // Mavlink to/from the flight controller - max 921600 - must match FC or long range radio
 //#define MavAutoBaud                    // Auto detect Mavlink telemetry speed             
                                        // Default for FrSky is auto detect telemetry speed    
 // Do not enable for FlightDeck
-#define PlusVersion  // Added support for 0x5009 Mission WPs, 0x50F1 Servo_Channels, 0x50F2 VFR_Hud
+#define PlusVersion                    // Added support for 0x5009 Mission WPs, 0x50F1 Servo_Channels, 0x50F2 VFR_Hud
 
 //=================================================================================================
 //           D E F A U L T   T R A N S L A T I O N   M O D E   S E T T I N G S   
@@ -82,8 +84,8 @@ V2.84.7    2021-03-30  Update getPolarity() technique. Minor, for very slow baud
 // These are optional, and in addition to the F.Port telemetry output
 //#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
-//#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
+#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
 
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with GCS I/O
 
@@ -92,7 +94,7 @@ V2.84.7    2021-03-30  Update getPolarity() technique. Minor, for very slow baud
 #endif
 
 //=================================================================================================
-//                D E F A U L T   F R S K Y   S / F P O R T   I / O    S E T T I N G S    
+//                D E F A U L T   F R S K Y   S/F P O R T   I / O    S E T T I N G S    
 //=================================================================================================
 // Choose only one of these default FrSky S/Port I/O channels
 // How does FrSky telemetry leave this translator? 
@@ -122,11 +124,11 @@ V2.84.7    2021-03-30  Update getPolarity() technique. Minor, for very slow baud
 //                          S E L E C T   E S P   B O A R D   V A R I A N T   
 //=================================================================================================
 //================================================================================================= 
-//#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
+#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi - Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
-#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
+//#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     7    // ESP32 Dev Board with ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
 
@@ -1232,7 +1234,9 @@ bool daylightSaving = false;
 //#define Debug_Loop_Period
 //#define Mav_Debug_Command_Ack
 //#define Debug_SRAM
+
 //#define Debug_Web_Settings
+
 //#define Mav_Debug_FC_Heartbeat
 //#define Mav_Debug_GCS_Heartbeat
 //#define Debug_Our_FC_Heartbeat
