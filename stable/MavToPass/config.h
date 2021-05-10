@@ -82,8 +82,8 @@ V2.64.7    2021-03-30  Update getPolarity() technique. Minor, for very slow baud
 // These are optional, and in addition to the F.Port telemetry output
 //#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
-//#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
+#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
 
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with GCS I/O
 
