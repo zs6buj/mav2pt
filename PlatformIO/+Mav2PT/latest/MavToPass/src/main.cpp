@@ -1190,7 +1190,7 @@ void Read_From_GCS() {
         if (msgReceived) {
           GCS_available = true;  // Record waiting to go to FC 
 
-          #if defined  Debug_Read_UDP || defined Debug_Read_UDP_GCS  
+          #if defined  Debug_Read_UDP || defined Debug_GCS_Up || defined Debug_Read_UDP_GCS  
             Log.printf("Read WiFi UDP from GCS to G2Fmsg: msgReceived=%d ==============================\n", msgReceived); 
             PrintMavBuffer(&G2Fmsg);
           #endif      
@@ -1296,13 +1296,14 @@ void Read_From_GCS() {
     bool msgRcvd = false;
     mavlink_status_t _status;
 
-    // 2 possible udp objects, STA [0] and    AP [1]       
+    // 2 possible udp objects, STA [0]    and    AP [1]       
 
         len = udp_object[active_object_idx]->parsePacket();
         // esp sometimes reboots here: WiFiUDP.cpp line 213 char * buf = new char[1460]; 
-
+   
         int udp_count = len;
         if(udp_count > 0) {  
+          //Log.printf("Read UDP io_side=%d object=%d port:%d  len:%d\n", io_side, active_object_idx, udp_read_port, len);
           //if (io_side == gcs_side) Log.printf("Read UDP io_side=%d object=%d port:%d\n", io_side, active_object_idx, udp_read_port);
           while(udp_count--)  {
 
@@ -1574,7 +1575,6 @@ void MavToRingBuffer() {
 void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
   
   if ((set.gs_io == gs_ser) || (set.gs_io == gs_bt) || (set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt) || (set.gs_sd == gs_on)) {
-
       if (set.gs_io == gs_ser) {  // Serial
         len = mavlink_msg_to_send_buffer(GCSbuf, &R2Gmsg);
         mvSerial.write(GCSbuf,len);  
@@ -1602,9 +1602,7 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
   #if (defined wifiBuiltin)
     static bool msgSent = false;
     if ((set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt)) { //  WiFi
-      
       if (wifiSuGood) {
-        
         if (set.mav_wfproto == tcp)  { // TCP      
           for (int i = 1 ; i < max_clients ; ++i) {       // send to each active client. Not to inbound client [0] (FC side)
             if (NULL != tcp_client[i]) {        // if active client
@@ -1629,7 +1627,6 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
         }
         
         if (set.mav_wfproto == udp)  { // UDP     
-
           if ((set.wfmode == ap_sta) || (set.wfmode == ap)) { // if AP_STA or AP mode                 
             active_object_idx = 1;                            // Use AP UDP object for FC send     
             udp_read_port = set.udp_localPort;           
@@ -1647,15 +1644,13 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
             UDP_remoteIP[3] = 255; 
             msgSent = Send_UDP(gcs_side, &R2Gmsg);  // to GCS
             msgSent = msgSent; // stop stupid compiler warnings                       
-          #else
-                   
+          #else         
             for (int i = 1 ; i < max_clients ; i++) {   // send to each individual remote udp ip. Not to FC side client ip [0] 
               if (udpremoteip[i][0] != 0) {
                 //Log.printf("Non-zero ip i=%d  ip=%s\n", i, udpremoteip[i].toString().c_str());
                 UDP_remoteIP =  udpremoteip[i];         // target the remote IP
                 msgSent = Send_UDP(gcs_side, &R2Gmsg);            // to GCS
                 msgSent = msgSent; // stop stupid compiler warnings    
-
                 #if (defined Debug_GCS_Down) || (defined Debug_Send_UDP_GCS)
                   Log.print("Sent to GCS by WiFi UDP: msgSent="); Log.println(msgSent);
                   PrintMavBuffer(&R2Gmsg);
@@ -2982,8 +2977,7 @@ void Mavlink_Command_Long() {  // #76
  }
  //================================================================================================= 
  
-
- //=================================================================================================  
+//=================================================================================================  
 //================================================================================================= 
 //
 //                                       U T I L I T I E S
@@ -3218,8 +3212,8 @@ void Mavlink_Command_Long() {  // #76
        set.wfmode = ap_sta;    
      }
    }
-   
-   if ((set.wfmode == sta) || (set.wfmode == ap_sta) || (set.wfmode = sta_ap) )  {  // STA mode or AP_STA mode or STA failover to AP mode
+ 
+   if ((set.wfmode == sta) || (set.wfmode == ap_sta) || (set.wfmode == sta_ap) )  {  // STA mode or AP_STA mode or STA failover to AP mode
      if (!apFailover) {   
      
       uint8_t retry = 0;
@@ -3315,10 +3309,10 @@ void Mavlink_Command_Long() {  // #76
 
         if ( (set.mav_wfproto == udp) || (set.fr_io & 0x02) ) {  // UDP
 
-          if (set.wfmode == ap_sta) {                // in WIFI_AP_STA mode, we need to discriminate between sta and ap read ports 
-            udp_read_port = set.udp_remotePort;      // so we flip read and send ports as a device
+          if (set.wfmode == ap_sta) {           // in WIFI_AP_STA mode, we need to discriminate between sta and ap read ports 
+            udp_read_port = set.udp_remotePort; // so we swap read and send ports as a device
             udp_send_port = set.udp_localPort;           
-          } else {    
+          } else {                              // simple sta mode
             udp_read_port = set.udp_localPort; 
             udp_send_port = set.udp_remotePort;                          
           }
@@ -3429,26 +3423,18 @@ void Mavlink_Command_Long() {  // #76
         }
 
         if ( (set.mav_wfproto == udp) || (set.fr_io & 0x02) ) {  // UDP
-          WiFiUDP UDP_AP_Object;        
-          udp_object[1] = new WiFiUDP(UDP_AP_Object); 
            
-          if (set.wfmode == ap_sta) {               // NB in WIFI_AP_STA mode, we need to discriminate between sta and ap read ports 
-            udp_read_port = set.udp_localPort;      // so we flip read and send ports as a device
-            udp_send_port = set.udp_remotePort;              
-          } else {    
-            udp_read_port = set.udp_remotePort;  
-            udp_send_port = set.udp_localPort;                    
-          }
+          udp_read_port = set.udp_localPort;                // we don't ever swap send and receive ports here
+          udp_send_port = set.udp_remotePort;              
           
-          if (set.mav_wfproto == udp) {
-            WiFiUDP UDP_STA_Object;        
-            udp_object[0] = new WiFiUDP(UDP_STA_Object);         
-            Log.printf("Begin UDP using STA UDP object  read port:%d  send port:%d\n", udp_read_port, udp_send_port);                 
-            udp_object[0]->begin(udp_read_port);  
-          }
-        if (set.fr_io & 0x02) {  // UDP  
+          if (set.fr_io & 0x02) {  // FrSky UDP  
             Log.printf("Begin UDP using Frs UDP object  read port:%d  send port:%d\n", set.udp_localPort+1, set.udp_remotePort+1);                    
             frs_udp_object.begin(set.udp_localPort+1);          // use local port + 1 for Frs out                   
+          } else {                 // Mavlink UDP  
+            WiFiUDP UDP_STA_Object;    
+            udp_object[1] = new WiFiUDP(UDP_STA_Object);         
+            Log.printf("Begin UDP using AP UDP object  read port:%d  send port:%d\n", udp_read_port, udp_send_port);                 
+            udp_object[1]->begin(udp_read_port);             
           }
                   
           UDP_remoteIP = WiFi.softAPIP();
@@ -3982,13 +3968,13 @@ void PrintLoopPeriod() {
       show_log = true;    
       scroll_millis = millis(); 
       
-      if (up_dn == up) {
+      if (up_dn == up) {  // towards last line painted, so lines move up
          scroll_row--;
          scroll_row = constrain(scroll_row, SCR_H_CH, row);
          upButton = false; 
          PaintLogScreen(scroll_row, show_last_row);   // paint down to scroll_row
       }
-      if (up_dn == down) {
+      if (up_dn == down) {  // towards first line painted, so lines move down
           scroll_row++; 
           scroll_row = constrain(scroll_row, SCR_H_CH, row);       
           dnButton = false; 
@@ -4010,8 +3996,15 @@ void PrintLoopPeriod() {
           display.clearDisplay();
         #endif  
         display.setCursor(0,0);  
-        int8_t first_row = (last_row_action==omit_last_row) ? (new_row - SCR_H_CH +1) : (new_row - SCR_H_CH); 
-        int8_t last_row = (last_row_action==omit_last_row) ? new_row : (new_row );        
+        int8_t first_row;
+        int8_t last_row;
+        if (row < SCR_H_CH) {
+          first_row = (last_row_action==omit_last_row) ? 1 : 0; 
+          last_row = (last_row_action==omit_last_row) ? new_row : new_row ;           
+        } else {
+          first_row = (last_row_action==omit_last_row) ? (new_row - SCR_H_CH +1) : (new_row - SCR_H_CH); 
+          last_row = (last_row_action==omit_last_row) ? new_row : (new_row );            
+        }     
         for (int i = first_row ; i < last_row; i++) { // drop first line, display rest of old lines & leave space for new line          
           display.println(ScreenRow[i].x);
         }
@@ -4030,9 +4023,11 @@ void PrintLoopPeriod() {
       if (display_mode != logg) {
           SetupLogDisplayStyle();
           display_mode = logg; 
-      }   
-      if (row >= SCR_H_CH) {                 // if the new line exceeds the page lth, re-display existing lines
-        PaintLogScreen(row, omit_last_row);
+          PaintLogScreen(row, omit_last_row);
+      } else {   
+        if (row >= SCR_H_CH) {                      // if the new line exceeds the page lth, re-display existing lines
+          PaintLogScreen(row, omit_last_row);
+        }
       }
       uint16_t lth = strlen(S.c_str());           // store the new line a char at a time
       if (lth > max_col-1) {
@@ -4068,16 +4063,16 @@ void PrintLoopPeriod() {
     //===================================
    
     void LogScreenPrint(String S) {
-    #if defined displaySupport  
-
+    #if defined displaySupport   
+    
       if (display_mode != logg) {
           SetupLogDisplayStyle();
           display_mode = logg; 
-      }   
-
-     // scroll_row = row; 
-      if (row >= SCR_H_CH) {              // if the new line exceeds the page lth, re-display existing lines
-        PaintLogScreen(row, omit_last_row);
+          PaintLogScreen(row, omit_last_row);
+      } else {   
+        if (row >= SCR_H_CH) {                      // if the new line exceeds the page lth, re-display existing lines
+          PaintLogScreen(row, omit_last_row);
+        }
       }
       display.print(S);                         // the new line
       #if (defined SSD1306_Display)
@@ -4150,7 +4145,7 @@ void PrintLoopPeriod() {
           yy = 0 ;          
           display.setCursor(xx, yy);  
           snprintf(snprintf_buf, snp_max, "RSSI:%ld%%", ap_rssi); 
-          display.fillRect(xx+(4*CHAR_W_PX), yy, 4 * CHAR_W_PX, CHAR_H_PX, ILI9341_BLUE); // clear the previous line               
+          display.fillRect(xx+(5*CHAR_W_PX), yy, 4 * CHAR_W_PX, CHAR_H_PX, ILI9341_BLUE); // clear the previous line               
           display.println(snprintf_buf);
               
           // distance to home
@@ -4194,7 +4189,7 @@ void PrintLoopPeriod() {
           xx = 18 * CHAR_W_PX;
           yy = 16 * CHAR_W_PX;        
           display.setCursor(xx, yy); 
-          snprintf(snprintf_buf, snp_max, "Ah:%.1f", )pt_bat1_mAh 0.001F);     
+          snprintf(snprintf_buf, snp_max, "Ah:%.1f", pt_bat1_mAh * 0.001F);     
           display.fillRect(xx+(3*CHAR_W_PX), yy, (5*CHAR_W_PX), CHAR_H_PX, ILI9341_BLUE); // clear the previous line   
           display.println(snprintf_buf);           
           
@@ -6494,4 +6489,3 @@ void RawSettingsToStruct() {
 }
 
 //=================================================================================
-

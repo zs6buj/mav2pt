@@ -1,4 +1,4 @@
-     //=================================================================================================  
+//=================================================================================================  
 //================================================================================================= 
 //
 //                                    F . P O R T   C L A S S
@@ -156,7 +156,7 @@
     uint32_t      getBaud(uint8_t rxpin, pol_t pl);      
             
   private:  
-    pol_t         getPolarity(uint8_t rxpin);
+    pol_t         getPolarity(uint8_t pin);
     uint32_t      getConsistent(uint8_t rxpin, pol_t pl);
     uint32_t      SenseUart(uint8_t  rxpin, pol_t pl);          
     frport_t      Sense_FrPort(); 
@@ -2703,46 +2703,23 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
        }
     } 
     
-    //=================================================================== 
-
-    pol_t FrSkyPort::getPolarity(uint8_t s_pin) {
-      bool teensy = false;
-      #if defined TEENSY3X
-        teensy = true;
-      #endif
-      
-      uint16_t hi = 0;
-      uint16_t lo = 0;  
-      const uint16_t mx = 1000;
-      while ((lo <= mx) && (hi <= mx)) {
-
-        if (digitalRead(s_pin) == 0) { 
-          lo++;
-        } else 
-        if (digitalRead(s_pin) == 1) {  
-          hi++;
-        }
-
-        if (lo > mx) {
-          if ( (hi == 0) && (teensy != true) ) 
-          {
-            return no_traffic;   
-          } else {
-            return idle_low; 
-          }
-        }
-        if (hi > mx) {
-          if (lo == 0) {
-            return no_traffic; 
-          } else {
-            return idle_high; 
-          }
-        }
-        delayMicroseconds(200);
-       //Log.printf("s_pin:%d  %d\t\t%d  teensy:%d \n",s_pin, lo, hi, teensy);  
-     } 
-     return idle_low; 
-    } 
+    //======================================================
+    pol_t FrSkyPort::getPolarity(uint8_t pin) {
+      const uint32_t su_timeout = 5000; // uS !  Default timeout 1000mS!
+      uint32_t pw_hi = 0;
+      uint32_t pw_lo = 0;   
+      for (int i = 0; i < 20; i++) {
+        pw_hi += pulseIn(pin,HIGH, su_timeout);
+        pw_lo += pulseIn(pin,LOW, su_timeout); 
+        delayMicroseconds(20);
+      }  
+      //Log.printf("pw_hi:%d  pw_lo:%d\n", pw_hi, pw_lo);  
+      if (pw_hi > pw_lo) {
+        return idle_low;
+      } else {
+        return idle_high;        
+      }
+    }   
     //===================================================================     
 
     uint32_t FrSkyPort::getBaud(uint8_t s_pin, pol_t pl) {
