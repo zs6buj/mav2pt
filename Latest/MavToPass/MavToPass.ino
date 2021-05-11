@@ -187,6 +187,7 @@ bool Read_UDP(io_side_t, mavlink_message_t*);
 bool Send_TCP(mavlink_message_t*);
 bool Send_UDP(io_side_t, mavlink_message_t*);
 void DecodeOneMavFrame();
+void CheckMavTimeouts();
 void MarkHome();
 uint32_t Get_Volt_Average1(uint16_t);
 uint32_t Get_Volt_Average2(uint16_t);
@@ -1115,6 +1116,7 @@ void RB_To_Decode_and_GCS() {
     
     Send_From_RingBuf_To_GCS();
     
+    CheckMavTimeouts();   // Check if we need to reset some variables based on specific mavlink message timeouts
     DecodeOneMavFrame();  // Decode a Mavlink frame and buffer passthru
 
   }
@@ -1762,6 +1764,19 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
 #endif
 //================================================================================================= 
 
+void CheckMavTimeouts() {
+  // fence status update
+  if (ap_fence_enabled && (millis()-ap_fence_last_update) > 2000) {
+    ap_fence_enabled = false;
+    ap_breach_status = 0;
+    #if defined Mav_Debug_All || defined Mav_Debug_Fence
+      Log.print("#162 Fence Status timeout expired: ");
+      Log.print("  fence_enabled= ");  Log.print(ap_fence_enabled?"true":"false");
+      Log.print("  breach_status= ");  Log.println(ap_breach_status);
+    #endif
+  }
+}
+//=================================================================================================
 void DecodeOneMavFrame() {
   
    #if defined Mav_Print_All_Msgid
@@ -2663,6 +2678,22 @@ void DecodeOneMavFrame() {
             #endif  
           #endif              
             break; 
+
+        case MAVLINK_MSG_ID_TERRAIN_REPORT:      // #136   https://mavlink.io/en/messages/common.html
+          if (!mavGood) break;
+          ap_terrain_spacing = mavlink_msg_terrain_report_get_spacing(&R2Gmsg);           // terrain grid spacing
+          ap136_current_height = mavlink_msg_terrain_report_get_current_height(&R2Gmsg);  // height above terrain
+          #if defined Mav_Debug_All || defined Mav_Debug_Terrain
+            Log.print("Mavlink from FC #136 Terrain Report: ");
+            Log.print("  spacing= "); Log.print(ap_terrain_spacing);
+            Log.print("  current_height= ");  Log.println(ap136_current_height);
+          #endif
+
+          #if (defined frBuiltin)
+            FrPort.PushMessage(0x500B, 0);   // 0x500B Terrain status
+          #endif
+            break;
+
          case MAVLINK_MSG_ID_BATTERY_STATUS:      // #147   https://mavlink.io/en/messages/common.html
           if (!mavGood) break;       
           ap_battery_id = mavlink_msg_battery_status_get_id(&R2Gmsg);  
@@ -2699,6 +2730,19 @@ void DecodeOneMavFrame() {
         case MAVLINK_MSG_ID_MEMINFO:           // #152   https://mavlink.io/en/messages/ardupilotmega.html
           if (!mavGood) break;        
           break;   
+
+        case MAVLINK_MSG_ID_FENCE_STATUS:      // #162   https://mavlink.io/en/messages/common.html
+            if (!mavGood) break;
+            ap_breach_status = mavlink_msg_fence_status_get_breach_status(&R2Gmsg);       // 0 inside, 1 outside
+            ap_fence_last_update = millis();
+            ap_fence_enabled = true;
+            #if defined Mav_Debug_All || defined Mav_Debug_Fence
+              Log.print("Mavlink from FC #162 Fence Status: ");
+              Log.print("  fence_enabled= ");  Log.print(ap_fence_enabled?"true":"false");
+              Log.print("  breach_status= ");  Log.println(ap_breach_status);
+            #endif
+            break;
+
         case MAVLINK_MSG_ID_RADIO:             // #166   See #109 RADIO_status
         
           break; 
@@ -2754,6 +2798,7 @@ void DecodeOneMavFrame() {
         case MAVLINK_MSG_ID_AHRS3:            // #182   https://mavlink.io/en/messages/ardupilotmega.html
           if (!mavGood) break;       
           break;
+
         case MAVLINK_MSG_ID_RPM:              // #226   https://mavlink.io/en/messages/ardupilotmega.html
           if (!mavGood) break; 
           ap_rpm1 = mavlink_msg_rpm_get_rpm1(&R2Gmsg); 
@@ -2762,7 +2807,12 @@ void DecodeOneMavFrame() {
             Log.print("Mavlink from FC #226 RPM: ");
             Log.print("RPM1= "); Log.print(ap_rpm1, 0); 
             Log.print("  RPM2= ");  Log.println(ap_rpm2, 0);          
-          #endif       
+          #endif
+
+          #if (defined frBuiltin)
+            FrPort.PushMessage(0x500A, 0);   // 0x500A RPM
+          #endif
+
           break;
 
         case MAVLINK_MSG_ID_STATUSTEXT:        // #253      
