@@ -419,6 +419,10 @@ Power supply status flags (bitmask)
 32  MAV_POWER_status_CHANGED  Power status has changed since boot
  */
 
+// Message  #136 TERRAIN_REPORT
+float       ap136_current_height;  // height above terrain
+int16_t     ap_terrain_spacing;    // 0 means no terrain data
+
 // Message  #147 BATTERY_status 
 uint8_t      ap_battery_id;       
 uint8_t      ap_battery_function;
@@ -431,6 +435,11 @@ int32_t      ap_energy_consumed;    // HectoJoules (intergrated U*I*dt) (1 = 100
 int8_t       ap147_battery_remaining;  // (0%: 0, 100%: 100)
 int32_t      ap_time_remaining;     // in seconds
 uint8_t      ap_charge_state;     
+
+// Message  #162 FENCE_STATUS
+uint8_t       ap_breach_status;
+uint32_t      ap_fence_last_update;
+bool          ap_fence_enabled;
 
 // Message #166 RADIO see #109
 
@@ -553,6 +562,9 @@ uint8_t pt_land_complete;
 uint8_t pt_armed;
 uint8_t pt_bat_fs=0;
 uint8_t pt_ekf_fs=0;
+uint8_t pt_fs=0;
+uint8_t pt_fence_present=0;
+uint8_t pt_fence_breached=0;
 uint8_t pt_imu_temp;
 
 // 0x5002 GPS Status
@@ -608,6 +620,14 @@ uint16_t pt_bat2_mAh;
 //0x5009 Servo_raw         // 4 ch per frame
 uint8_t  frPort; 
 int8_t   pt_sv[5];       
+
+//0x500A RPM
+int16_t pt_rpm1;
+int16_t pt_rpm2;
+
+//0x500B TERRAIN
+int16_t  pt_height_above_terrain;
+uint8_t  pt_terrain_unhealthy;
 
 //0x50F1 HUD
 float    pt_air_spd;       // dm/s

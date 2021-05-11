@@ -205,6 +205,8 @@
     void          Push_Parameters_5007(uint16_t msg_id, uint8_t sub_id);
     void          Push_Bat2_5008(uint16_t msg_id);  
     void          Push_WayPoint_5009(uint16_t msg_id);
+    void          Push_RPM_500A(uint16_t msg_id);
+    void          Push_Terrain_500B(uint16_t msg_id);
     void          Push_Servo_Raw_50F1(uint16_t msg_id);    
     void          Push_VFR_Hud_50F2(uint16_t msg_id);    
     void          Push_Wind_Estimate_50F3(uint16_t msg_id);
@@ -1521,6 +1523,14 @@
           FrSkyPort::Push_WayPoint_5009(msg_id);
           break;       
 
+        case 0x500A:                // msg_id 0x500A RPM
+          FrSkyPort::Push_RPM_500A(msg_id);
+          break;
+
+        case 0x500B:                // msg_id 0x500B Terrain
+          FrSkyPort::Push_Terrain_500B(msg_id);
+          break;
+
         case 0x50F1:                // msg_id 0x50F1 Servo_Raw            
           FrSkyPort::Push_Servo_Raw_50F1(msg_id);
           break;      
@@ -1935,6 +1945,9 @@
         pt_flight_mode = ap_custom_mode + 1; // AP_CONTROL_MODE_LIMIT - ls 5 bits
       }
   
+      pt_fence_present = ap_fence_enabled?1:0;
+      pt_fence_breached = ap_breach_status;
+      pt_throt = ap74_throt;               // 0 - 100%
       pt_imu_temp = ap26_temp;
       /*
       if (ap26_temp < 0)          // @rotorman suggestion
@@ -1952,7 +1965,10 @@
       bit32Pack(pt_armed ,8, 1);            // Armed
       bit32Pack(pt_bat_fs ,9, 1);           // Battery failsafe flag
       bit32Pack(pt_ekf_fs ,10, 2);          // EKF failsafe flag
-      bit32Pack(px4_flight_stack ,12, 1);   // px4_flight_stack flag
+      bit32Pack(pt_fs ,12, 1);              // Ardupilot uses this bit to signal a generic failsafe, hardcoded = 0
+      bit32Pack(pt_fence_present ,13, 1);   // Fence enabled
+      bit32Pack(pt_fence_breached ,14, 1);  // Fence breached
+      bit32Pack(pt_throt, 19, 7);            // Throttle
       bit32Pack(pt_imu_temp, 26, 6);        // imu temperature in cdegC
 
       #if defined Frs_Debug_All || defined Frs_Debug_APStatus
@@ -1964,8 +1980,11 @@
         Log.print(" pt_armed="); Log.print(pt_armed);
         Log.print(" pt_bat_fs="); Log.print(pt_bat_fs);
         Log.print(" pt_ekf_fs="); Log.print(pt_ekf_fs);
-        Log.print(" px4_flight_stack="); Log.print(px4_flight_stack);
+        Log.print(" pt_fs="); Log.print(pt_fs);
+        Log.print(" pt_fence_present="); Log.print(pt_fence_present);
+        Log.print(" pt_fence_breached="); Log.print(pt_fence_breached);
         Log.print(" pt_imu_temp="); Log.print(pt_imu_temp);
+        Log.print(" pt_throt="); Log.print(pt_throt);
         Log.print(" pt_payload="); Log.print(pt_payload); Log.print(" ");
         FrSkyPort::PrintPayload(passthru, downlink);
         Log.println();
@@ -2370,6 +2389,52 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
 
       FrSkyPort::PushToEmptyRow(msg_id, 1);  
         
+    }
+
+    //===================================================================
+
+    void FrSkyPort::Push_RPM_500A(uint16_t msg_id) {
+      pt_rpm1 = (int16_t)roundf(ap_rpm1 * 0.1);
+      pt_rpm2 = (int16_t)roundf(ap_rpm2 * 0.1);
+
+      bit32Pack(pt_rpm1, 0, 16);
+      bit32Pack(pt_rpm2, 16, 16);
+
+      FrSkyPort::PushToEmptyRow(msg_id, 1);
+
+      #if defined Frs_Debug_All || defined Frs_Debug_RPM
+        PrintFrPeriod(0);
+        Log.print("Passthru out RC 0x500A: ");
+        Log.print(" pt_rpm1="); Log.print(pt_rpm1);
+        Log.print(" pt_rpm2="); Log.print(pt_rpm2);
+        Log.print(" pt_payload="); Log.print(pt_payload);  Log.print(" ");
+        FrSkyPort::PrintPayload(passthru, downlink);
+        Log.println();
+      #endif
+    }
+
+    //===================================================================
+
+    void FrSkyPort::Push_Terrain_500B(uint16_t msg_id) {
+      pt_height_above_terrain = prep_number(roundf(ap136_current_height*10), 3, 2);
+      pt_terrain_unhealthy = ap_terrain_spacing == 0 ? 1 : 0;
+
+      bit32Pack(pt_height_above_terrain, 0, 13);
+      bit32Pack(pt_terrain_unhealthy, 13, 1);
+
+      FrSkyPort::PushToEmptyRow(msg_id, 1);
+
+      #if defined Frs_Debug_All || defined Frs_Debug_Terrain
+        PrintFrPeriod(0);
+        Log.print("Passthru out RC 0x500B: ");
+        Log.print(" ap_current_height="); Log.print(ap136_current_height);
+        Log.print(" ap_terrain_spacing="); Log.print(ap_terrain_spacing);
+        Log.print(" pt_height_above_terrain="); Log.print(pt_height_above_terrain);
+        Log.print(" pt_terrain_unhealthy="); Log.print(pt_terrain_unhealthy);
+        Log.print(" pt_payload="); Log.print(pt_payload);  Log.print(" ");
+        FrSkyPort::PrintPayload(passthru, downlink);
+        Log.println();
+      #endif
     }
 
     //===================================================================  

@@ -82,9 +82,9 @@ V2.64.9    2021-04-07  Fixed pure AP mode UDP object / no port swap
 // How does Mavlink telemetry leave this translator?
 // These are optional, and in addition to the F.Port telemetry output
 //#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
-//#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
+#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
-#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
+//#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
 
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with GCS I/O
 
@@ -123,10 +123,10 @@ V2.64.9    2021-04-07  Fixed pure AP mode UDP object / no port swap
 //                          S E L E C T   E S P   B O A R D   V A R I A N T   
 //=================================================================================================
 //================================================================================================= 
-#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
+//#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi - Select ESP32 Dev Board in IDE
-//#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
+#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
 //#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     7    // ESP32 Dev Board with ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
@@ -162,9 +162,9 @@ V2.64.9    2021-04-07  Fixed pure AP mode UDP object / no port swap
 #define STApw                "password"         // Target AP password (in STA mode). Must be >= 8 chars      
 
 // Choose one default mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
-//#define WiFi_Mode   1  //AP            
+#define WiFi_Mode   1  //AP
 //#define WiFi_Mode   2  // STA
-#define WiFi_Mode   3  // (STA>AP) STA failover to AP 
+//#define WiFi_Mode   3  // (STA>AP) STA failover to AP
 
 // Choose one default protocol - for ESP32 only
 //#define Mav_WiFi_Protocol 1    // TCP/IP
@@ -1200,7 +1200,7 @@ bool daylightSaving = false;
 //#define Frs_Debug_RC
 
 //#define Frs_Debug_Params       //0x5007
-//#define Frs_Debug_APStatus    // 0x5001
+#define Frs_Debug_APStatus    // 0x5001
 //#define Mav_Debug_SysStatus   // #1 && battery
 //#define Debug_Batteries       // 0x5003
 //#define Frs_Debug_Home        // 0x5004
@@ -1219,6 +1219,12 @@ bool daylightSaving = false;
 //#define Mav_Debug_Range       // #173
 //#define Frs_Debug_AttiRange   // 0x5006
 
+//#define Mav_Debug_Terrain     // #136
+#define Frs_Debug_Terrain     // 0x500B
+
+//#define Mav_Debug_Fence     // #162
+#define Frs_Debug_Fence     // 0x500B
+
 //#define Mav_Debug_StatusText  // #253  
 //#define Frs_Debug_StatusText  // 0x5000
 //#define Mav_Debug_Mission
@@ -1233,6 +1239,7 @@ bool daylightSaving = false;
 //#define Mav_Print_All_Msgid
 //#define Debug_Eeprom
 //#define Mav_Debug_RPM
+#define Frs_Debug_RPM
 //#define Debug_SD   
 //#define Debug_WiFi
 //#define Debug_Loop_Period
