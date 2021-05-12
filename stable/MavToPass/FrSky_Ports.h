@@ -23,6 +23,7 @@
   int16_t   Add360(int16_t, int16_t);
   float     wrap_360(int16_t);
   int8_t    PWM_To_63(uint16_t);
+  int8_t    THR_To_63(uint16_t);
   void      nbdelay(uint32_t);
   void      LogScreenPrintln(String);
   void      Printbyte(byte, bool, char);
@@ -1947,7 +1948,12 @@
   
       pt_fence_present = ap_fence_enabled?1:0;
       pt_fence_breached = ap_breach_status;
-      pt_throt = ap74_throt;               // 0 - 100%
+      // [-100,100] scaled to [-63,63] encoded in 7 bits, MSB is sign +6bits
+      int8_t ap74_scaled_throttle = THR_To_63(ap74_throt);
+      pt_throt = (uint8_t)abs(ap74_scaled_throttle);
+      if (ap74_scaled_throttle < 0) {
+        pt_throt |= 0x1<<6;
+      }
       pt_imu_temp = ap26_temp;
       /*
       if (ap26_temp < 0)          // @rotorman suggestion
