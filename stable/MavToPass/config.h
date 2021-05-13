@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      65
-#define PATCH_LEVEL        0
+#define PATCH_LEVEL        1
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -17,13 +17,16 @@ Complete change log and debugging options are at the bottom of this tab
 GitHub Tag
 ----------                                            
  
-V2.64.8    2021-04-07  Fixed AP mode web setting trying STA mode first.
+V2.64.8    2021-04-07  Fixed AP mode web setting trying STA mode first
 V2.64.9    2021-04-07  Fixed pure AP mode UDP object / no port swap
 V2.65.0    2021-05-11  PR merged from Alex (yaapu)
                           added RPM frame 0x500A for rpm1 and rpm2
                           added TERRAIN frame 0x500B for terrain enabled/unhealthy
                           added FENCE status bits to frame 0x5001
                           added THROTTLE to frame 0x5001
+V2.65.1   2021-05-13   PR merged from Alex (yaapu)
+                          fix throttle scale from 0,100 to [-63,63]
+                          
                                                                            
 */
 //===========================================================================================
