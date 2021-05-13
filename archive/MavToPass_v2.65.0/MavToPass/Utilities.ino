@@ -1714,14 +1714,7 @@ int8_t myint;
   myint = myint > 63 ? 63 : myint;  
   return myint; 
 }
-//=================================================================================================  
-int8_t THR_To_63(uint16_t value) {       // THR -100 to 100   ->    nominal -63 to 63
-int8_t myint;
-  myint = round(value * 0.63); 
-  myint = myint < -63 ? -63 : myint;            
-  myint = myint > 63 ? 63 : myint;  
-  return myint; 
-}
+
 //=================================================================================================  
 uint32_t Abs(int32_t num) {
   if (num<0) 
