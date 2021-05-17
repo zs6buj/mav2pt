@@ -1046,6 +1046,7 @@
     uint16_t FrSkyPort::PopNextFrame() {
 
       uint32_t sb_now = millis();
+      static uint32_t prev_5000_millis = 0;
       int16_t sb_age;
       int16_t sb_tier_age;
       int16_t sb_oldest_tier1 = 0; 
@@ -1071,12 +1072,14 @@
 
           if (sb[i].msg_id == 0x5000) {
             if (sb_tier_age >= sb_oldest_tier2) {
-              sb_oldest_tier2 = sb_tier_age;
+              if ((millis() - prev_5000_millis) < 15) return 0xffff;  // don't send me yet. leave 20mS between chunks
+              prev_5000_millis = millis();      
+              sb_oldest_tier2 = sb_tier_age;    // send me now
               idx_tier2 = i;
             }
           } else {
           if (sb_tier_age >= sb_oldest_tier1) {
-            sb_oldest_tier1 = sb_tier_age;
+            sb_oldest_tier1 = sb_tier_age;      // send me now
             idx_tier1 = i;
             }   
           }
@@ -1086,7 +1089,7 @@
     
       if (sb_oldest_tier1 == 0) {            // if there are no tier 1 sensor entries
         if (sb_oldest_tier2 > 0) {           // but there are tier 2 entries
-          idx = idx_tier2;                   // send tier 2 instead
+          idx = idx_tier2;                   // send tier 2 instead by selecting tier2 index
           sb_oldest = sb_oldest_tier2;
         }
       } else {
@@ -1094,9 +1097,9 @@
        sb_oldest = sb_oldest_tier1;
       }
   
-      //Log.println(sb_unsent);           // limited detriment :)  
+      //Log.println(sb_unsent);             // limited detriment :)  
 
-      if (sb_oldest == 0)  return 0xffff;  // flag the scheduler table as empty
+      if (sb_oldest == 0)  return 0xffff;   // scheduler table as empty so don't send
 
       if ((FrSkyPort::msg_class_now(sb[idx].msg_id)) == passthru) {
           pt_payload = sb[idx].payload.passthru; 
@@ -1434,7 +1437,7 @@
       uint8_t byte;
       byte = 0xFF-crcout;
 
-      FrSkyPort::SafeWrite(byte, false);
+      FrSkyPort::SafeWrite(byte, true);
 
       crcout = 0;          // crcout reset
     }
