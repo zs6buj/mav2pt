@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      65
-#define PATCH_LEVEL        1
+#define PATCH_LEVEL        3
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -26,6 +26,11 @@ V2.65.0    2021-05-11  PR merged from Alex (yaapu)
                           added THROTTLE to frame 0x5001
 V2.65.1   2021-05-13   PR merged from Alex (yaapu)
                           fix throttle scale from 0,100 to [-63,63]
+V2.65.2   2021-05-17   Beta folder only. Bytestuff enable Write_Crc() 
+                       Delay 15ms 0x5000 status_text chunks > 1                           
+V2.65.3   2021-05-18   PR merged from Alex
+                       SPort loop period from 18mS to 24mS
+                       Work around apparent bit32Pack() anomaly.                         
                           
                                                                            
 */
