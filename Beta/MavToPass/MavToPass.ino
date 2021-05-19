@@ -255,7 +255,6 @@ void LogScreenPrint(String);
   void HandleDisplayButtons();  
 #endif
 
-
   #if (defined frBuiltin)
     FrSkyPort FrPort;   // instantiate FrSky Port object   
   #endif

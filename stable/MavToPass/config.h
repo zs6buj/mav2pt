@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      65
-#define PATCH_LEVEL        3
+#define PATCH_LEVEL        4
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -17,13 +17,6 @@ Complete change log and debugging options are at the bottom of this tab
 GitHub Tag
 ----------                                            
  
-V2.64.8    2021-04-07  Fixed AP mode web setting trying STA mode first
-V2.64.9    2021-04-07  Fixed pure AP mode UDP object / no port swap
-V2.65.0    2021-05-11  PR merged from Alex (yaapu)
-                          added RPM frame 0x500A for rpm1 and rpm2
-                          added TERRAIN frame 0x500B for terrain enabled/unhealthy
-                          added FENCE status bits to frame 0x5001
-                          added THROTTLE to frame 0x5001
 V2.65.1   2021-05-13   PR merged from Alex (yaapu)
                           fix throttle scale from 0,100 to [-63,63]
 V2.65.2   2021-05-17   Beta folder only. Bytestuff enable Write_Crc() 
@@ -31,7 +24,7 @@ V2.65.2   2021-05-17   Beta folder only. Bytestuff enable Write_Crc()
 V2.65.3   2021-05-18   PR merged from Alex
                        SPort loop period from 18mS to 24mS
                        Work around apparent bit32Pack() anomaly.                         
-                          
+V2.65.4   2021-05-19   500a and 500b, clear payload before bit32Pack()                           
                                                                            
 */
 //===========================================================================================
@@ -1213,7 +1206,7 @@ bool daylightSaving = false;
 //#define Frs_Debug_RC
 
 //#define Frs_Debug_Params       //0x5007
-#define Frs_Debug_APStatus    // 0x5001
+//#define Frs_Debug_APStatus    // 0x5001
 //#define Mav_Debug_SysStatus   // #1 && battery
 //#define Debug_Batteries       // 0x5003
 //#define Frs_Debug_Home        // 0x5004
@@ -1233,10 +1226,10 @@ bool daylightSaving = false;
 //#define Frs_Debug_AttiRange   // 0x5006
 
 //#define Mav_Debug_Terrain     // #136
-#define Frs_Debug_Terrain     // 0x500B
+//#define Frs_Debug_Terrain     // 0x500B
 
 //#define Mav_Debug_Fence     // #162
-#define Frs_Debug_Fence     // 0x500B
+//#define Frs_Debug_Fence     // 0x500B
 
 //#define Mav_Debug_StatusText  // #253  
 //#define Frs_Debug_StatusText  // 0x5000
@@ -1252,7 +1245,7 @@ bool daylightSaving = false;
 //#define Mav_Print_All_Msgid
 //#define Debug_Eeprom
 //#define Mav_Debug_RPM
-#define Frs_Debug_RPM
+//#define Frs_Debug_RPM
 //#define Debug_SD   
 //#define Debug_WiFi
 //#define Debug_Loop_Period
@@ -1503,5 +1496,12 @@ V2.64.4    2021-03-01  Add serial port polarity detection and auto invert.
            2021-03-11  fport1 || fport2  
 V2.64.5    2021-03-21  Two small PRs by Risto and a small patch to assist disply definition on Dev Kit    
 V2.64.6    2021-03-25  Fix screen scroll low limit when actve row < screen height  
-V2.64.7    2021-03-30  Update getPolarity() technique. Minor, for very slow baud rates.                                                                                                                                                                                                                                                                                           
+V2.64.7    2021-03-30  Update getPolarity() technique. Minor, for very slow baud rates. 
+V2.64.8    2021-04-07  Fixed AP mode web setting trying STA mode first
+V2.64.9    2021-04-07  Fixed pure AP mode UDP object / no port swap
+V2.65.0    2021-05-11  PR merged from Alex (yaapu)
+                          added RPM frame 0x500A for rpm1 and rpm2
+                          added TERRAIN frame 0x500B for terrain enabled/unhealthy
+                          added FENCE status bits to frame 0x5001
+                          added THROTTLE to frame 0x5001                                                                                                                                                                                                                                                                                          
 */

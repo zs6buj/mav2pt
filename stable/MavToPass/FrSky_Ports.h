@@ -2398,13 +2398,14 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
     //===================================================================
 
     void FrSkyPort::Push_RPM_500A(uint16_t msg_id) {
-      pt_rpm1 = (int16_t)roundf(ap_rpm1 * 0.1);
+      pt_payload = 0;
+      pt_rpm1 = (int16_t)roundf(ap_rpm1  * 0.1);
       pt_rpm2 = (int16_t)roundf(ap_rpm2 * 0.1);
 
-      //bit32Pack(pt_rpm1, 0, 16);
-      //bit32Pack(pt_rpm2, 16, 16);
+      bit32Pack(pt_rpm1, 0, 16);
+      bit32Pack(pt_rpm2, 16, 16);
       
-      pt_payload = pt_rpm1 | (pt_rpm2 << 16);
+      //pt_payload = pt_rpm1 | (pt_rpm2 << 16);  //alex
 
       FrSkyPort::PushToEmptyRow(msg_id, 1);
 
@@ -2422,13 +2423,14 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
     //===================================================================
 
     void FrSkyPort::Push_Terrain_500B(uint16_t msg_id) {
+      pt_payload = 0;
       pt_height_above_terrain = prep_number(roundf(ap136_current_height*10), 3, 2);
       pt_terrain_unhealthy = ap_terrain_spacing == 0 ? 1 : 0;
 
-      //bit32Pack(pt_height_above_terrain, 0, 13);
-      //bit32Pack(pt_terrain_unhealthy, 13, 1);
+      bit32Pack(pt_height_above_terrain, 0, 13);
+      bit32Pack(pt_terrain_unhealthy, 13, 1);
 
-      pt_payload = pt_height_above_terrain | (pt_terrain_unhealthy << 13);
+      //pt_payload = pt_height_above_terrain | (pt_terrain_unhealthy << 13); // alex
 
       FrSkyPort::PushToEmptyRow(msg_id, 1);
 

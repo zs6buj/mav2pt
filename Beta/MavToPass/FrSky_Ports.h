@@ -399,7 +399,7 @@
       }
 
       if (set.trmode == ground) {   
-          if(mavGood  && ((millis() - blind_inject_millis) > 18)) {  
+          if(mavGood  && ((millis() - blind_inject_millis) > 24)) {
             fr_prime = 0x10;
             FrSkyPort::InjectUplinkFrame(fr_prime);        // Blind inject frame into Taranis et al 
             blind_inject_millis=millis();
@@ -1046,7 +1046,6 @@
     uint16_t FrSkyPort::PopNextFrame() {
 
       uint32_t sb_now = millis();
-      static uint32_t prev_5000_millis = 0;
       int16_t sb_age;
       int16_t sb_tier_age;
       int16_t sb_oldest_tier1 = 0; 
@@ -1072,14 +1071,12 @@
 
           if (sb[i].msg_id == 0x5000) {
             if (sb_tier_age >= sb_oldest_tier2) {
-              if ((millis() - prev_5000_millis) < 15) return 0xffff;  // don't send me yet. leave 15mS between chunks
-              prev_5000_millis = millis();      
-              sb_oldest_tier2 = sb_tier_age;    // send me now
+              sb_oldest_tier2 = sb_tier_age;
               idx_tier2 = i;
             }
           } else {
           if (sb_tier_age >= sb_oldest_tier1) {
-            sb_oldest_tier1 = sb_tier_age;      // send me now
+            sb_oldest_tier1 = sb_tier_age;
             idx_tier1 = i;
             }   
           }
@@ -1089,7 +1086,7 @@
     
       if (sb_oldest_tier1 == 0) {            // if there are no tier 1 sensor entries
         if (sb_oldest_tier2 > 0) {           // but there are tier 2 entries
-          idx = idx_tier2;                   // send tier 2 instead by selecting tier2 index
+          idx = idx_tier2;                   // send tier 2 instead
           sb_oldest = sb_oldest_tier2;
         }
       } else {
@@ -1097,9 +1094,9 @@
        sb_oldest = sb_oldest_tier1;
       }
   
-      //Log.println(sb_unsent);             // limited detriment :)  
+      //Log.println(sb_unsent);           // limited detriment :)  
 
-      if (sb_oldest == 0)  return 0xffff;   // scheduler table as empty so don't send
+      if (sb_oldest == 0)  return 0xffff;  // flag the scheduler table as empty
 
       if ((FrSkyPort::msg_class_now(sb[idx].msg_id)) == passthru) {
           pt_payload = sb[idx].payload.passthru; 
@@ -1468,7 +1465,6 @@
       switch(msg_id) {
 
         // MavLite below
-        
         case 0x16:                   // msg_id 0x16 MavLite PARAM_VALUE ( #22 )
           FrSkyPort::Push_Param_Val_016(msg_id);
           break; 
@@ -1478,7 +1474,6 @@
           break;           
 
         // Passthrough below
-        
         case 0x800:                  // msg_id 0x800 Lat & Lon
           if (sub_id == 0) {
             FrSkyPort::Push_Lat_800(msg_id);
@@ -2403,11 +2398,14 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
     //===================================================================
 
     void FrSkyPort::Push_RPM_500A(uint16_t msg_id) {
-      pt_rpm1 = (int16_t)roundf(ap_rpm1 * 0.1);
+      pt_payload = 0;
+      pt_rpm1 = (int16_t)roundf(ap_rpm1  * 0.1);
       pt_rpm2 = (int16_t)roundf(ap_rpm2 * 0.1);
 
       bit32Pack(pt_rpm1, 0, 16);
       bit32Pack(pt_rpm2, 16, 16);
+      
+      //pt_payload = pt_rpm1 | (pt_rpm2 << 16);  //alex
 
       FrSkyPort::PushToEmptyRow(msg_id, 1);
 
@@ -2425,11 +2423,14 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
     //===================================================================
 
     void FrSkyPort::Push_Terrain_500B(uint16_t msg_id) {
+      pt_payload = 0;
       pt_height_above_terrain = prep_number(roundf(ap136_current_height*10), 3, 2);
       pt_terrain_unhealthy = ap_terrain_spacing == 0 ? 1 : 0;
 
       bit32Pack(pt_height_above_terrain, 0, 13);
       bit32Pack(pt_terrain_unhealthy, 13, 1);
+
+      //pt_payload = pt_height_above_terrain | (pt_terrain_unhealthy << 13); // alex
 
       FrSkyPort::PushToEmptyRow(msg_id, 1);
 
