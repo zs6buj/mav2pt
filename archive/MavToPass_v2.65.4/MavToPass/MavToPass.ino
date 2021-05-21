@@ -1295,8 +1295,8 @@ void Read_From_GCS() {
     bool msgRcvd = false;
     mavlink_status_t _status;
 
-    // 2 possible udp objects, STA [0]    and    AP [1]   
-        
+    // 2 possible udp objects, STA [0]    and    AP [1]       
+
         len = udp_object[active_object_idx]->parsePacket();
         // esp sometimes reboots here: WiFiUDP.cpp line 213 char * buf = new char[1460]; 
    

@@ -87,8 +87,8 @@ V2.65.0    2021-05-11  PR merged from Alex (yaapu)
 // How does Mavlink telemetry leave this translator?
 // These are optional, and in addition to the F.Port telemetry output
 //#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
-#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
+//#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
+#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
 
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with GCS I/O
@@ -163,8 +163,8 @@ V2.65.0    2021-05-11  PR merged from Alex (yaapu)
 #define APssid               "MavToPassthru"    // The AP SSID that we advertise         ====>
 #define APpw                 "password"         // Change me! Must be >= 8 chars
 #define APchannel            9                  // The wifi channel to use for our AP
-#define STAssid              "OmegaOffice"      // Target AP to connect to (in STA mode) <====
-#define STApw                "password"         // Target AP password (in STA mode). Must be >= 8 chars      
+#define STAssid              "Fairlawns"      // Target AP to connect to (in STA mode) <====
+#define STApw                "hotelguest"         // Target AP password (in STA mode). Must be >= 8 chars      
 
 // Choose one default mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
 #define WiFi_Mode   1  //AP
@@ -1205,7 +1205,7 @@ bool daylightSaving = false;
 //#define Frs_Debug_RC
 
 //#define Frs_Debug_Params       //0x5007
-#define Frs_Debug_APStatus    // 0x5001
+//#define Frs_Debug_APStatus    // 0x5001
 //#define Mav_Debug_SysStatus   // #1 && battery
 //#define Debug_Batteries       // 0x5003
 //#define Frs_Debug_Home        // 0x5004
@@ -1225,10 +1225,10 @@ bool daylightSaving = false;
 //#define Frs_Debug_AttiRange   // 0x5006
 
 //#define Mav_Debug_Terrain     // #136
-#define Frs_Debug_Terrain     // 0x500B
+//#define Frs_Debug_Terrain     // 0x500B
 
 //#define Mav_Debug_Fence     // #162
-#define Frs_Debug_Fence     // 0x500B
+//#define Frs_Debug_Fence     // 0x500B
 
 //#define Mav_Debug_StatusText  // #253  
 //#define Frs_Debug_StatusText  // 0x5000
@@ -1244,7 +1244,7 @@ bool daylightSaving = false;
 //#define Mav_Print_All_Msgid
 //#define Debug_Eeprom
 //#define Mav_Debug_RPM
-#define Frs_Debug_RPM
+//#define Frs_Debug_RPM
 //#define Debug_SD   
 //#define Debug_WiFi
 //#define Debug_Loop_Period

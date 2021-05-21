@@ -1,4 +1,4 @@
- //================================================================================================= 
+//================================================================================================= 
 //================================================================================================= 
 //
 //                                    C O N F I G U R A T I O N 
@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      65
-#define PATCH_LEVEL        5
+#define PATCH_LEVEL        4
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -24,9 +24,7 @@ V2.65.2   2021-05-17   Beta folder only. Bytestuff enable Write_Crc()
 V2.65.3   2021-05-18   PR merged from Alex
                        SPort loop period from 18mS to 24mS
                        Work around apparent bit32Pack() anomaly.                         
-V2.65.4   2021-05-19   500a and 500b, clear payload before bit32Pack() 
-V2.65.5   2021-05-21   Add ability to change default AP IP from 192.168.4.1 
-                       If FrSky i/o is UDP, start both FrSky and Mavlink UDP objects                          
+V2.65.4   2021-05-19   500a and 500b, clear payload before bit32Pack()                           
                                                                            
 */
 //===========================================================================================
@@ -90,8 +88,8 @@ V2.65.5   2021-05-21   Add ability to change default AP IP from 192.168.4.1
 // How does Mavlink telemetry leave this translator?
 // These are optional, and in addition to the F.Port telemetry output
 //#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
-//#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
+#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
 
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with GCS I/O
@@ -134,8 +132,8 @@ V2.65.5   2021-05-21   Add ability to change default AP IP from 192.168.4.1
 //#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi - Select ESP32 Dev Board in IDE
-//#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
-#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
+#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
+//#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     7    // ESP32 Dev Board with ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
 
@@ -166,8 +164,8 @@ V2.65.5   2021-05-21   Add ability to change default AP IP from 192.168.4.1
 #define APssid               "MavToPassthru"    // The AP SSID that we advertise         ====>
 #define APpw                 "password"         // Change me! Must be >= 8 chars
 #define APchannel            9                  // The wifi channel to use for our AP
-#define STAssid              "Fairlawns"      // Target AP to connect to (in STA mode) <====
-#define STApw                "hotelguest"         // Target AP password (in STA mode). Must be >= 8 chars      
+#define STAssid              "OmegaOffice"      // Target AP to connect to (in STA mode) <====
+#define STApw                "password"         // Target AP password (in STA mode). Must be >= 8 chars      
 
 // Choose one default mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
 #define WiFi_Mode   1  //AP
@@ -1059,7 +1057,7 @@ bool daylightSaving = false;
     uint16_t  TCP_remotePort = 5760;    
     uint16_t  UDP_localPort = 14555;    // readPort / MP and QGC expect to send to this default FC UDP port
     uint16_t  UDP_remotePort = 14550;   // sendPort / MP and QGC listens & reads on this default port  
-
+    
     uint16_t  udp_read_port;
     uint16_t  udp_send_port;
              
@@ -1117,15 +1115,7 @@ bool daylightSaving = false;
         #include <WiFiUdp.h>       
       #endif      
     #endif
-
-    IPAddress AP_default_IP(192, 168, 4, 1); 
-    IPAddress AP_gateway(192, 168, 4, 1);
-    IPAddress AP_mask(255, 255, 255, 0);
-   
-    //IPAddress AP_default_IP(10, 10, 1, 1);
-    //IPAddress AP_gateway(10, 10, 1, 1);
-    //IPAddress AP_mask(255, 255, 255, 0);
- 
+    
    //====================       W i F i   O b j e c t s 
    
     #define max_clients    6

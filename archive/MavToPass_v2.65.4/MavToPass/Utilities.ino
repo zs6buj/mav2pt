@@ -422,8 +422,6 @@
   void Start_Access_Point() {
     
       WiFi.softAP(set.apSSID, set.apPw, set.channel);
-      delay(1000);
-      WiFi.softAPConfig(AP_default_IP, AP_gateway, AP_mask);
       
       localIP = WiFi.softAPIP();   // tcp and udp
 
@@ -448,19 +446,18 @@
         if ( (set.mav_wfproto == udp) || (set.fr_io & 0x02) ) {  // UDP
            
           udp_read_port = set.udp_localPort;                // we don't ever swap send and receive ports here
-          udp_send_port = set.udp_remotePort;  
-                      
-          // Start FrSky UDP  
-          if (set.fr_io & 0x02) {  
+          udp_send_port = set.udp_remotePort;              
+          
+          if (set.fr_io & 0x02) {  // FrSky UDP  
             Log.printf("Begin UDP using Frs UDP object  read port:%d  send port:%d\n", set.udp_localPort+1, set.udp_remotePort+1);                    
             frs_udp_object.begin(set.udp_localPort+1);          // use local port + 1 for Frs out                   
-          } 
-          // Start Mavlink UDP  
-          WiFiUDP UDP_STA_Object;    
-          udp_object[1] = new WiFiUDP(UDP_STA_Object);         
-          Log.printf("Begin UDP using AP UDP object  read port:%d  send port:%d\n", udp_read_port, udp_send_port);                 
-          udp_object[1]->begin(udp_read_port);             
-               
+          } else {                 // Mavlink UDP  
+            WiFiUDP UDP_STA_Object;    
+            udp_object[1] = new WiFiUDP(UDP_STA_Object);         
+            Log.printf("Begin UDP using AP UDP object  read port:%d  send port:%d\n", udp_read_port, udp_send_port);                 
+            udp_object[1]->begin(udp_read_port);             
+          }
+                  
           UDP_remoteIP = WiFi.softAPIP();
           UDP_remoteIP[3] = 255;           // broadcast until we know which ip to target       
 
