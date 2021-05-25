@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      65
-#define PATCH_LEVEL        6
+#define PATCH_LEVEL        5
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -26,8 +26,7 @@ V2.65.3   2021-05-18   PR merged from Alex
                        Work around apparent bit32Pack() anomaly.                         
 V2.65.4   2021-05-19   500a and 500b, clear payload before bit32Pack() 
 V2.65.5   2021-05-21   Add ability to change default AP IP from 192.168.4.1 
-                       If FrSky i/o is UDP, start both FrSky and Mavlink UDP objects
-V2.65.6   2021-05-25   Show fw version on web setup screen                                                
+                       If FrSky i/o is UDP, start both FrSky and Mavlink UDP objects                          
                                                                            
 */
 //===========================================================================================
@@ -140,8 +139,8 @@ V2.65.6   2021-05-25   Show fw version on web setup screen
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     7    // ESP32 Dev Board with ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
 
-//#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
-#define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - use Generic ESP8266 on IDE
+#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
+//#define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - use Generic ESP8266 on IDE
 //#define ESP8266_Variant   3   // ESP-12F - Wemos® LOLIN D1 Mini
 
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 

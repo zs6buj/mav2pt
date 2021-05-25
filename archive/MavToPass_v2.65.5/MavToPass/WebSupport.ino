@@ -303,7 +303,7 @@ int32_t String_long(String S) {
   settingsPage += "<b><input type='submit' onclick='closeWin()' formaction='/rebootIndex' class=btn value='Cancel'> </b>&nbsp &nbsp &nbsp &nbsp";
   settingsPage += "&nbsp &nbsp &nbsp &nbsp<b><input type='submit' formaction='/settingsReturnIndex' class=btn value='Save & Reboot'> </b><br><br>";
   settingsPage += "<p><font size='1' color='black'><strong>";
-  settingsPage += pgm_name + " V" + MAJOR_VERSION + "." + MINOR_VERSION + "." + PATCH_LEVEL + ".  Compiled for "; 
+  settingsPage += pgm_name + ".  Compiled for "; 
   #if defined ESP32 
     settingsPage += "ESP32";
   #elif defined ESP8266
