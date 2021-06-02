@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      65
-#define PATCH_LEVEL        7
+#define PATCH_LEVEL        8
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -29,7 +29,9 @@ V2.65.5   2021-05-21   Add ability to change default AP IP from 192.168.4.1
                        If FrSky i/o is UDP, start both FrSky and Mavlink UDP objects
 V2.65.6   2021-05-25   Show fw version on web setup screen  
 V2.65.7   2021-06-01   Initialise FrSky serial only if it is selected 
-                       Helps with EDP8266 debug out on txd1                                          
+                       Helps with EDP8266 debug out on txd1
+v2.65.8   2021-06-02   For ESP8266 variant 2, report TXD1 Log vs LED setting
+                       Fix pinMode() for MavStatusLed                                                                
                                                                            
 */
 //===========================================================================================
@@ -731,18 +733,18 @@ bool daylightSaving = false;
     static const uint8_t D9   = 3;    // RXD0 mavlink and flashing
     static const uint8_t D10  = 1;    // TXD0 mavlink and flashing
     
-    #define MavStatusLed  99        // D4 Board LED - Mav Status LED inverted logic - NB NB NB NB NB NB use 99 while debugging on txd1
+    #define MavStatusLed  D4          // 99 Board LED - Mav Status LED inverted logic - NB NB NB NB NB NB use 99 while debugging on txd1
     #define InvertMavLed true    
-    #define BufStatusLed  99        // None
-    //                    D4        // TXD1 - Serial1 default debug log out SHARED WITH BOARD LED                           
-    #define mav_rxPin     D9        // RXD0 default  
-    #define mav_txPin     D10       // TXD0 default    
-    #define fr_rxPin      D5        // FPort- Not used in single wire mode
-    #define fr_txPin      D2        // FPort(half-duplex) inverted - Use me in single wire mode
-    #define startWiFiPin  D6        // Trigger WiFi startup
-    //#define displaySupport     // activate me if you have a display
-                                    // NOTE: There may not be enough pins for wifi pin AND display scrolling  
-    #if (defined displaySupport)    // Display type defined with # define displaySupport 
+    #define BufStatusLed  99          // None
+    //                    D4          // TXD1 - Serial1 default debug log out SHARED WITH BOARD LED                           
+    #define mav_rxPin     D9          // RXD0 default  
+    #define mav_txPin     D10         // TXD0 default    
+    #define fr_rxPin      D5          // FPort- Not used in single wire mode
+    #define fr_txPin      D2          // FPort(half-duplex) inverted - Use me in single wire mode
+    #define startWiFiPin  D6          // Trigger WiFi startup
+    //#define displaySupport       // activate me if you have a display
+                                      // NOTE: There may not be enough pins for wifi pin AND display scrolling  
+    #if (defined displaySupport)     
       #define SSD1306_Display  
       /* Below please choose Digital pin-pair for display scrolling
        *  Pin == 99 means the pin-pair is not used
@@ -774,7 +776,7 @@ bool daylightSaving = false;
     static const uint8_t D9   = 3;   // RXD0
     static const uint8_t D10  = 1;   // TCD0 
     
-    #define MavStatusLed  D4        // D4 Board LED - Mav Status LED inverted logic - use 99 while debug
+    #define MavStatusLed  D4        // D4 Board LED - Mav Status LED inverted logic - NB NB NB NB NB NB use 99 while debugging on txd1
     #define InvertMavLed true    
     #define BufStatusLed  99        // None
     //                    D4        // TXD1 - Serial1 default debug log out SHARED WITH LED_BUILTIN BOARD LED                           
@@ -1169,10 +1171,10 @@ bool daylightSaving = false;
   #endif   
     
 #elif (defined ESP8266)
-  #define Log                 Serial1        //  D4   TXD1 debug out  - no RXD1 !
+  #define Log                 Serial1        //  D4  OR  TXD1 debug out  - no RXD1 !
   #define mvSerial            Serial         //  RXD0 and TXD0
   #include <SoftwareSerial.h>
-  SoftwareSerial frSerial;  
+  SoftwareSerial frSerial;                   // frSerial.begin(frBaud, SWSERIAL_8N1, frRx, frTx, frInvert);
 #endif 
 
 #if (defined TEENSY3X)      //  Teensy 3.1

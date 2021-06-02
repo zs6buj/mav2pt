@@ -614,7 +614,7 @@ void setup()  {
     set.Support_MavLite = false;
   #endif
   
-  //delay(20);  // for esp8266 debug on txd1
+
 //=================================================================================================   
 //                                S E T U P   W I F I  --  E S P only
 //=================================================================================================
@@ -669,7 +669,6 @@ void setup()  {
     Log.printf("==============>Free Heap after Bluetooth setup = %d\n", ESP.getFreeHeap());
   #endif
 
-  //delay(20);  // for esp8266 debug on txd1
     
  //=================================================================================================   
  //                                  S E T U P   S D   C A R D  -  E S P 3 2  O N L Y  for now
@@ -749,11 +748,15 @@ void setup()  {
   #if ((defined ESP32) || (defined ESP8266)) && (defined Debug_SRAM)
     Log.printf("==============>Free Heap after SD Card setup = %d\n", ESP.getFreeHeap());
   #endif
-  //delay(20);  // for esp8266 debug on txd1
+
 #endif
 //=================================================================================================   
 //                                    S E T U P   S E R I A L
 //=================================================================================================  
+
+
+
+
 
   if ((set.fc_io == fc_ser) || (set.gs_io == gs_ser))  {  //  Serial
     #if defined MavAutoBaud
@@ -772,7 +775,7 @@ void setup()  {
       delay(20);  // for esp8266 debug on txd1  
     #endif 
     Log.printf("Mavlink serial on pins rx:%d and tx:%d  baud:%d\n", mav_rxPin, mav_txPin, set.baud); 
-     delay(40);  // for esp8266 debug on txd1
+    delay(40);  // for esp8266 debug on txd1
   }
   #if (defined frBuiltin)  
     if (set.fr_io & 0x01) {  // Serial bit flag set
@@ -798,12 +801,24 @@ void setup()  {
   rds_millis = millis();
   blind_inject_millis = millis();
   health_millis = millis();
+  bool esp8266_variant2 = false;
+  
+  #if (defined ESP8266) && (ESP8266_Variant == 2) 
+    esp8266_variant2 = true;
+  #endif
 
-  pinMode(MavStatusLed, OUTPUT); 
-  if (BufStatusLed != 99) {
-    pinMode(BufStatusLed, OUTPUT); 
+  if (MavStatusLed != 99) {
+    if (esp8266_variant2) {
+      Log.println("MavStatusLed = D4. Set MavStatusLed = 99 if you need more TXD1 debugging");
+      delay(200);
+    }
+    pinMode(MavStatusLed, OUTPUT); 
+  } else {
+    if (esp8266_variant2) {
+      Log.println("MavStatusLed = 99. TXD1 debugging possible if enabled in IDE");
+    }
   }
-  //delay(20);  // for esp8266 debug on txd1  
+ 
 }
 
   
