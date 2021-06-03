@@ -754,6 +754,10 @@ void setup()  {
 //                                    S E T U P   S E R I A L
 //=================================================================================================  
 
+
+
+
+
   if ((set.fc_io == fc_ser) || (set.gs_io == gs_ser))  {  //  Serial
     #if defined MavAutoBaud
       set.baud = FrPort.getBaud(mav_rxPin, idle_high); // mavlink port is a regular non-inverted port
@@ -771,7 +775,7 @@ void setup()  {
       delay(20);  // for esp8266 debug on txd1  
     #endif 
     Log.printf("Mavlink serial on pins rx:%d and tx:%d  baud:%d\n", mav_rxPin, mav_txPin, set.baud); 
-     delay(40);  // for esp8266 debug on txd1
+    delay(40);  // for esp8266 debug on txd1
   }
   #if (defined frBuiltin)  
     if (set.fr_io & 0x01) {  // Serial bit flag set
@@ -797,18 +801,22 @@ void setup()  {
   rds_millis = millis();
   blind_inject_millis = millis();
   health_millis = millis();
+  bool esp8266_variant2 = false;
+  
+  #if (defined ESP8266) && (ESP8266_Variant == 2) 
+    esp8266_variant2 = true;
+  #endif
 
-  pinMode(MavStatusLed, OUTPUT); 
-  if (BufStatusLed != 99) {
-    #if (defined ESP8266) && (ESP8266_Variant == 2) 
-      Log.println("ESP-12E, ESP-F barebones boards, D4 used for MavStatusLed. NO DEBUG AVAILABLE BEYOND THIS POINT");
+  if (MavStatusLed != 99) {
+    if (esp8266_variant2) {
+      Log.println("MavStatusLed = D4. Set MavStatusLed = 99 if you need more TXD1 debugging");
       delay(200);
-    #endif
-    pinMode(BufStatusLed, OUTPUT); 
+    }
+    pinMode(MavStatusLed, OUTPUT); 
   } else {
-    #if (defined ESP8266) && (ESP8266_Variant == 2) 
-      Log.println("ESP-12E, ESP-F barebones boards, D4 is TXD1 and available for DEBUGGING");
-    #endif
+    if (esp8266_variant2) {
+      Log.println("MavStatusLed = 99. TXD1 debugging possible if enabled in IDE");
+    }
   }
  
 }

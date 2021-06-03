@@ -422,7 +422,10 @@
   void Start_Access_Point() {
     
       WiFi.softAP(set.apSSID, set.apPw, set.channel);
-      delay(1000);
+      delay(100);
+      Log.print("AP_default_IP:"); Log.print(AP_default_IP); // these print statement give the module time to complete the above setting
+      Log.print("  AP_gateway:"); Log.print(AP_gateway);  
+      Log.print("  AP_mask:"); Log.println(AP_mask);    
       WiFi.softAPConfig(AP_default_IP, AP_gateway, AP_mask);
       
       localIP = WiFi.softAPIP();   // tcp and udp

@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      65
-#define PATCH_LEVEL        8
+#define PATCH_LEVEL        9
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -32,7 +32,7 @@ V2.65.7   2021-06-01   Initialise FrSky serial only if it is selected
                        Helps with EDP8266 debug out on txd1
 v2.65.8   2021-06-02   For ESP8266 variant 2, report TXD1 Log vs LED setting
                        Fix pinMode() for MavStatusLed                                                                
-                                                                           
+v2.65.9   2021-06-03   Fix AP non-standard IP assignment timing anomaly                                                                          
 */
 //===========================================================================================
 //
@@ -732,9 +732,9 @@ bool daylightSaving = false;
     static const uint8_t D8   = 15;   // RTS
     static const uint8_t D9   = 3;    // RXD0 mavlink and flashing
     static const uint8_t D10  = 1;    // TXD0 mavlink and flashing
-    
-    #define MavStatusLed  D4          // 99 Board LED - Mav Status LED inverted logic - NB NB NB NB NB NB use 99 while debugging on txd1
-    #define InvertMavLed true    
+                                      // NOTE: You can have Mavlink status on onboard LED, or debugging out of pin D4, not both at once
+    #define MavStatusLed  D4          // D4 on board LED -  NB NB NB NB NB NB use 99 while debugging on txd1
+    #define InvertMavLed true         // On board LED needs inverted logic 
     #define BufStatusLed  99          // None
     //                    D4          // TXD1 - Serial1 default debug log out SHARED WITH BOARD LED                           
     #define mav_rxPin     D9          // RXD0 default  
