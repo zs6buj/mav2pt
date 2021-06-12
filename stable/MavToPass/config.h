@@ -45,7 +45,7 @@ v2.65.10  2021-06-10   Standardise display approach. Upgrade info display.
 //
 //===========================================================================================
                                // Most of the settings below are saved to EEPROM the first time mav2pt runs
-#define Reset_Web_Defaults   // Reset settings in eeprom. Do this if you have changed settings below, or
+//#define Reset_Web_Defaults   // Reset settings in eeprom. Do this if you have changed settings below, or
                                // suspect eeprom settings are corrupt -  USE SPARINGLY. Do not leave this macro active.
 //===========================================================================================
 
