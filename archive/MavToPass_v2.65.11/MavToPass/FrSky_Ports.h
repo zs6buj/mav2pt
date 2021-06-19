@@ -1078,7 +1078,7 @@
 
           if (sb[i].msg_id == 0x5000) {
             if (sb_tier_age >= sb_oldest_tier2) {
-              if ( (sb_tier_age) && ((millis() - prev_5000_millis) < 24) ) return 0xffff;  // don't send me yet. leave enough time between chunks               
+             // if ( (sb_tier_age) && ((millis() - prev_5000_millis) < 24) ) return 0xffff;  // don't send me yet. leave enough time between chunks               
               sb_oldest_tier2 = sb_tier_age;
               idx_tier2 = i;
             }
