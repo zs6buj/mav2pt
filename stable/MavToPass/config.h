@@ -16,29 +16,10 @@ Complete change log and debugging options are at the bottom of this tab
 
 GitHub Tag
 ----------                                            
- 
-V2.65.1   2021-05-13   PR merged from Alex (yaapu)
-                          fix throttle scale from 0,100 to [-63,63]
-V2.65.2   2021-05-17   Beta folder only. Bytestuff enable Write_Crc() 
-                       Delay 15ms 0x5000 status_text chunks > 1                           
-V2.65.3   2021-05-18   PR merged from Alex
-                       SPort loop period from 18mS to 24mS
-                       Work around apparent bit32Pack() anomaly.                         
-V2.65.4   2021-05-19   500a and 500b, clear payload before bit32Pack() 
-V2.65.5   2021-05-21   Add ability to change default AP IP from 192.168.4.1 
-                       If FrSky i/o is UDP, start both FrSky and Mavlink UDP objects
-V2.65.6   2021-05-25   Show fw version on web setup screen  
-V2.65.7   2021-06-01   Initialise FrSky serial only if it is selected 
-                       Helps with EDP8266 debug out on txd1
-v2.65.8   2021-06-02   For ESP8266 variant 2, report TXD1 Log vs LED setting
-                       Fix pinMode() for MavStatusLed                                                                
-v2.65.9   2021-06-03   Fix AP non-standard IP assignment timing anomaly  
-v2.65.10  2021-06-10   Standardise display approach. Upgrade info display.
-                       Improve home location fix.   
-v2.65.11  2021-06-16   Fix crc of FPort2 RC control frame(unused right now). 
-                       Slow down text messages some more. 
+  
 v2.65.12  2021-06-19   Fix crc of FPort2 RC control frame(unused right now). 
-                       Change FPort type (1 or 2) on the fly.
+                       Change FPort type (1 or 2) on the fly option.
+                       Revert status text speedup from v2.65.11. Problematic.
                                                                                                                                       
 */
 //===========================================================================================
@@ -271,7 +252,7 @@ bool daylightSaving = false;
 //#define ESP32_SoftwareSerial            // otherwise HardwareSerial is used 
 //#define ESP_Air_Relay_Blind_Inject      // Blind inject instead of interleaving
 //#define Support_MavLite
-#define OnTheFly_FrPort_Change_Allowed  // e.g. change from Fport1 to Fport 2 on-the-fly
+//#define OnTheFly_FrPort_Change_Allowed  // e.g. change from Fport1 to Fport 2 on-the-fly
 
 //=================================================================================================   
 //                              Auto Determine Target Platform
@@ -1541,5 +1522,25 @@ V2.65.0    2021-05-11  PR merged from Alex (yaapu)
                           added TERRAIN frame 0x500B for terrain enabled/unhealthy
                           added FENCE status bits to frame 0x5001
                           added THROTTLE to frame 0x5001  
-v2.65.11   2021-06-12  Fix scr_w_ch length check.                                                                                                                                                                                                                                                                                                                  
+v2.65.11   2021-06-12  Fix scr_w_ch length check.       
+V2.65.1   2021-05-13   PR merged from Alex (yaapu)
+                          fix throttle scale from 0,100 to [-63,63]
+V2.65.2   2021-05-17   Beta folder only. Bytestuff enable Write_Crc() 
+                       Delay 15ms 0x5000 status_text chunks > 1                           
+V2.65.3   2021-05-18   PR merged from Alex
+                       SPort loop period from 18mS to 24mS
+                       Work around apparent bit32Pack() anomaly.                         
+V2.65.4   2021-05-19   500a and 500b, clear payload before bit32Pack() 
+V2.65.5   2021-05-21   Add ability to change default AP IP from 192.168.4.1 
+                       If FrSky i/o is UDP, start both FrSky and Mavlink UDP objects
+V2.65.6   2021-05-25   Show fw version on web setup screen  
+V2.65.7   2021-06-01   Initialise FrSky serial only if it is selected 
+                       Helps with EDP8266 debug out on txd1
+v2.65.8   2021-06-02   For ESP8266 variant 2, report TXD1 Log vs LED setting
+                       Fix pinMode() for MavStatusLed                                                                
+v2.65.9   2021-06-03   Fix AP non-standard IP assignment timing anomaly  
+v2.65.10  2021-06-10   Standardise display approach. Upgrade info display.
+                       Improve home location fix.   
+v2.65.11  2021-06-16   Fix crc of FPort2 RC control frame(unused right now). 
+                       Slow down text messages some more.                                                                                                                                                                                                                                                                                                           
 */
