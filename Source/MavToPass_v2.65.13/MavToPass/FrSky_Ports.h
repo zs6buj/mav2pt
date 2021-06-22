@@ -461,7 +461,7 @@
       static int8_t   fp2 = 0;  
       static uint8_t   prev_b = 0; 
       
-
+      //Log.printf("b:%X  prevb:%X  sp:%u  fp1:%u  fp2:%u\n", b, prev_b, sp, fp1, fp2);
       if ((prev_b == 0x7E) && ( (b == 0x08) || (b == 0x19))) { 
         fp1++;     
         sp = 0;
@@ -474,8 +474,9 @@
         }
       } else
       
-      if ((prevbyt == 0x7E) && (b == 0x1B)) {
-        sp++;      
+      if ((prev_b == 0x7E) && (b == 0x1B)) {
+        sp++;   
+       //Log.printf("b:%X  prevb:%X  sp:%u xxxxxxxxxxxxxxxxxxxxxxxxx\n", b, prev_b, sp);   
         if (sp > 10) {
           sp = 0;
           fp1 = 0;

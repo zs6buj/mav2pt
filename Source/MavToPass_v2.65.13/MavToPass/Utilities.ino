@@ -2018,7 +2018,7 @@ void WiFiEventHandler(WiFiEvent_t event)  {
           display.fillRect(xx+(13*char_w_px), yy, (5 * char_w_px), char_h_px, SCR_BACKGROUND); // blank Hdg
           display.println(snprintf_buf);  
           
-          // Ground Speed m/s and Climb m/s
+          // Ground Speed m/s
           xx = 0;
           #if (defined SSD1306_Display) 
             yy = 2.4 * char_h_px;  
@@ -2028,10 +2028,23 @@ void WiFiEventHandler(WiFiEvent_t event)  {
             yy = 3.6 * char_h_px;  
           #endif               
           display.setCursor(xx, yy);            
-          snprintf(snprintf_buf, snp_max, "Spd %.1f Clm %.1f", ap74_grd_spd, ap74_climb); 
+          snprintf(snprintf_buf, snp_max, "Spd %2.1f", ap74_grd_spd); 
           display.fillRect(xx+(4*char_w_px), yy, (4 * char_w_px), char_h_px, SCR_BACKGROUND);    // blank speed 
-          display.fillRect(xx+(11*char_w_px), yy, (5 * char_w_px), char_h_px, SCR_BACKGROUND);   // blank climb 
-          display.println(snprintf_buf);         
+          display.println(snprintf_buf);  
+                 
+          // Climb m/s
+          xx = 9 * char_w_px;
+          #if (defined SSD1306_Display) 
+            yy = 2.4 * char_h_px;  
+          #elif (defined SSD1331_Display)
+            yy = 2.2 * char_h_px;               
+          #elif (defined ST7789_Display)   
+            yy = 3.6 * char_h_px;  
+          #endif               
+          display.setCursor(xx, yy);            
+          snprintf(snprintf_buf, snp_max, "Clm %2.1f", ap74_climb); 
+          display.fillRect(xx+(4*char_w_px), yy, (4 * char_w_px), char_h_px, SCR_BACKGROUND);   // blank climb 
+          display.println(snprintf_buf);        
         
           // Volts, Amps and Ah 
           xx = 0;

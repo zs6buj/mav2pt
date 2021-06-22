@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      65
-#define PATCH_LEVEL        12
+#define PATCH_LEVEL        13
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -20,6 +20,8 @@ GitHub Tag
 v2.65.12  2021-06-19   Fix crc of FPort2 RC control frame(unused right now). 
                        Change FPort type (1 or 2) on the fly option.
                        Revert status text speedup from v2.65.11. Problematic.
+v2.65.13  2021-06-122  Minor display change, speed and climb.   
+                       Fix auto detect S.Port, damn typo in v2.65.12.                    
                                                                                                                                       
 */
 //===========================================================================================
