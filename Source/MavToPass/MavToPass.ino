@@ -506,7 +506,10 @@ void setup()  {
     Log.println("Mavlink WiFi In");
     LogScreenPrintln("Mav WiFi In");
   } 
-
+  #if defined Slowdown_SITL_Input
+    Log.println("**Expecting SITL input**");
+    LogScreenPrintln("**SITL input");
+  #endif
   if (set.fr_io == fr_ser)     {         // 1
     Log.println("FrSky Serial Out");
     LogScreenPrintln("Frs Serial Out");
@@ -1601,7 +1604,17 @@ void Send_To_FC(uint32_t msg_id) {
 //================================================================================================= 
 
 void MavToRingBuffer() {
-
+  
+    #if defined Slowdown_SITL_Input // then drop every second message
+      static bool toggle = false;
+      if (toggle == false) {
+        toggle = true;
+       return;
+      } else {
+        toggle = false;
+      }
+    #endif
+  
       // MAIN Queue
       if (MavRingBuff.isFull()) {
         BufLedState = HIGH;
@@ -3068,7 +3081,7 @@ void RequestDataStreams() {    //  REQUEST_DATA_STREAM ( #66 ) DEPRECATED. USE S
   MAV_DATA_STREAM_EXTRA3
   };
 
-  const uint16_t mavRates[] = { 0x04, 0x0a, 0x04, 0x0a, 0x04, 0x04, 0x04};
+  const uint16_t mavRates[] = { 0x02, 0x03, 0x02, 0x03, 0x06, 0x02, 0x02};
  // req_message_rate The requested interval between two messages of this type
 
   for (int i=0; i < maxStreams; i++) {

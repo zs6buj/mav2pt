@@ -5,8 +5,8 @@
 // 
 
 #define MAJOR_VERSION      2
-#define MINOR_VERSION      65
-#define PATCH_LEVEL        13
+#define MINOR_VERSION      66
+#define PATCH_LEVEL        00
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -20,9 +20,10 @@ GitHub Tag
 v2.65.12  2021-06-19   Fix crc of FPort2 RC control frame(unused right now). 
                        Change FPort type (1 or 2) on the fly option.
                        Revert status text speedup from v2.65.11. Problematic.
-v2.65.13  2021-06-122  Minor display change, speed and climb.   
-                       Fix auto detect S.Port, damn typo in v2.65.12.                    
-                                                                                                                                      
+v2.65.13  2021-06-22   Minor display change, speed and climb.   
+                       Fix auto detect S.Port, damn typo in v2.65.12. 
+                                          
+v2.66.00               Workaround to slow SITL telem under Ubuntu 20.4                                                                                                                                      
 */
 //===========================================================================================
 //
@@ -219,6 +220,8 @@ v2.65.13  2021-06-122  Minor display change, speed and climb.
 //=================================================================================================
 //                            O T H E R   U S E R   O P T I O N S  
 //=================================================================================================
+
+#define Report_Packetloss   2         // Report S.Port & F.Port packet loss every n minutes
 
 //defined PitLab                      // Uncomment me to force PitLab OSD stack
 
@@ -1225,7 +1228,9 @@ bool daylightSaving = false;
 //#define Frs_Debug_APStatus    // 0x5001
 //#define Mav_Debug_SysStatus   // #1 && battery
 //#define Debug_Batteries       // 0x5003
+
 //#define Frs_Debug_Home        // 0x5004
+
 //#define Mav_Debug_GPS_Raw     // #24
 //#define Mav_Debug_GPS_Int     // #33
 //#define Frs_Debug_LatLon      // 0x800
@@ -1237,16 +1242,12 @@ bool daylightSaving = false;
 //#define Frs_Debug_Hud         // 0x50F2
 //#define Mav_Debug_Scaled_Pressure
 //#define Mav_Debug_Attitude    // #30
-
 //#define Mav_Debug_Range       // #173
 //#define Frs_Debug_AttiRange   // 0x5006
-
 //#define Mav_Debug_Terrain     // #136
 //#define Frs_Debug_Terrain     // 0x500B
-
 //#define Mav_Debug_Fence     // #162
 //#define Frs_Debug_Fence     // 0x500B
-
 //#define Mav_Debug_StatusText  // #253  
 //#define Frs_Debug_StatusText  // 0x5000
 //#define Mav_Debug_Mission
@@ -1266,61 +1267,43 @@ bool daylightSaving = false;
 //#define Debug_Loop_Period
 //#define Mav_Debug_Command_Ack
 //#define Debug_SRAM
-
 //#define Debug_Web_Settings
-
 //#define Mav_Debug_FC_Heartbeat
 //#define Mav_Debug_GCS_Heartbeat
 //#define Debug_Our_FC_Heartbeat
-
 //#define Debug_Param_Request_Read  // #20
-
 //#define Debug_Param_Request_List  // #21
 //#define Mav_Debug_Params
-
 //#define Frs_Debug_Payload
-
-#define Report_Packetloss   2     // F.Port packet loss every n minutes
-
-
 //#define Debug_FrPort_Serial_Loop
 //#define Debug_FrPort_Switching
-
 //#define Frs_Debug_Period
-
 //#define Support_SBUS_Out 
-
 //#define Debug_Read_TCP
 //#define Debug_Read_UDP
 //#define Debug_Send_TCP
 //#define Debug_Send_UDP
 //#define Debug_Inject_Delay
-
 //#define MavLite_Debug_Scheduler
 //#define Debug_Mavlite 
 //#define Debug_Mavlite_Chunking
 //#define Debug_Mavlite_SPort
 //#define Mav_List_Params       // Use this to test uplink to Flight Controller 
-
 //#define Debug_FrPort_Stream 
 //#define Debug_FrPort_Stream_Out
 //#define Debug_FrPort_Safe_Read
-
 //#define Debug_FPort_Buffer 
 //#define CRC_Test_Case
 //#define Debug_CRC
-
-
 //#define Frs_Debug_Scheduler // - this debugger affects the performance of the scheduler when activated
-
 //#define Derive_PWM
 //#define Debug_PWM_Channels
 //#define Debug_Baud 
-
 //#define Debug_FrSPort_Loop_Period
-
 //#define Mav_Debug_Home_Position
 
+//#define Debug_SITL_Input
+//#define Slowdown_SITL_Input
 //=================================================================================================   
 //                                   C H A N G E   L O G
 //=================================================================================================

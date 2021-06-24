@@ -255,7 +255,7 @@
     if (set.frport == f_auto) {
         pol = (pol_t)getPolarity(sense_pin); 
         bool ftp = true;
-        static int8_t cdown = 20;     
+        static int8_t cdown = 5;     
         while ( (pol == no_traffic) && (cdown) ){
           if (ftp) {
             Log.printf("FrSky Port: No telem on pin:%d. Retrying ", sense_pin);
@@ -265,7 +265,7 @@
           }
           Log.print(cdown); Log.print(" ");
           pol = (pol_t)getPolarity(sense_pin);         
-          delay(500);      
+          delay(50);      
           if (cdown-- == 1 ) {
             Log.println();
             Log.println("Auto sensing abandoned. Defaulting to S.Port");
@@ -959,6 +959,9 @@
       #endif
         
       #if (defined Debug_FrPort_Stream) || (defined Debug_FrPort_Stream_Out) 
+      if (b == 0x7E) {
+        Log.println();
+      }
         Printbyte(b, false, '>');
       #endif         
     }
@@ -1237,7 +1240,14 @@
 
       sp_msg_id = sb[idx].msg_id;   // global msg_id for debug of sending
       msg_class = FrSkyPort::msg_class_now(sp_msg_id);
-
+      
+      #ifdef Debug_SITL_Input      
+        if (sp_msg_id == 0x5004) {
+          Log.print("\nXXXXXXXXXXXXXXXXXXXXXX ");
+        }
+        Log.printf("POP AND SEND 0x%X idx=%u\n", sp_msg_id, idx);
+      #endif  
+      
       //========================    RSSI special treatment
       if (sp_msg_id == 0xF101) {                   
         #if (defined Frs_Debug_Rssi)
@@ -1265,12 +1275,12 @@
       //^^^^^^^^^^^^^^^^^^^^^^   RSSI special treatment
       
       #if defined Frs_Debug_Scheduler
-        Log.printf("Injecting frame idx=%d ", idx);
+        Log.printf("Injecting frame idx=%d msg_id=0x%X  ", idx, sp_msg_id);
         FrSkyPort::PrintPayload(FrSkyPort::msg_class_now(sp_msg_id), downlink); 
         Log.println();
       #elif defined Debug_Mavlite_Scheduler
       if (sp_msg_id < 0x100) {  
-        Log.printf("Injecting frame idx=%d ", idx);
+        Log.printf("Injecting frame idx=%d msg_id=0x%X  ", idx, sp_msg_id);
         FrSkyPort::PrintPayload(FrSkyPort::msg_class_now(sp_msg_id), downlink); 
         Log.println();
       }  
@@ -1658,7 +1668,19 @@
       if(FrSkyPort::msg_class_now(msg_id)== mavlite) {
           sb[sb_row].payload.mavlite = mtf_payload;  
       }
-  
+      
+      #if defined Debug_SITL_Input
+        if (msg_id == 0x5004) {
+          Log.print("ZZZZZZZZZZZZZZZZZZZ"); 
+        }   
+               
+        Log.print(sb_unsent); 
+        Log.printf("\tPush row= %3d", sb_row );
+        Log.print("  msg_id=0x"); Log.print(msg_id, HEX);
+        if (msg_id < 0x1000) Log.print(" ");
+        Log.println(); 
+      #endif           
+        
       #if (defined Frs_Debug_Scheduler) || (defined MavLite_Debug_Scheduler) 
   
         uint16_t msgid_filter;  
@@ -2196,23 +2218,22 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
         Log.printf("hom.lat:%3.7F  hom.lon:%3.7F  hom.alt:%.0F  hom.hdg:%.0F\n", hom.lat, hom.lon, hom.alt, hom.hdg);
         pt_home_dist = (int)dis;        
       }
-      else
+      else {
         pt_home_dist = 0;
-
+      }
         pt_home_alt = ap33_alt_ag / 100;    // mm->dm
         
       #if defined Frs_Debug_All || defined Frs_Debug_Home
         PrintFrPeriod(0); 
-        Log.print("Passthru out Home 0x5004: ");         
+        Log.print("Passthru out Home 0x5004: ");
+        //Log.print("msg_id=");  Log.print(msg_id, HEX);       
         Log.print("pt_home_dist=");  Log.print(pt_home_dist);
-        Log.print(" pt_home_alt=");  Log.print(pt_home_alt);
+        Log.print(" pt_home_alt=");  Log.print((float)(pt_home_alt/10), 1);
         Log.print(" az=");  Log.print(az);
         Log.print(" pt_home_angle="); Log.print(pt_home_angle);  
-        Log.print(" pt_home_arrow="); Log.print(pt_home_arrow);         // units of 3 deg  
-        Log.print(" pt_payload="); Log.print(pt_payload); Log.print(" ");
-        FrSkyPort::PrintPayload(passthru, downlink);
-        Log.println();      
+        Log.print(" pt_home_arrow="); Log.print(pt_home_arrow);         // units of 3 deg       
       #endif
+      
       pt_home_dist = prep_number(roundf(pt_home_dist), 3, 2);
       bit32Pack(pt_home_dist ,0, 12);
       pt_home_alt = prep_number(roundf(pt_home_alt), 3, 2);
@@ -2222,7 +2243,13 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
       else  
         bit32Pack(0,24, 1);
       bit32Pack(pt_home_arrow,25, 7);
-
+      
+      #if defined Frs_Debug_All || defined Frs_Debug_Home
+        Log.print(" pt_payload="); Log.print(pt_payload); Log.print(" ");
+        FrSkyPort::PrintPayload(passthru, downlink);
+        Log.println();       
+      #endif
+      
       FrSkyPort::PushToEmptyRow(msg_id, 0);  
 
     }
@@ -2241,9 +2268,9 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
       #if defined Frs_Debug_All || defined Frs_Debug_VelYaw
         PrintFrPeriod(0); 
         Log.print("Passthru out VelYaw 0x5005:");  
-        Log.print(" pt_vy=");  Log.print(pt_vy);       
-        Log.print(" pt_vx=");  Log.print(pt_vx);
-        Log.print(" pt_yaw="); Log.print(pt_yaw);
+        Log.print(" pt_vy=");  Log.print(pt_vy,2);       
+        Log.print(" pt_vx=");  Log.print(pt_vx,2);
+        Log.print(" pt_yaw="); Log.print(pt_yaw/10,0);
      
       #endif
       if (pt_vy<0)

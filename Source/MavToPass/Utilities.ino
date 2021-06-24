@@ -892,7 +892,7 @@ void PrintLoopPeriod() {
     Log.printf("Loop Period uS=%d\n", period);
   } else {
     Log.printf("Loop Period mS=%d\n", period);
-    if (period > 5000) Log.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+    if (period > 5000) Log.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
   }
     
   prev_lp_millis=now_millis;
