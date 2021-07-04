@@ -240,7 +240,7 @@
     * IO_BANK0 bits 17:16 INOVER 0x0/0x1(inverse)  pg 268
     * IO_BANK0 bits 9:8 OUTOVER 0x0/0x1(inverse)  pg 268
     * 
-    * acknowledgement pyton code urbite https://talk.dallasmakerspace.org/t/raspberry-pi-pico-sbus-code-help/79375/14
+    * acknowledgement python code urbite https://talk.dallasmakerspace.org/t/raspberry-pi-pico-sbus-code-help/79375/14
     */
     
     void FrSkyPort::set_gpio_in_inv( uint8_t pin_num ) {

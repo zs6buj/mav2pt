@@ -26,7 +26,7 @@ v2.65.13  2021-06-22   Minor display change, speed and climb.
 v2.66.00               Workaround to slow SITL telem under Ubuntu 20.04
 v2.66.01               Alt & hdg display fix  
 v2.66.02               Sats & rssi display fix 
-                       Add support for Pi Pico board                                                                                                                                 
+          2021-07-04   Add support for Pi Pico board RP2040                                                                                                                                
 */
 //===========================================================================================
 //

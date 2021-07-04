@@ -240,7 +240,7 @@
     * IO_BANK0 bits 17:16 INOVER 0x0/0x1(inverse)  pg 268
     * IO_BANK0 bits 9:8 OUTOVER 0x0/0x1(inverse)  pg 268
     * 
-    * acknowledgement urbite https://talk.dallasmakerspace.org/t/raspberry-pi-pico-sbus-code-help/79375/14
+    * acknowledgement python code urbite https://talk.dallasmakerspace.org/t/raspberry-pi-pico-sbus-code-help/79375/14
     */
     
     void FrSkyPort::set_gpio_in_inv( uint8_t pin_num ) {
@@ -260,19 +260,12 @@
       set_gpio_inout_pol( pin_num, 0, 0);
     } 
          
-    void FrSkyPort::set_gpio_inout_pol( uint8_t pin_num, uint8_t dir, uint8_t  pol ) {
-   
+    void FrSkyPort::set_gpio_inout_pol( uint8_t pin_num, uint8_t dir, uint8_t  pol ) {  
        volatile int* var = (int*)(0x40014000 + (8*pin_num) + 4);  // get pointer to address
-       uint32_t val = *var;  // get the value at addr ...
-       //Log.printf("a addr of ptr:%p  address:0x%x  value:%u\n", (void*)&var, *(&var), *var );     
-            
+       uint32_t val = *var;  // get the value at addr ...             
        uint32_t pol_value = pol << 8 + (8*dir);
        uint32_t pol_mask = ~(3 << (8 + (8*dir)));  // ones compliment
-       //Log.printf("pol_value:%u  pol_mask:%u\n", pol_value, pol_mask );  
-       uint32_t temp = val & pol_mask;
-       //Log.printf("temp:%u\n", temp);  
-       *var  = (val & pol_mask) | pol_value;  // changes the memory located at ....
-       //Log.printf("b addr of ptr:%p  address:0x%x  value:%u\n\n", (void*)&var, *(&var), *var );   
+       *var  = (val & pol_mask) | pol_value;  // changes the memory located at ....  
     }
   #endif // end of RP2040
       
