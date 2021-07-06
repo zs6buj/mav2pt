@@ -1349,7 +1349,7 @@ bool daylightSaving = false;
 //#define Mav_Debug_Home_Position
 
 //#define Debug_SITL_Input
-#define Slowdown_SITL_Input
+//#define Slowdown_SITL_Input
 //=================================================================================================   
 //                                   C H A N G E   L O G
 //=================================================================================================
