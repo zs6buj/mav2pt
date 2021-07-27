@@ -5,8 +5,8 @@
 // 
 
 #define MAJOR_VERSION      2
-#define MINOR_VERSION      66
-#define PATCH_LEVEL        02
+#define MINOR_VERSION      67
+#define PATCH_LEVEL        00
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -17,16 +17,11 @@ Complete change log and debugging options are at the bottom of this tab
 GitHub Tag
 ----------                                            
   
-v2.65.12  2021-06-19   Fix crc of FPort2 RC control frame(unused right now). 
-                       Change FPort type (1 or 2) on the fly option.
-                       Revert status text speedup from v2.65.11. Problematic.
-v2.65.13  2021-06-22   Minor display change, speed and climb.   
-                       Fix auto detect S.Port, damn typo in v2.65.12. 
-                                          
-v2.66.00               Workaround to slow SITL telem under Ubuntu 20.04
-v2.66.01               Alt & hdg display fix  
 v2.66.02               Sats & rssi display fix 
-          2021-07-04   Add support for Pi Pico board RP2040                                                                                                                                
+          2021-07-04   Add support for Pi Pico board RP2040 
+v2.67.00  2021-07-27   Fix Mavlink UDP out via AP, broken when S.Port UDP added. :(
+
+                                                                                                                                         
 */
 //===========================================================================================
 //
@@ -136,7 +131,7 @@ v2.66.02               Sats & rssi display fix
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi - Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
-//#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
+#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     7    //  ESP32 Dev Board with ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
 
@@ -1562,8 +1557,10 @@ V2.65.3   2021-05-18   PR merged from Alex
                        SPort loop period from 18mS to 24mS
                        Work around apparent bit32Pack() anomaly.                         
 V2.65.4   2021-05-19   500a and 500b, clear payload before bit32Pack() 
+
 V2.65.5   2021-05-21   Add ability to change default AP IP from 192.168.4.1 
                        If FrSky i/o is UDP, start both FrSky and Mavlink UDP objects
+                       
 V2.65.6   2021-05-25   Show fw version on web setup screen  
 V2.65.7   2021-06-01   Initialise FrSky serial only if it is selected 
                        Helps with EDP8266 debug out on txd1
@@ -1573,5 +1570,12 @@ v2.65.9   2021-06-03   Fix AP non-standard IP assignment timing anomaly
 v2.65.10  2021-06-10   Standardise display approach. Upgrade info display.
                        Improve home location fix.   
 v2.65.11  2021-06-16   Fix crc of FPort2 RC control frame(unused right now). 
-                       Slow down text messages some more.                                                                                                                                                                                                                                                                                                           
+                       Slow down text messages some more.      
+v2.65.12  2021-06-19   Fix crc of FPort2 RC control frame(unused right now). 
+                       Change FPort type (1 or 2) on the fly option.
+                       Revert status text speedup from v2.65.11. Problematic.
+v2.65.13  2021-06-22   Minor display change, speed and climb.   
+                       Fix auto detect S.Port, damn typo in v2.65.12.                                         
+v2.66.00               Workaround to slow SITL telem under Ubuntu 20.04
+v2.66.01               Alt & hdg display fix                                                                                                                                                                                                                                                                                                                              
 */
