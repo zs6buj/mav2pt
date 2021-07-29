@@ -475,9 +475,9 @@ bool daylightSaving = false;
   #if (ESP32_Variant == 1)          // ESP32 Dev Module
     #define MavStatusLed  02        // Onboard LED
     #define InvertMavLed false      
-    #define BufStatusLed  27        // Mavlink serial tx     
-    #define mav_rxPin     26        // 16 Mavlink serial rx
-    #define mav_txPin     17        // Mavlink serial tx
+    #define BufStatusLed  99        // Mavlink serial tx     
+    #define mav_rxPin     27        //  Mavlink serial rx
+    #define mav_txPin     26        // Mavlink serial tx
     #define fr_rxPin      16        // 13 FPort- Not used in 1-wire mode DON'T use 12!
     #define fr_txPin       4        // FPorttx - Use me in single wire mode
     #define startWiFiPin   5        // 5 Trigger WiFi startup  
@@ -620,7 +620,7 @@ bool daylightSaving = false;
     #define InvertMavLed false     
     #define BufStatusLed  99        // none
     #define mav_rxPin     27        // Mavlink serial rx
-    #define mav_txPin     17        // Mavlink serial tx
+    #define mav_txPin     26        // Mavlink serial tx
     #define fr_rxPin      13        // F/SPort rx - (NOTE: DON'T use pin 12! boot fails if pulled high)
     #define fr_txPin      15        // F/SPort tx - Use me in single wire mode
     #define startWiFiPin  99        // 99=none. No input pin available (non touch!) Could use touch with a bit of messy work.
