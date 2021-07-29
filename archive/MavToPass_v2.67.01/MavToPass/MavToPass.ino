@@ -1560,7 +1560,7 @@ void Decode_GCS_To_FC() {
           break;
           
          case MAVLINK_MSG_ID_MISSION_REQUEST_INT:  // #51 To FC from GCS
-          #if defined Mav_Debug_All || defined Debug_GCS_Up || defined Mav_Debug_Mission
+          #if defined Mav_Debug_All || defined Debug_GCS_Up || defined Mav_Debug_Missions
             gcs_target_system = mavlink_msg_mission_request_int_get_target_system(&G2Fmsg);
             gcs_target_component = mavlink_msg_mission_request_int_get_target_component(&G2Fmsg);
             gcs_seq = mavlink_msg_mission_request_int_get_seq(&G2Fmsg); 
@@ -2468,7 +2468,7 @@ void DecodeOneMavFrame() {
             ap_ms_z = mavlink_msg_mission_item_get_z(&R2Gmsg);                        // PARAM7 / local: Z coordinate, global: altitude (relative or absolute, depending on frame).
             ap_mission_type = mavlink_msg_mission_item_get_z(&R2Gmsg);                // MAV_MISSION_TYPE
                      
-            #if defined Mav_Debug_All || defined Mav_Debug_Mission
+            #if defined Mav_Debug_All || defined Mav_Debug_Missions
               Log.print("Mavlink from FC #39 Mission Item: ");
               Log.print("ap_ms_seq="); Log.print(ap_ms_seq);  
               Log.print(" ap_ms_frame="); Log.print(ap_ms_frame);   
@@ -2499,7 +2499,7 @@ void DecodeOneMavFrame() {
           if (!mavGood) break;   
             ap_ms_seq =  mavlink_msg_mission_current_get_seq(&R2Gmsg);  
             
-            #if defined Mav_Debug_All || defined Mav_Debug_Mission
+            #if defined Mav_Debug_All || defined Mav_Debug_Missions
             if (ap_ms_seq) {
               Log.print("Mavlink from FC #42 Mission Current: ");
               Log.print("ap_mission_current="); Log.println(ap_ms_seq);   
@@ -2518,7 +2518,7 @@ void DecodeOneMavFrame() {
               FrPort.PushMessage(0x5007, 6);    // fr parameters - mission count
             #endif  
        
-            #if defined Mav_Debug_All || defined Mav_Debug_Mission
+            #if defined Mav_Debug_All || defined Mav_Debug_Missions
               Log.print("Mavlink from FC #44 Mission Count: ");
               Log.print("ap_mission_count="); Log.println(ap_mission_count);   
             #endif
@@ -2628,7 +2628,7 @@ void DecodeOneMavFrame() {
           break; 
           
         case MAVLINK_MSG_ID_MISSION_ITEM_INT:       // #73   received back after #51 Mission_Request_Int sent
-        #if defined Mav_Debug_All || defined Mav_Debug_Mission
+        #if defined Mav_Debug_All || defined Mav_Debug_Missions
           if (!mavGood) break; 
           ap_targsys =  mavlink_msg_mission_item_int_get_target_system(&R2Gmsg);   
           ap_targcomp =  mavlink_msg_mission_item_int_get_target_component(&R2Gmsg);   
@@ -3081,7 +3081,7 @@ void RequestMission(uint16_t ms_seq) {         //  #40
                                apo_targsys, apo_targcomp, ms_seq, ap_mission_type);
 
   Send_To_FC(40);
-  #if defined Mav_Debug_All || defined Mav_Debug_Mission
+  #if defined Mav_Debug_All || defined Mav_Debug_Missions
     Log.print("Mavlink to FC #40 Request Mission:  ms_seq="); Log.println(ms_seq);
   #endif  
 }
@@ -3100,7 +3100,7 @@ void Mavlink_Request_Mission_List() {   // #43   get back #44 Mission_Count
                                apo_targsys, apo_targcomp, ap_mission_type);
                              
   Send_To_FC(43);
-  #if defined Mav_Debug_All || defined Mav_Debug_Mission
+  #if defined Mav_Debug_All || defined Mav_Debug_Missions
     Log.println("Mavlink to FC #43 Request Mission List (count)");
   #endif  
 }

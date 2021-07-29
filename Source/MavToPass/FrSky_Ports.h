@@ -2551,7 +2551,7 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
     7 - up - left
  
        */
-      #if defined Frs_Debug_All || defined Frs_Debug_Mission
+      #if defined Frs_Debug_All || defined Frs_Debug_Missions
         PrintFrPeriod(0);  
         Log.print("Passthru out RC 0x5009: ");   
         Log.print(" pt_ms_seq="); Log.print(pt_ms_seq);

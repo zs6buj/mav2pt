@@ -475,9 +475,9 @@ bool daylightSaving = false;
   #if (ESP32_Variant == 1)          // ESP32 Dev Module
     #define MavStatusLed  02        // Onboard LED
     #define InvertMavLed false      
-    #define BufStatusLed  27        // Mavlink serial tx     
-    #define mav_rxPin     26        // Mavlink serial rx
-    #define mav_txPin     17        // Mavlink serial tx
+    #define BufStatusLed  99        // Mavlink serial tx     
+    #define mav_rxPin     27        // Mavlink serial rx
+    #define mav_txPin     26        // Mavlink serial tx
     #define fr_rxPin      16        // FPort- Not used in 1-wire mode DON'T use 12!
     #define fr_txPin       4        // FPorttx - Use me in single wire mode
     #define startWiFiPin   5        // Trigger WiFi startup  
@@ -1298,8 +1298,8 @@ bool daylightSaving = false;
 //#define Frs_Debug_Fence     // 0x500B
 //#define Mav_Debug_StatusText  // #253  
 //#define Frs_Debug_StatusText  // 0x5000
-//#define Mav_Debug_Mission
-//#define Frs_Debug_Mission   
+//#define Mav_Debug_Missions
+//#define Frs_Debug_Missions   
 //#define Mav_Debug_System_Time   
 //#define Decode_Non_Essential_Mav 
 //#define Debug_Radio_Status  
