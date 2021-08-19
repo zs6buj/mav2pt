@@ -296,21 +296,14 @@ void setup()  {
   #if (defined displaySupport) 
 
     #if (defined ESP32)
-
-      if (Tinfo != 99)  {   // enable info touch pin-pair
-        touchAttachInterrupt(digitalPinToInterrupt(Tinfo), gotButtonInfo, threshold); 
-       } else
-      if (Pinfo != 99)  {   // enable info digital pin
-        pinMode(Pinfo, INPUT_PULLUP);   
-      }  
-       
+ 
       if ( (Tup != 99) && (Tdn != 99) ) {   // enable touch pin-pair
         touchAttachInterrupt(digitalPinToInterrupt(Tup), gotButtonUp, threshold);
         touchAttachInterrupt(digitalPinToInterrupt(Tdn), gotButtonDn, threshold);   
       } else
       if ( (Pup != 99) && (Pdn != 99) ) {   // enable digital pin-pair
-        pinMode(Pup, INPUT );          // high = true
-        pinMode(Pdn, INPUT);                          
+        pinMode(Pup, INPUT_PULLUP );        // low = true
+        pinMode(Pdn, INPUT_PULLUP);                          
       }
     #endif  
     
@@ -324,7 +317,7 @@ void setup()  {
     #if ((defined ESP8266) || (defined TEENSY3X))         
       if ( (Pup != 99) && (Pdn != 99) ) { // enable digital pin pair
         pinMode(Pup, INPUT_PULLUP);       // low = true
-        pinMode(Pdn, INPUT_PULLUP);
+        pinMode(Pdn, INPUT_PULLUP);       // low = true
       }
 
     #endif 
@@ -409,7 +402,7 @@ void setup()  {
     LogScreenPrintln("EEPROM good"); 
   #endif
 
-  RawSettingsToStruct();                  // So that we can use them regardless of webSupport
+  RawSettingsToStruct();                      // So that we can use them regardless of webSupport
   
   #if (defined webSupport) 
     RecoverSettingsFromFlash(); 
@@ -908,13 +901,13 @@ void loop() {
   #if (defined webSupport) 
     bool pinval = 0;
     if (resetEepromPin != 99) {   // if digital pin enumerated
-      #if (defined ESP32) || (defined RP20400)
+    //  #if (defined ESP32) || (defined RP20400)
         pinval = digitalRead(resetEepromPin);       // pin to 3.3v = high = pressed  
         resetEepromPress = pinval;
-      #else // esp8266 or teensy 3.x
-        pinval = digitalRead(resetEepromPin);       // pin to gnd = low = pressed  
-        resetEepromPress = !pinval;
-      #endif
+    //  #else // esp8266 or teensy 3.x
+    //    pinval = digitalRead(resetEepromPin);       // pin to gnd = low = pressed  
+    //    resetEepromPress = !pinval;
+    //  #endif
     }
     //Log.printf("resetEepromPress: %u\n", resetEepromPress);  
     if (resetEepromPress) {

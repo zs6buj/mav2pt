@@ -1633,34 +1633,10 @@ void WiFiEventHandler(WiFiEvent_t event)  {
   #if defined displaySupport  
     void HandleDisplayButtons() {
 
-      if (Pinfo != 99)  {   // if digital pin for info display enumerated
-        infoButton = !digitalRead(Pinfo);  // low == pressed
-      }
-        
-      if ((infoButton) && (!infoPressBusy)) { 
-        infoPressBusy = true; 
-        infoNewPress = true;          
-        info_debounce_millis = millis();   
-
-        info_millis = millis();                       
-        if (show_log) {
-          show_log = false; 
-          info_millis = millis() + db_period;  
-        } else {
-          show_log = true;    
-        }
-      }
-        
-      if(millis() - info_debounce_millis > db_period) { 
-        infoPressBusy = false; 
-        infoButton = false; // for slow decay touch buttons
-      }
-
       if (millis() - last_log_millis > 15000) { // after 15 seconds default to flight info screen
         last_log_millis = millis();             // and enable toggle button again
         show_log = false;
       }
-
       
       if (show_log) {
         if (infoNewPress) {     
@@ -1687,10 +1663,10 @@ void WiFiEventHandler(WiFiEvent_t event)  {
       
       if ( (Pup != 99) && (Pdn != 99) ) {   // if digital pin-pair enumerated
 
-        #if (defined RP2040) || (defined RP2040)
+        #if (defined RP2040)
           upButton = digitalRead(Pup);       // high = pressed  
           dnButton = digitalRead(Pdn);            
-        #else  // eso8266 or teensy
+        #else  // esp32, esp8266 or teensy
           upButton = !digitalRead(Pup);       // low = pressed 
           dnButton = !digitalRead(Pdn);               
         #endif       
@@ -1716,9 +1692,6 @@ void WiFiEventHandler(WiFiEvent_t event)  {
       dnButton = true;  
     }
     
-    void IRAM_ATTR gotButtonInfo(){
-      infoButton = true;
-    }
     #endif 
     //===================================
    

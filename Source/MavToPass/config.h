@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      67
-#define PATCH_LEVEL        03
+#define PATCH_LEVEL        04
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -23,6 +23,8 @@ v2.67.00  2021-07-27   Fix Mavlink UDP out via AP, broken when S.Port UDP added.
 v2.67.01  2021-07-29   PIO - add support for JTAG / ESP-PROG adapter  
 v2.67.02  2021-08-18   Add pin for on-the-fly reset of EEPROM/NVM to default settings in config.h
 v2.67.03  2021-08-19   NVM reset pins for more variants.
+v2.67.04  2021-08-19   Add NVM reset pins for ESP8266
+                       Tinfo and Pinfo pins obsolete, removed code
                                                                                                                                          
 */
 //===========================================================================================
@@ -36,7 +38,7 @@ v2.67.03  2021-08-19   NVM reset pins for more variants.
 //=========================================================================================================
                          // Most of the settings below are saved to EEPROM the first time mav2pt runs
                          // They can ONLY be changed via the web interface, or RESET to the defaults in config.h
-//#define Reset_EEPROM   // Reset settings in EEPROM. Do this if you have changed default settings below, or
+//#define Reset_EEPROM   // Reset EEPROM settings to config.h. Do this if you have changed default settings below, or
                          // suspect EEPROM settings are corrupt -  USE SPARINGLY. Do not leave this macro active.
                          // Alternatively, during normal operation, hold the designated resetEepromPin high (3.3v)
                          // for more than 10 seconds. For ESP0866, hold the resetEepromPin low (gnd).
@@ -137,14 +139,14 @@ v2.67.03  2021-08-19   NVM reset pins for more variants.
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi - Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
-//#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
+#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
-#define ESP32_Variant     7    //  ESP32 Dev Board with ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
+//#define ESP32_Variant     7    //  ESP32 Dev Board with ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
 
 #define RP2040_Variant     1    //  Raspberry pi pico  select Raspberry Pi RP2040 Boards in Arduino IDE
 
-//#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
-#define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - use Generic ESP8266 on IDE
+#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
+//#define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - use Generic ESP8266 on IDE
 //#define ESP8266_Variant   3   // ESP-12F - Wemos® LOLIN D1 Mini
 
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
@@ -492,11 +494,9 @@ bool daylightSaving = false;
       #define SSD1306_Display         // OLED display type    
       /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
        *  Pin == 99 means the pin-pair is not used
-       */ 
-      #define Pinfo         99        // Digital pin to toggle information/log page              
+       */            
       #define Pup           99        // 35 Board Button 1 to scroll the display up
-      #define Pdn           99        //  0 Board Button 2 to scroll the display down  
-      #define Tinfo         99        // 15 Touch pin to toggle information/log page       
+      #define Pdn           99        //  0 Board Button 2 to scroll the display down       
       #define Tup           33        // 33 Touch pin to scroll the display up
       #define Tdn           32        // 32 Touch pin to scroll the display down   
       #define SDA           21        // I2C OLED board
@@ -534,14 +534,11 @@ bool daylightSaving = false;
       #define SCR_ORIENT   1         // 1 Landscape or 0 Portrait 
       /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
        *  Pin == 99 means the pin-pair is not used
-       */ 
-      #define Pinfo         99        //    Digital pin to trigger information display              
+       */             
       #define Pup           99        // 35 Board Button 1 to scroll the display up
-      #define Pdn           99        //  0 Board Button 2 to scroll the display down   
-      #define Tinfo         99        // 02 Touch pin to toggle information/log page       
+      #define Pdn           99        //  0 Board Button 2 to scroll the display down        
       #define Tup           99        // 33 Touch pin to scroll the display up
       #define Tdn           99        // 32 Touch pin to scroll the display down   
-      #define Tinfo         99        //    Touch pin to toggle information/log page
       #define SDA           05        // I2C OLED board
       #define SCL           04        // I2C OLED board
       #define i2cAddr      0x3C       // I2C OLED board
@@ -568,11 +565,9 @@ bool daylightSaving = false;
       #define SCR_ORIENT   0       // 1 Landscape or 0 Portrait       
       /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
        *  Pin == 99 means the pin-pair is not used
-       */ 
-      #define Pinfo         99        //    Digital pin to toggle information/log page         
+       */      
       #define Pup           99        // 35 Board Button 1 to scroll the display up
-      #define Pdn           99        //  0 Board Button 2 to scroll the display down 
-      #define Tinfo         99        //    Touch pin to toggle information/log page         
+      #define Pdn           99        //  0 Board Button 2 to scroll the display down        
       #define Tup           99        // 33 Touch pin to scroll the display up
       #define Tdn           99        // 32 Touch pin to scroll the display down   
       #define SDA           05        // I2C OLED board
@@ -602,10 +597,8 @@ bool daylightSaving = false;
      */ 
     #define Pup           99        // Board Button to scroll the display up
     #define Pdn           99        // Board Button to scroll the display down
-    #define Pinfo         99        // 02 Digital pin to toggle information/log page
     #define Tup           33        // 33 Touch pin to scroll the display up
     #define Tdn           32        // 32 Touch pin to scroll the display down 
-    #define Tinfo         02        // 02 Touch pin to toggle information/log page
     #define SDA           04        // I2C OLED board 
     #define SCL           15        // I2C OLED board
     #define i2cAddr      0x3C       // I2C OLED board
@@ -631,7 +624,7 @@ bool daylightSaving = false;
     #define fr_rxPin      13        // F/SPort rx - (NOTE: DON'T use pin 12! boot fails if pulled high)
     #define fr_txPin      15        // F/SPort tx - Use me in single wire mode
     #define startWiFiPin  99        // 99=none. No input pin available (non touch!) Could use touch with a bit of messy work.
-    #define resetEepromPin 37       // 99=none. Trigger EEPROM reset to default settings in config.h   
+    #define resetEepromPin 37       // 99=none. HIGH (3.3V) triggers EEPROM reset to default settings in config.h   HIGH =Press
     #if !defined displaySupport    // I2C TFT board is built into TTGO T-Display
       #define displaySupport
     #endif    
@@ -641,10 +634,8 @@ bool daylightSaving = false;
     /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
      *  Pin == 99 means the pin-pair is not used
      */ 
-    #define Pinfo          2        //    Digital pin to toggle information/log page     
-    #define Pup            0        //  0 Board Button 1 to scroll the display up
-    #define Pdn           35        // 35 Board Button 2 to scroll the display down 
-    #define Tinfo         99        //    Touch pin to toggle information/log page       
+    #define Pup            0        //  0 Board Button 1 to scroll the display up     LOW=Press
+    #define Pdn           35        // 35 Board Button 2 to scroll the display down   LOW=Press   
     #define Tup           99        // 33 Touch pin to scroll the display up
     #define Tdn           99        // 32 Touch pin to scroll the display down   
     
@@ -682,11 +673,9 @@ bool daylightSaving = false;
     #define MISO          12        // apparently not used by Adafruit    
     /*    Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
      *    Pin == 99 means the pin-pair is not used
-     */ 
-    #define Pinfo         25        // Digital pin to toggle information/log page        
+     */      
     #define Pup           99        // Board Button 1 to scroll the display up
     #define Pdn           99        // Board Button 2 to scroll the display down    
-    #define Tinfo         99        // Touch pin to toggle information/log page    
     #define Tup           32        // Touch pin to scroll the display up
     #define Tdn            2        // Touch pin to scroll the display down      
       
@@ -717,11 +706,9 @@ bool daylightSaving = false;
     
     /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
      *  Pin == 99 means the pin-pair is not used
-     */ 
-    #define Pinfo         99        //    Digital pin to toggle information/log page              
+     */             
     #define Pup           99        // 35 Board Button 1 to scroll the display up
-    #define Pdn           99        //  0 Board Button 2 to scroll the display down  
-    #define Tinfo         15        // 15 Touch pin to toggle information/log page       
+    #define Pdn           99        //  0 Board Button 2 to scroll the display down      
     #define Tup           33        // 33 Touch pin to scroll the display up
     #define Tdn           32        // 32 Touch pin to scroll the display down   
 
@@ -732,25 +719,25 @@ bool daylightSaving = false;
   //========================================================================= 
   #if (ESP8266_Variant == 1)        // NodeMCU 12F board - Dev board with usb etc
   
-    #define MavStatusLed   D4        // D4/GPIO2 Board LED - Mav Status LED inverted logic - use 99 while debug
+    #define MavStatusLed   99        // D4/GPIO2 Board LED - Mav Status LED inverted logic - use 99 while debug
     #define InvertMavLed  true      
     #define BufStatusLed   99        // None     
-   //                      D4        // TXD1 - Serial1 debug log out SHARED WITH BOARD LED                         
+   //                      D4        // TXD1 - Serial-1 debug log out SHARED WITH BOARD LED                         
     #define mav_rxPin      D9        // RXD0 default  
     #define mav_txPin      D10       // TXD0 default    
     #define fr_rxPin       D5        // FPort- Not used in single wire mode
     #define fr_txPin       D6        // FPorttx - Use me in single wire mode
     #define startWiFiPin   99        // 99=none or D3/D7 - Trigger WiFi startup 
                                      // NOTE: There are not enough pins for wifi pin and display scrolling
-    #define resetEepromPin 99        // Trigger EEPROM reset to default settings in config.h                                      
-    //#define displaySupport         // activate me if you have a display
+    #define resetEepromPin D8        // Trigger EEPROM reset to default settings in config.h  HIGH(3.3V)=Press                                    
+    #define displaySupport         // activate me if you have a display
     #if (defined displaySupport)     // Display type defined with # define displaySupport   
-      /* Below please choose Digital pin-pair for display scrolling
+      #define SSD1306_Display  
+      /* Below please choose digital pin-pair for display scrolling
        *  Pin == 99 means the pin-pair is not used
-       */ 
-      #define Pinfo       99        // Digital pin to toggle information/log page           
-      #define Pup         D3        // D3 Board Button 1 to scroll the display up
-      #define Pdn         D7        // D7 Board Button 2 to scroll the display down    
+       */         
+      #define Pup         D3        // D3 Board Button 1 to scroll the display up LOW=Press
+      #define Pdn         D7        // D7 Board Button 2 to scroll the display down LOW=Press
       #define SCL         D1        // I2C OLED board   
       #define SDA         D2        // I2C OLED board
       #define i2cAddr    0x3C       // I2C OLED board
@@ -782,6 +769,7 @@ bool daylightSaving = false;
     #define fr_rxPin       D5          // FPort- Not used in single wire mode
     #define fr_txPin       D2          // FPort(half-duplex) inverted - Use me in single wire mode
     #define startWiFiPin   D6          // Trigger WiFi startup
+    #define resetEepromPin 99          // Try D8, trigger EEPROM reset to default settings in config.h  HIGH(3.3V)=Press       
     //#define displaySupport       // activate me if you have a display
                                        // NOTE: There may not be enough pins for wifi pin AND display scrolling  
     #define resetEepromPin 99          // Trigger EEPROM reset to default settings in config.h                                        
@@ -789,8 +777,7 @@ bool daylightSaving = false;
       #define SSD1306_Display  
       /* Below please choose Digital pin-pair for display scrolling
        *  Pin == 99 means the pin-pair is not used
-       */ 
-      #define Pinfo         99        // Digital pin to toggle information/log page          
+       */      
       #define Pup           99        // D3 Board Button 1 to scroll the display up
       #define Pdn           99        // D7 Board Button 2 to scroll the display down    
       #define SCL           D0        // I2C OLED board   
@@ -826,12 +813,11 @@ bool daylightSaving = false;
     #define fr_rxPin       D5        // FPort- Not used in single wire mode
     #define fr_txPin       D6        // FPort- inverted - Use me in single wire mode
     #define startWiFiPin   D16       // Trigger WiFi startup 
-    #define resetEepromPin 99        // Trigger EEPROM reset to default settings in config.h          
+    #define resetEepromPin 99          // Try D8, trigger EEPROM reset to default settings in config.h  HIGH(3.3V)=Press            
     #if (defined displaySupport)   // Display type defined with # define displaySupport   
       /* Below please choose Digital pin-pair for display scrolling
        *  Pin == 99 means the pin-pair is not used
-       */ 
-      #define Pinfo         99        // Digital pin to toggle information/log page           
+       */           
       #define Pup           99        // D3 Board Button 1 to scroll the display up
       #define Pdn           99        // D7 Board Button 2 to scroll the display down    
       #define SCL           D1        // I2C OLED board   
@@ -864,7 +850,6 @@ bool daylightSaving = false;
      */ 
     #define Pup           21        // Board Button to scroll the display up - high(3.3v) = scroll
     #define Pdn           22        // Board Button to scroll the display down - high(3.3v) = scroll
-    #define Pinfo         99        // Digital pin to toggle information/log page
     #define SDA            4        // I2C OLED board 
     #define SCL            5        // I2C OLED board
     #define i2cAddr      0x3C       // I2C OLED board
@@ -884,7 +869,7 @@ bool daylightSaving = false;
   #endif
   
   #if(defined webSupport)
-    bool  resetEepromPress = false;
+    bool  resetEepromPress = false;  // This variable is used to flag an eeprom reset button event
   #endif
   
   //=================================================================================================   
