@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      67
-#define PATCH_LEVEL        02
+#define PATCH_LEVEL        03
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -21,8 +21,8 @@ v2.66.02               Sats & rssi display fix
           2021-07-04   Add support for Pi Pico board RP2040 
 v2.67.00  2021-07-27   Fix Mavlink UDP out via AP, broken when S.Port UDP added. :(
 v2.67.01  2021-07-29   PIO - add support for JTAG / ESP-PROG adapter  
-v2.67.02  2021-08-18   Add pin for on-the-fly reset of EEPROM to default settings in config.h
-
+v2.67.02  2021-08-18   Add pin for on-the-fly reset of EEPROM/NVM to default settings in config.h
+v2.67.03  2021-08-19   NVM reset pins for more variants.
                                                                                                                                          
 */
 //===========================================================================================
@@ -137,9 +137,9 @@ v2.67.02  2021-08-18   Add pin for on-the-fly reset of EEPROM to default setting
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi - Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
-#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
+//#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
-//#define ESP32_Variant     7    //  ESP32 Dev Board with ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
+#define ESP32_Variant     7    //  ESP32 Dev Board with ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
 
 #define RP2040_Variant     1    //  Raspberry pi pico  select Raspberry Pi RP2040 Boards in Arduino IDE
 
@@ -480,20 +480,20 @@ bool daylightSaving = false;
   #if (ESP32_Variant == 1)          // ESP32 Dev Module
     #define MavStatusLed   02        // Onboard LED
     #define InvertMavLed  false      
-    #define BufStatusLed   99        // Mavlink serial tx     
+    #define BufStatusLed   99        // Mavlink serial tx    99=none 
     #define mav_rxPin      27        // Mavlink serial rx
     #define mav_txPin      26        // Mavlink serial tx
     #define fr_rxPin       16        // FPort- Not used in 1-wire mode DON'T use 12!
     #define fr_txPin        4        // FPorttx - Use me in single wire mode
     #define startWiFiPin    5        // Trigger WiFi startup  
-    #define resetEepromPin 99        // 99=none try 35 Trigger EEPROM reset to default settings in config.h        
+    #define resetEepromPin 34        // 99=none Trigger EEPROM reset to default settings in config.h        
     //#define displaySupport     // activate me if you have a display
     #if (defined displaySupport)   // Display type defined with board variant
       #define SSD1306_Display         // OLED display type    
       /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
        *  Pin == 99 means the pin-pair is not used
        */ 
-      #define Pinfo         99        //    Digital pin to toggle information/log page              
+      #define Pinfo         99        // Digital pin to toggle information/log page              
       #define Pup           99        // 35 Board Button 1 to scroll the display up
       #define Pdn           99        //  0 Board Button 2 to scroll the display down  
       #define Tinfo         99        // 15 Touch pin to toggle information/log page       
@@ -562,7 +562,7 @@ bool daylightSaving = false;
     #define fr_rxPin       13        // FPort- Not used in single wire mode DON'T use 12!
     #define fr_txPin       01        // FPorttx - Use me in single wire mode
     #define startWiFiPin   99        // Trigger WiFi startup  
-    #define resetEepromPin 99        // 99=none try 35 Trigger EEPROM reset to default settings in config.h     
+    #define resetEepromPin 99        // 99=none try 34, 35 Trigger EEPROM reset to default settings in config.h     
     #if (defined displaySupport)   // Display type defined with # define displaySupport   
       #define SSD1306_Display      // OLED display type 
       #define SCR_ORIENT   0       // 1 Landscape or 0 Portrait       
@@ -591,7 +591,7 @@ bool daylightSaving = false;
     #define fr_rxPin        13        // FPort rx - (NOTE: DON'T use pin 12! boot fails if pulled high)
     #define fr_txPin        14        // FPort tx - Use me in single wire mode
     #define startWiFiPin    99        // Trigger WiFi startup 
-    #define resetEepromPin  99        // Try 35, 38, 39 - Trigger EEPROM reset to default settings in config.h    
+    #define resetEepromPin  99        // Try 34, 35, 38, 39 - Trigger EEPROM reset to default settings in config.h    
     #if !defined displaySupport       // I2C OLED board is built into Heltec WiFi Kit 32
       #define displaySupport
     #endif  
@@ -702,7 +702,7 @@ bool daylightSaving = false;
     #define fr_rxPin       13        // FPort- Not used in 1-wire mode DON'T use 12!
     #define fr_txPin        4        // FPort tx - Use me in single wire mode
     #define startWiFiPin    5        // 5 Trigger WiFi startup  
-    #define resetEepromPin 99        // Try 35, 38, 39 - Trigger EEPROM reset to default settings in config.h      
+    #define resetEepromPin 34        // Trigger EEPROM reset to default settings in config.h      
     #if !defined displaySupport      // I2C OLED board is built into TTGO T2
       #define displaySupport
     #endif
