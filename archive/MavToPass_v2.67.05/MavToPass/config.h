@@ -58,7 +58,9 @@ v2.67.05  2021-09-11   Tidy up Mavlink BT to GCS
 
 #define webSupport                     // ESP only. Enable wifi web support, including OTA firmware updating. Browse to IP.
 #define webPassword      "admin"       // Web password / user name : admin
-     
+
+// DEPRECATED - declare in the board definition - #define displaySupport    
+    
                                        // NOTE: Set mvBaud = 57600 for Dragonlink and RFD900X
 #define mvBaud            57600        // Mavlink to/from the flight controller - max 921600 - must match FC or long range radio
 //#define MavAutoBaud                    // Auto detect Mavlink telemetry speed             
@@ -93,7 +95,7 @@ v2.67.05  2021-09-11   Tidy up Mavlink BT to GCS
 // How does Mavlink telemetry leave this translator?
 // These are optional, and in addition to the F.Port telemetry output
 //#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
-//#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
+#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
 //#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
 
@@ -134,18 +136,18 @@ v2.67.05  2021-09-11   Tidy up Mavlink BT to GCS
 //                          S E L E C T   E S P   B O A R D   V A R I A N T   
 //=================================================================================================
 //================================================================================================= 
-#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
+//#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi - Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
-//#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
+#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
-//#define ESP32_Variant     7    //  ESP32 Dev Board with separate ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
+//#define ESP32_Variant     7    //  ESP32 Dev Board with ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
 
 #define RP2040_Variant     1    //  Raspberry pi pico  select Raspberry Pi RP2040 Boards in Arduino IDE
 
-//#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
-#define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - use Generic ESP8266 on IDE
+#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
+//#define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - use Generic ESP8266 on IDE
 //#define ESP8266_Variant   3   // ESP-12F - Wemos® LOLIN D1 Mini
 
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
