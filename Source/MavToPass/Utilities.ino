@@ -1990,7 +1990,7 @@ void WiFiEventHandler(WiFiEvent_t event)  {
           xx = 9 * char_w_px;
           yy = 0 * char_h_px;      
           display.setCursor(xx, yy);            
-          snprintf(snprintf_buf, snp_max, "RSSI %ld%%", pt_rssi); 
+          snprintf(snprintf_buf, snp_max, "RSSI %u%%", pt_rssi); 
           display.fillRect(xx+(5*char_w_px), yy, (4 * char_w_px), char_h_px, SCR_BACKGROUND);   // blank rssi  
           display.println(snprintf_buf);         
           #if (defined SSD1306_Display)
