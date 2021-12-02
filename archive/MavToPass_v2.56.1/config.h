@@ -9,9 +9,9 @@ v2.56.1  2020-02-26 Add web interface to allow settings/parameter changes
 //
 //===========================================================================================
 
-#define webSupport                     // ESP only. Enable wifi web support, including OTA firmware updating. Browse to IP.
-#define webPassword      "changeme"    // Web password 
-//#define Reset_Web_Defaults            // Settings in eeprom
+//#define webSupport                     // ESP only. Enable wifi web support, including OTA firmware updating. Browse to IP.
+#define webPassword      "admin"    // Web password 
+#define Reset_Web_Defaults            // Settings in eeprom
 
 
 //#define AutoBaud                      // Auto detect Mavlink serial-in baud rate
@@ -89,9 +89,9 @@ v2.56.1  2020-02-26 Add web interface to allow settings/parameter changes
 #define Start_WiFi                       // Start WiFi at startup, override startWiFi Pin
 
 // Choose one default mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
-//#define WiFi_Mode   1  //AP            
+#define WiFi_Mode   1  //AP            
 //#define WiFi_Mode   2  // STA
-#define WiFi_Mode   3  // STA failover to AP
+//#define WiFi_Mode   3  // STA failover to AP
 
 // Choose one default protocol - for ESP32 only
 //#define WiFi_Protocol 1    // TCP/IP
