@@ -987,7 +987,6 @@ void RefreshHTMLButtons() {
  
  //===========================================================================================
  void handleOtaPage() {
-    Log.println("Reached handleOtaPage() 01");    
   //Free_Bluetooth_RAM();   // Disables BT and required a reboot to reinstate BT
   
   server.sendHeader("Connection", "close");
@@ -997,8 +996,7 @@ void RefreshHTMLButtons() {
     server.sendHeader("Connection", "close");
     server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
     ESP.restart();
-  }, []() {
-     Log.println("Reached 03");    
+  }, []() {  
     HTTPUpload& upload = server.upload();
     if (upload.status == UPLOAD_FILE_START) {
       uint32_t uploadSize;

@@ -113,8 +113,8 @@ V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS
 // How does FrSky telemetry leave this translator? 
 // Select one option or combination only
 
-//#define FrSky_IO     0     // None  - Mav2PT becomes a Mavlink Switch
-#define FrSky_IO     1     // Serial  
+#define FrSky_IO     0     // None  - Mav2PT becomes a Mavlink Switch
+//#define FrSky_IO     1     // Serial  
 //#define FrSky_IO     2     // UDP  
 //#define FrSky_IO     3     // Serial & UDP
 //#define FrSky_IO     4     // SD Card
@@ -178,8 +178,8 @@ V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS
 #define STApw                "password"         // Target AP password (in STA mode). Must be >= 8 chars      
 
 // Choose one default mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
-//#define WiFi_Mode   1  //AP
-#define WiFi_Mode   2  // STA
+#define WiFi_Mode   1  //AP
+//#define WiFi_Mode   2  // STA
 //#define WiFi_Mode   3  // (STA>AP) STA failover to AP
 
 // Choose one default protocol - for ESP32 only
@@ -188,8 +188,8 @@ V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS
 
 uint16_t  TCP_localPort = 5760;     
 uint16_t  TCP_remotePort = 5760;    
-uint16_t  UDP_localPort = 14550;    // readPort - remote host (like MP and QGC) expects to send to this port
-uint16_t  UDP_remotePort = 14555;   // sendPort - remote host reads on this port  
+uint16_t  UDP_localPort = 14555;    // readPort / remote host (like MP and QGC) expects to send to this port
+uint16_t  UDP_remotePort = 14550;   // sendPort / remote host reads on this port  
 
 //#define UDP_Broadcast      // Comment out (default) if you want to track and target remote udp client ips
 // NOTE; UDP is not a connection based protocol. To communicate with > 1 client at a time, we must broadcast on the subnet  
@@ -1108,7 +1108,7 @@ bool daylightSaving = false;
 
   //=================================================================================================   
   //                       W I F I   S U P P O R T - ESP32 and ES8266 Only
-  //=================================================================================================  
+  //================================================================================================= 
 
     uint16_t  udp_read_port;
     uint16_t  udp_send_port;

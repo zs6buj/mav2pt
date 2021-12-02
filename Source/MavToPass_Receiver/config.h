@@ -83,9 +83,9 @@ V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS
 //=================================================================================================
 // Choose only one of these default Flight-Controller-side I/O channels 
 // How does Mavlink telemetry enter this translator?
-#define FC_Mavlink_IO  0    // Serial Port (default)         
+//#define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-//#define FC_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
+#define FC_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
 //#define FC_Mavlink_IO  3    // SD Card / TF - ESP32 only
 
 
@@ -95,9 +95,9 @@ V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS
 // Choose only one of these default GCS-side I/O channels
 // How does Mavlink telemetry leave this translator?
 // These are optional, and in addition to the F.Port telemetry output
-//#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
+#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
 
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with GCS I/O
@@ -113,8 +113,8 @@ V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS
 // How does FrSky telemetry leave this translator? 
 // Select one option or combination only
 
-//#define FrSky_IO     0     // None  - Mav2PT becomes a Mavlink Switch
-#define FrSky_IO     1     // Serial  
+#define FrSky_IO     0     // None  - Mav2PT becomes a Mavlink Switch
+//#define FrSky_IO     1     // Serial  
 //#define FrSky_IO     2     // UDP  
 //#define FrSky_IO     3     // Serial & UDP
 //#define FrSky_IO     4     // SD Card
@@ -140,8 +140,8 @@ V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS
 //#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi - Select ESP32 Dev Board in IDE
-//#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
-#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
+#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
+//#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     7    //  ESP32 Dev Board with separate ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
 
@@ -190,6 +190,7 @@ uint16_t  TCP_localPort = 5760;
 uint16_t  TCP_remotePort = 5760;    
 uint16_t  UDP_localPort = 14550;    // readPort - remote host (like MP and QGC) expects to send to this port
 uint16_t  UDP_remotePort = 14555;   // sendPort - remote host reads on this port  
+
 
 //#define UDP_Broadcast      // Comment out (default) if you want to track and target remote udp client ips
 // NOTE; UDP is not a connection based protocol. To communicate with > 1 client at a time, we must broadcast on the subnet  
