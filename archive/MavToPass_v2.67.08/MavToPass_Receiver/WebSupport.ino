@@ -46,6 +46,7 @@ PROGMEM const char jquery_min_js_v3_2_1_gz[]  = {
 In the ESP32, constant data is automatically stored in FLASH memory and can be accessed directly 
 from FLASH memory without first copying it to RAM. So, there is no need to use the PROGMEM keyword
 */
+
  static const String styleLogin =  // Stored in FLASH not SRAM Heap - see above
     "<style>h1{background:#3498db;color:#fff;border-radius:5px;height:34px;font-family:sans-serif;}"
     "#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
@@ -78,7 +79,8 @@ from FLASH memory without first copying it to RAM. So, there is no need to use t
 
    
  static const String otaIndex = styleOTA +  
-    "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js'></script>"
+    "<script src='/jquery.min.js'></script>"  // replaces internet call below
+    //"<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js'></script>"
     "<form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>"
     "<input type='file' name='update' id='file' onchange='sub(this)' style=display:none>"
     "<label id='file-input' for='file' class=btn > Choose file...</label><br><br>"
@@ -90,6 +92,7 @@ from FLASH memory without first copying it to RAM. So, there is no need to use t
     "<p id='rebootmsg'></p><br><br>"
     "<center><input type='submit' onclick='window.close()' class=btn value='Close'></center></form>"
     "<script>"
+    
     "function sub(obj){"
     "var fileName = obj.value.split('\\\\');"
     "document.getElementById('file-input').innerHTML = '   '+ fileName[fileName.length-1];"
@@ -122,7 +125,13 @@ from FLASH memory without first copying it to RAM. So, there is no need to use t
     "});"
     "</script>";
     
-
+// Callback for the embedded jquery.min.js page
+void onJavaScript(void) {
+    //Log.println("onJavaScript(void)");
+    server.setContentLength(jquery_min_js_v3_2_1_gz_len);
+    server.sendHeader("Content-Encoding", "gzip");
+    server.send_P(200, "text/javascript", jquery_min_js_v3_2_1_gz, jquery_min_js_v3_2_1_gz_len);
+}
 
   String settingsPage;
   String loginPage;
@@ -135,7 +144,8 @@ from FLASH memory without first copying it to RAM. So, there is no need to use t
             //                 HANDLE INCOMING HTML 
             //===========================================================
 
-
+ 
+  server.on("/jquery.min.js", HTTP_GET, onJavaScript);      //return javascript jquery 
   server.on("/", handleLoginPage);                          // root
   server.on("/settingsIndex", handleSettingsPage);             
   server.on("/settingsReturnIndex", handleSettingsReturn);  // save settings and reboot
@@ -1022,17 +1032,16 @@ void RefreshHTMLButtons() {
  
  //===========================================================================================
  void handleOtaPage() {
-
   //Free_Bluetooth_RAM();   // Disables BT and required a reboot to reinstate BT
   
   server.sendHeader("Connection", "close");
   server.send(200, "text/html", otaIndex);
-  /*handle upload of firmware binary file */
+   /*return javascript jquery */
   server.on("/update", HTTP_POST, []() {
     server.sendHeader("Connection", "close");
     server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
     ESP.restart();
-  }, []() {
+  }, []() {  
     HTTPUpload& upload = server.upload();
     if (upload.status == UPLOAD_FILE_START) {
       uint32_t uploadSize;
@@ -1045,7 +1054,7 @@ void RefreshHTMLButtons() {
         uploadSize = maxSketchSpace;
       #endif
 
-      Log.printf("Update: %s\n", upload.filename.c_str());    
+      Log.printf("OTA Update: %s\n", upload.filename.c_str());    
       if (!Update.begin(uploadSize)) { //start with max available size
         Update.printError(Log);
       }
@@ -1056,7 +1065,7 @@ void RefreshHTMLButtons() {
       }
     } else if (upload.status == UPLOAD_FILE_END) {
       if (Update.end(true)) { //true to show the percentage progress bar
-        Log.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+        Log.printf("OTA Update Success: %u\nRebooting...\n", upload.totalSize);
         delay(2000);
       } else {
         Update.printError(Log);

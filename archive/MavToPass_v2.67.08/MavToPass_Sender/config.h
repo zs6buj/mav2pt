@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      67
-#define PATCH_LEVEL        07
+#define PATCH_LEVEL        8
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -28,7 +28,8 @@ v2.67.04  2021-08-19   Add NVM reset pins for ESP8266
 v2.67.05  2021-09-11   Tidy up Mavlink BT to GCS    
 V2.67.06  2021-11-25   Reset NVM settings to config settings if fw version change detected
                        On NVM reset call RawSettingsToStruct() and reboot
-V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS                                            
+V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS
+V2.67.08  2021-12-03   Fix OTA in AP mode with embedded jquery (acknowledgement M.Mastenbroek)                                             
                                                                                                                                          
 */
 //===========================================================================================
@@ -1154,7 +1155,8 @@ bool daylightSaving = false;
     #if defined ESP32 
       #include <WiFi.h>  // includes UDP class
       #if defined webSupport
-        #include <WebServer.h> 
+        #include <WebServer.h>
+        #include <ESPmDNS.h> 
         #include <Update.h> 
         WebServer server(80);
         
@@ -1165,7 +1167,8 @@ bool daylightSaving = false;
     #if defined ESP8266
       #include <ESP8266WiFi.h>   // Includes AP class
       #if defined webSupport
-        #include <ESP8266WebServer.h>    
+        #include <ESP8266WebServer.h>
+        #include <ESPmDNS.h>    
         ESP8266WebServer server(80);  
         #include <WiFiUdp.h>       
       #endif      

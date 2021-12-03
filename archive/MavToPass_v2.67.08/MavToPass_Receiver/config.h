@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      67
-#define PATCH_LEVEL        07
+#define PATCH_LEVEL        8
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -28,7 +28,8 @@ v2.67.04  2021-08-19   Add NVM reset pins for ESP8266
 v2.67.05  2021-09-11   Tidy up Mavlink BT to GCS    
 V2.67.06  2021-11-25   Reset NVM settings to config settings if fw version change detected
                        On NVM reset call RawSettingsToStruct() and reboot
-V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS                                            
+V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS 
+V2.67.08  2021-12-03   Fix OTA in AP mode with embedded jquery (acknowledgement M.Mastenbroek)                                            
                                                                                                                                          
 */
 //===========================================================================================
@@ -83,9 +84,9 @@ V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS
 //=================================================================================================
 // Choose only one of these default Flight-Controller-side I/O channels 
 // How does Mavlink telemetry enter this translator?
-#define FC_Mavlink_IO  0    // Serial Port (default)         
+//#define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-//#define FC_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
+#define FC_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
 //#define FC_Mavlink_IO  3    // SD Card / TF - ESP32 only
 
 
@@ -95,9 +96,9 @@ V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS
 // Choose only one of these default GCS-side I/O channels
 // How does Mavlink telemetry leave this translator?
 // These are optional, and in addition to the F.Port telemetry output
-//#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
+#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
 
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with GCS I/O
@@ -140,8 +141,8 @@ V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS
 //#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi - Select ESP32 Dev Board in IDE
-//#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
-#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
+#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
+//#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     7    //  ESP32 Dev Board with separate ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
 
@@ -178,8 +179,8 @@ V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS
 #define STApw                "password"         // Target AP password (in STA mode). Must be >= 8 chars      
 
 // Choose one default mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
-#define WiFi_Mode   1  //AP
-//#define WiFi_Mode   2  // STA
+//#define WiFi_Mode   1  //AP
+#define WiFi_Mode   2  // STA
 //#define WiFi_Mode   3  // (STA>AP) STA failover to AP
 
 // Choose one default protocol - for ESP32 only
@@ -188,8 +189,9 @@ V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS
 
 uint16_t  TCP_localPort = 5760;     
 uint16_t  TCP_remotePort = 5760;    
-uint16_t  UDP_localPort = 14555;    // readPort / remote host (like MP and QGC) expects to send to this port
-uint16_t  UDP_remotePort = 14550;   // sendPort / remote host reads on this port  
+uint16_t  UDP_localPort = 14550;    // readPort - remote host (like MP and QGC) expects to send to this port
+uint16_t  UDP_remotePort = 14555;   // sendPort - remote host reads on this port  
+
 
 //#define UDP_Broadcast      // Comment out (default) if you want to track and target remote udp client ips
 // NOTE; UDP is not a connection based protocol. To communicate with > 1 client at a time, we must broadcast on the subnet  
@@ -1108,7 +1110,7 @@ bool daylightSaving = false;
 
   //=================================================================================================   
   //                       W I F I   S U P P O R T - ESP32 and ES8266 Only
-  //================================================================================================= 
+  //=================================================================================================  
 
     uint16_t  udp_read_port;
     uint16_t  udp_send_port;
@@ -1155,6 +1157,7 @@ bool daylightSaving = false;
       #include <WiFi.h>  // includes UDP class
       #if defined webSupport
         #include <WebServer.h> 
+        #include <ESPmDNS.h> 
         #include <Update.h> 
         WebServer server(80);
         
@@ -1165,7 +1168,8 @@ bool daylightSaving = false;
     #if defined ESP8266
       #include <ESP8266WiFi.h>   // Includes AP class
       #if defined webSupport
-        #include <ESP8266WebServer.h>    
+        #include <ESP8266WebServer.h>
+        #include <ESPmDNS.h>     
         ESP8266WebServer server(80);  
         #include <WiFiUdp.h>       
       #endif      
@@ -1277,19 +1281,17 @@ bool daylightSaving = false;
 //#define Frs_Debug_APStatus    // 0x5001
 //#define Mav_Debug_SysStatus   // #1 && battery
 //#define Debug_Batteries       // 0x5003
+
 //#define Frs_Debug_Home        // 0x5004
+
 //#define Mav_Debug_GPS_Raw     // #24
-
 //#define Mav_Debug_GPS_Int     // #33
-
 //#define Frs_Debug_LatLon      // 0x800
 //#define Frs_Debug_VelYaw      // 0x5005
 //#define Frs_Debug_GPS_status  // 0x5002
 //#define Mav_Debug_Scaled_IMU
 //#define Mav_Debug_Raw_IMU
-
 //#define Mav_Debug_Hud         // #74
-
 //#define Frs_Debug_Hud         // 0x50F2
 //#define Mav_Debug_Scaled_Pressure
 //#define Mav_Debug_Attitude    // #30

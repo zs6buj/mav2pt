@@ -17,17 +17,10 @@ Complete change log and debugging options are at the bottom of this tab
 GitHub Tag
 ----------                                            
   
-v2.66.02               Sats & rssi display fix 
-          2021-07-04   Add support for Pi Pico board RP2040 
-v2.67.00  2021-07-27   Fix Mavlink UDP out via AP, broken when S.Port UDP added. :(
-v2.67.01  2021-07-29   PIO - add support for JTAG / ESP-PROG adapter  
-v2.67.02  2021-08-18   Add pin for on-the-fly reset of EEPROM/NVM to default settings in config.h
-v2.67.03  2021-08-19   NVM reset pins for more variants.
-v2.67.04  2021-08-19   Add NVM reset pins for ESP8266
-                       Tinfo and Pinfo pins obsolete, removed code
-v2.67.05  2021-09-11   Tidy up Mavlink BT to GCS    
 V2.67.06  2021-11-25   Reset NVM settings to config settings if fw version change detected
-                       On NVM reset call RawSettingsToStruct() and reboot                       
+                       On NVM reset call RawSettingsToStruct() and reboot  
+
+                                            
                                                                                                                                          
 */
 //===========================================================================================
@@ -1587,5 +1580,15 @@ v2.65.12  2021-06-19   Fix crc of FPort2 RC control frame(unused right now).
 v2.65.13  2021-06-22   Minor display change, speed and climb.   
                        Fix auto detect S.Port, damn typo in v2.65.12.                                         
 v2.66.00               Workaround to slow SITL telem under Ubuntu 20.04
-v2.66.01               Alt & hdg display fix                                                                                                                                                                                                                                                                                                                              
+v2.66.01               Alt & hdg display fix 
+  
+v2.66.02               Sats & rssi display fix 
+          2021-07-04   Add support for Pi Pico board RP2040 
+v2.67.00  2021-07-27   Fix Mavlink UDP out via AP, broken when S.Port UDP added. :(
+v2.67.01  2021-07-29   PIO - add support for JTAG / ESP-PROG adapter  
+v2.67.02  2021-08-18   Add pin for on-the-fly reset of EEPROM/NVM to default settings in config.h
+v2.67.03  2021-08-19   NVM reset pins for more variants.
+v2.67.04  2021-08-19   Add NVM reset pins for ESP8266
+                       Tinfo and Pinfo pins obsolete, removed code
+v2.67.05  2021-09-11   Tidy up Mavlink BT to GCS                                                                                                                                                                                                                                                                                                                               
 */
