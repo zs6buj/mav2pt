@@ -5871,13 +5871,15 @@ int32_t String_long(String S) {
   settingsPage += temp;
   sprintf(temp, " &nbsp &nbsp remote <input type='text' name='_udp_remotePort' value='%d' size='2' minlength='2' required maxlength='5'> <br>", set.udp_remotePort);
   settingsPage += temp;
-  settingsPage += "Bluetooth Mode: &nbsp &nbsp ";
-  sprintf(temp, "<input type='radio' class='big' name='_btmode' value='Master' %s> Master &nbsp &nbsp &nbsp &nbsp ", set.btmode1);
-  settingsPage += temp;
-  sprintf(temp, "<input type='radio' class='big' name='_btmode' value='Slave' %s> Slave &nbsp &nbsp <br>", set.btmode2);
-  settingsPage += temp;
-  sprintf(temp, "Slave Name: <input type='text' name='_btConnectToSlave' value='%s' size='22' maxlength='22'>  <br><br><center>", set.btConnectToSlave);
-  settingsPage += temp;  
+  #if (defined ESP32) && (defined btBuiltin)
+    settingsPage += "Bluetooth Mode: &nbsp &nbsp ";
+    sprintf(temp, "<input type='radio' class='big' name='_btmode' value='Master' %s> Master &nbsp &nbsp &nbsp &nbsp ", set.btmode1);
+    settingsPage += temp;
+    sprintf(temp, "<input type='radio' class='big' name='_btmode' value='Slave' %s> Slave &nbsp &nbsp <br>", set.btmode2);
+    settingsPage += temp;
+    sprintf(temp, "Slave Name: <input type='text' name='_btConnectToSlave' value='%s' size='22' maxlength='22'>  <br><br><center>", set.btConnectToSlave);
+    settingsPage += temp;
+  #endif
   settingsPage += "<b><input type='submit' onclick='closeWin()' formaction='/rebootIndex' class=btn value='Cancel'> </b>&nbsp &nbsp &nbsp &nbsp";
   settingsPage += "&nbsp &nbsp &nbsp &nbsp<b><input type='submit' formaction='/settingsReturnIndex' class=btn value='Save & Reboot'> </b><br><br>";
   settingsPage += "<p><font size='1' color='black'><strong>";
