@@ -133,9 +133,9 @@
     NOTE : STM32 support is deprecated as of 2020-02-27 v2.56.2
 */
 //    =====================================================================================================================
-  
-#include <CircularBuffer.h>
 
+
+#include <CircularBuffer.h>
 #include <mavlink_types.h>
 #include "global_variables.h"
 #include "config.h"                      // ESP_IDF libs included here

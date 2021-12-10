@@ -294,7 +294,16 @@
         if (set.wfmode == sta_ap) {   // in sta failover to ap mode we had successful sta connect
           set.wfmode = sta;           // so set correct mode      
         }
-        
+
+        /*use mdns for host name resolution*/
+        if (!MDNS.begin(HostName)) { //http://<HostName>.local
+          Log.println("Error setting up MDNS responder!");
+          while (1) {
+           delay(1000);
+         }
+        }
+        Log.println("mDNS responder started"); 
+
         localIP = WiFi.localIP();  // TCP and UDP
    
         UDP_remoteIP = localIP;    // Initially broadcast on the subnet we are attached to. patch by Stefan Arbes. 
@@ -408,9 +417,12 @@
 
    #if defined webSupport
      if (wifiSuGood) {
-       WebServerSetup();  
-       Log.print("Web support active on http://"); 
-       Log.println(localIP.toString().c_str());
+       WebServerSetup();
+       std::string s = set.host;
+       std::transform(s.begin(), s.end(), s.begin(),
+           [](unsigned char c) -> unsigned char { return std::tolower(c); });
+       Log.printf("Web support active on http://%s.local\n", s.c_str()); 
+       //Log.println(localIP.toString().c_str());
        LogScreenPrintln("webSupprt active");  
      }  else {
        Log.println("No web support possible"); 
@@ -443,6 +455,15 @@
       LogScreenPrintln("WiFi AP SSID =");
       snprintf(snprintf_buf, snp_max, "%s", set.apSSID);        
       LogScreenPrintln(snprintf_buf);  
+
+      /*use mdns for host name resolution*/
+      if (!MDNS.begin(HostName)) { //http://<HostName>.local
+        Log.println("Error setting up MDNS responder!");
+        while (1) {
+          delay(1000);
+        }
+      }
+      Log.println("mDNS responder started"); 
       
       if (set.mav_wfproto == tcp)  {         // TCP
           TCPserver.begin(set.tcp_localPort);   //  Server for TCP/IP traffic     

@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      67
-#define PATCH_LEVEL        07
+#define PATCH_LEVEL         9
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -28,7 +28,9 @@ v2.67.04  2021-08-19   Add NVM reset pins for ESP8266
 v2.67.05  2021-09-11   Tidy up Mavlink BT to GCS    
 V2.67.06  2021-11-25   Reset NVM settings to config settings if fw version change detected
                        On NVM reset call RawSettingsToStruct() and reboot
-V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS                                            
+V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS
+V2.67.08  2021-12-03   Fix OTA in AP mode with embedded jquery (acknowledgement M.Mastenbroek)  
+v2.67.09  2021-12-10   No web input fields for BT if BT not compiled in. (PR by Vabe7)                                            
                                                                                                                                          
 */
 //===========================================================================================
@@ -1154,7 +1156,8 @@ bool daylightSaving = false;
     #if defined ESP32 
       #include <WiFi.h>  // includes UDP class
       #if defined webSupport
-        #include <WebServer.h> 
+        #include <WebServer.h>
+        #include <ESPmDNS.h> 
         #include <Update.h> 
         WebServer server(80);
         
@@ -1165,7 +1168,8 @@ bool daylightSaving = false;
     #if defined ESP8266
       #include <ESP8266WiFi.h>   // Includes AP class
       #if defined webSupport
-        #include <ESP8266WebServer.h>    
+        #include <ESP8266WebServer.h>
+        #include <ESPmDNS.h>    
         ESP8266WebServer server(80);  
         #include <WiFiUdp.h>       
       #endif      
@@ -1277,17 +1281,19 @@ bool daylightSaving = false;
 //#define Frs_Debug_APStatus    // 0x5001
 //#define Mav_Debug_SysStatus   // #1 && battery
 //#define Debug_Batteries       // 0x5003
-
 //#define Frs_Debug_Home        // 0x5004
-
 //#define Mav_Debug_GPS_Raw     // #24
+
 //#define Mav_Debug_GPS_Int     // #33
+
 //#define Frs_Debug_LatLon      // 0x800
 //#define Frs_Debug_VelYaw      // 0x5005
 //#define Frs_Debug_GPS_status  // 0x5002
 //#define Mav_Debug_Scaled_IMU
 //#define Mav_Debug_Raw_IMU
+
 //#define Mav_Debug_Hud         // #74
+
 //#define Frs_Debug_Hud         // 0x50F2
 //#define Mav_Debug_Scaled_Pressure
 //#define Mav_Debug_Attitude    // #30
