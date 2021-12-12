@@ -231,11 +231,11 @@ uint16_t  UDP_remotePort = 14555;   // sendPort - remote host reads on this port
 
 //defined PitLab                      // Uncomment me to force PitLab OSD stack
 
-//#define Battery_mAh_Source  1       // Get battery mAh from the FC - note both rx and tx lines must be connected      
+#define Battery_mAh_Source  1       // Get battery mAh from the FC - note both rx and tx lines must be connected      
 //#define Battery_mAh_Source  2       // Define bat1_capacity and bat2_capacity below and use those 
 const uint16_t bat1_capacity = 5200;       
 const uint16_t bat2_capacity = 0;
-#define Battery_mAh_Source  3         // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
+//#define Battery_mAh_Source  3         // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
                          
 // Status_Text messages place a huge burden on the meagre 4 byte FrSky telemetry payload bandwidth
 // The practice has been to send them 3 times to ensure that they arrive unscathed at the receiver
