@@ -1055,10 +1055,10 @@ void loop() {
   // Request battery capacity params 
   if (mavGood) {
     if (!ap_bat_paramsReq) {
-      Mavlink_Param_Request_Read(356);    // Request Bat1 capacity   do this twice in case of lost frame
-      Mavlink_Param_Request_Read(356);    
-      Mavlink_Param_Request_Read(364);    // Request Bat2 capacity
-      Mavlink_Param_Request_Read(364);    
+      Mavlink_Param_Request_Read(356, "BATT_CAPACITY");    // Request Bat1 capacity   do this twice in case of lost frame
+      Mavlink_Param_Request_Read(356, "BATT_CAPACITY");    
+      Mavlink_Param_Request_Read(364, "BATT2_CAPACITY");    // Request Bat2 capacity
+      Mavlink_Param_Request_Read(364, "BATT2_CAPACITY");    
       Log.println("Battery capacities requested");
       LogScreenPrintln("Bat mAh from FC");    
       ap_bat_paramsReq = true;
