@@ -17,9 +17,20 @@ Complete change log and debugging options are at the bottom of this tab
 GitHub Tag
 ----------                                            
   
+v2.66.02               Sats & rssi display fix 
+          2021-07-04   Add support for Pi Pico board RP2040 
+v2.67.00  2021-07-27   Fix Mavlink UDP out via AP, broken when S.Port UDP added. :(
+v2.67.01  2021-07-29   PIO - add support for JTAG / ESP-PROG adapter  
+v2.67.02  2021-08-18   Add pin for on-the-fly reset of EEPROM/NVM to default settings in config.h
+v2.67.03  2021-08-19   NVM reset pins for more variants.
+v2.67.04  2021-08-19   Add NVM reset pins for ESP8266
+                       Tinfo and Pinfo pins obsolete, removed code
+v2.67.05  2021-09-11   Tidy up Mavlink BT to GCS    
+V2.67.06  2021-11-25   Reset NVM settings to config settings if fw version change detected
+                       On NVM reset call RawSettingsToStruct() and reboot
 V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS 
-V2.67.08  2021-12-03   Fix OTA in AP mode with embedded jquery (acknowledgement M.Mastenbroek)
-v2.67.09  2021-12-10   No web input fields for BT if BT not compiled in. (PR by Vabe7)                                           
+V2.67.08  2021-12-03   Fix OTA in AP mode with embedded jquery (acknowledgement M.Mastenbroek)  
+v2.67.09  2021-12-10   No web input fields for BT if BT not compiled in. (PR by Vabe7)                                         
                                                                                                                                          
 */
 //===========================================================================================
@@ -74,9 +85,9 @@ v2.67.09  2021-12-10   No web input fields for BT if BT not compiled in. (PR by 
 //=================================================================================================
 // Choose only one of these default Flight-Controller-side I/O channels 
 // How does Mavlink telemetry enter this translator?
-#define FC_Mavlink_IO  0    // Serial Port (default)         
+//#define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-//#define FC_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
+#define FC_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
 //#define FC_Mavlink_IO  3    // SD Card / TF - ESP32 only
 
 
@@ -86,9 +97,9 @@ v2.67.09  2021-12-10   No web input fields for BT if BT not compiled in. (PR by 
 // Choose only one of these default GCS-side I/O channels
 // How does Mavlink telemetry leave this translator?
 // These are optional, and in addition to the F.Port telemetry output
-//#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
+#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
 
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with GCS I/O
@@ -104,8 +115,8 @@ v2.67.09  2021-12-10   No web input fields for BT if BT not compiled in. (PR by 
 // How does FrSky telemetry leave this translator? 
 // Select one option or combination only
 
-//#define FrSky_IO     0     // None  - Mav2PT becomes a Mavlink Switch
-#define FrSky_IO     1     // Serial  
+#define FrSky_IO     0     // None  - Mav2PT becomes a Mavlink Switch
+//#define FrSky_IO     1     // Serial  
 //#define FrSky_IO     2     // UDP  
 //#define FrSky_IO     3     // Serial & UDP
 //#define FrSky_IO     4     // SD Card
@@ -131,8 +142,8 @@ v2.67.09  2021-12-10   No web input fields for BT if BT not compiled in. (PR by 
 //#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi - Select ESP32 Dev Board in IDE
-//#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
-#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
+#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
+//#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     7    //  ESP32 Dev Board with separate ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
 
@@ -179,8 +190,9 @@ v2.67.09  2021-12-10   No web input fields for BT if BT not compiled in. (PR by 
 
 uint16_t  TCP_localPort = 5760;     
 uint16_t  TCP_remotePort = 5760;    
-uint16_t  UDP_localPort = 14555;    // readPort - (default 14555) remote host (like MP and QGC) expects to send to this port
-uint16_t  UDP_remotePort = 14550;   // sendPort - (default 14550) remote host reads on this port  
+uint16_t  UDP_localPort = 14550;    // readPort - remote host (like MP and QGC) expects to send to this port
+uint16_t  UDP_remotePort = 14555;   // sendPort - remote host reads on this port  
+
 
 //#define UDP_Broadcast      // Comment out (default) if you want to track and target remote udp client ips
 // NOTE; UDP is not a connection based protocol. To communicate with > 1 client at a time, we must broadcast on the subnet  
@@ -231,11 +243,11 @@ uint16_t  UDP_remotePort = 14550;   // sendPort - (default 14550) remote host re
 
 //defined PitLab                      // Uncomment me to force PitLab OSD stack
 
-#define Battery_mAh_Source  1       // Get battery mAh from the FC - note both rx and tx lines must be connected      
+//#define Battery_mAh_Source  1       // Get battery mAh from the FC - note both rx and tx lines must be connected      
 //#define Battery_mAh_Source  2       // Define bat1_capacity and bat2_capacity below and use those 
 const uint16_t bat1_capacity = 5200;       
 const uint16_t bat2_capacity = 0;
-//#define Battery_mAh_Source  3         // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
+#define Battery_mAh_Source  3         // Define battery mAh in the LUA script on the Taranis/Horus - Recommended
                          
 // Status_Text messages place a huge burden on the meagre 4 byte FrSky telemetry payload bandwidth
 // The practice has been to send them 3 times to ensure that they arrive unscathed at the receiver
@@ -1146,7 +1158,7 @@ bool daylightSaving = false;
       #include <WiFi.h>  // includes UDP class
       #if defined webSupport
         #include <WebServer.h> 
-        #include <ESPmDNS.h>         
+        #include <ESPmDNS.h> 
         #include <Update.h> 
         WebServer server(80);
         
@@ -1157,8 +1169,8 @@ bool daylightSaving = false;
     #if defined ESP8266
       #include <ESP8266WiFi.h>   // Includes AP class
       #if defined webSupport
-        #include <ESP8266WebServer.h>  
-        #include <ESPmDNS.h>  
+        #include <ESP8266WebServer.h>
+        #include <ESPmDNS.h>     
         ESP8266WebServer server(80);  
         #include <WiFiUdp.h>       
       #endif      
@@ -1581,16 +1593,5 @@ v2.65.12  2021-06-19   Fix crc of FPort2 RC control frame(unused right now).
 v2.65.13  2021-06-22   Minor display change, speed and climb.   
                        Fix auto detect S.Port, damn typo in v2.65.12.                                         
 v2.66.00               Workaround to slow SITL telem under Ubuntu 20.04
-v2.66.01               Alt & hdg display fix     
-v2.66.02               Sats & rssi display fix 
-          2021-07-04   Add support for Pi Pico board RP2040 
-v2.67.00  2021-07-27   Fix Mavlink UDP out via AP, broken when S.Port UDP added. :(
-v2.67.01  2021-07-29   PIO - add support for JTAG / ESP-PROG adapter  
-v2.67.02  2021-08-18   Add pin for on-the-fly reset of EEPROM/NVM to default settings in config.h
-v2.67.03  2021-08-19   NVM reset pins for more variants.
-v2.67.04  2021-08-19   Add NVM reset pins for ESP8266
-                       Tinfo and Pinfo pins obsolete, removed code
-v2.67.05  2021-09-11   Tidy up Mavlink BT to GCS    
-V2.67.06  2021-11-25   Reset NVM settings to config settings if fw version change detected
-                       On NVM reset call RawSettingsToStruct() and reboot                                                                                                                                                                                                                                                                                                                         
+v2.66.01               Alt & hdg display fix                                                                                                                                                                                                                                                                                                                              
 */

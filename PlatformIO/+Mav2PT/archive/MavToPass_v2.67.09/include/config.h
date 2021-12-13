@@ -179,8 +179,8 @@ v2.67.09  2021-12-10   No web input fields for BT if BT not compiled in. (PR by 
 
 uint16_t  TCP_localPort = 5760;     
 uint16_t  TCP_remotePort = 5760;    
-uint16_t  UDP_localPort = 14550;    // readPort - remote host (like MP and QGC) expects to send to this port
-uint16_t  UDP_remotePort = 14555;   // sendPort - remote host reads on this port  
+uint16_t  UDP_localPort = 14555;    // readPort - (default 14555) remote host (like MP and QGC) expects to send to this port
+uint16_t  UDP_remotePort = 14550;   // sendPort - (default 14550) remote host reads on this port  
 
 //#define UDP_Broadcast      // Comment out (default) if you want to track and target remote udp client ips
 // NOTE; UDP is not a connection based protocol. To communicate with > 1 client at a time, we must broadcast on the subnet  

@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      67
-#define PATCH_LEVEL         9
+#define PATCH_LEVEL        10
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -19,7 +19,8 @@ GitHub Tag
   
 V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS 
 V2.67.08  2021-12-03   Fix OTA in AP mode with embedded jquery (acknowledgement M.Mastenbroek)
-v2.67.09  2021-12-10   No web input fields for BT if BT not compiled in. (PR by Vabe7)                                           
+v2.67.09  2021-12-10   No web input fields for BT if BT not compiled in. (PR by Vabe7) 
+v2.67.10  2021-12-13   Retro fix APM bat capacity request.                                         
                                                                                                                                          
 */
 //===========================================================================================
