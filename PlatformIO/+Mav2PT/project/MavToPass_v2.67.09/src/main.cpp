@@ -233,6 +233,7 @@ void EEPROMWriteString(uint16_t, char*);
 void EEPROMWrite32(uint16_t, uint32_t);
 uint32_t bit32Extract(uint32_t, uint8_t, uint8_t);
 float RadToDeg (float);
+void PrintMavBuffer(const void *object);
 
 void PrintRemoteIP();
 void LogScreenPrint(String);
