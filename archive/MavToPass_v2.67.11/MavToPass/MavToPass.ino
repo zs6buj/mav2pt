@@ -1,4 +1,4 @@
- /*
+/*
 =====================================================================================================================
      Mav2PT  (Mavlink To FrSky Passthru) Protocol Translator
 
@@ -805,6 +805,7 @@ void setup()  {
 //                                    S E T U P   S E R I A L
 //=================================================================================================  
 
+
   if ((set.fc_io == fc_ser) || (set.gs_io == gs_ser))  {  //  Serial
     #if defined MavAutoBaud
       set.baud = FrPort.getBaud(mav_rxPin, idle_high); // mavlink port is a regular non-inverted port
@@ -812,18 +813,31 @@ void setup()  {
       String s_baud=String(set.baud);   // integer to string. "String" overloaded
       LogScreenPrintln("Mav baud:"+ s_baud);        
     #endif   
-    #if (defined ESP32)   
+    
+    #if (defined ESP32) 
       delay(100);
-      // system can wait here for a few seconds (timeout) if there is no telemetry in
-      mvSerial.begin(set.baud, SERIAL_8N1, mav_rxPin, mav_txPin);   //  rx,tx, cts, rts  
+      #if (defined ESP32_Mav_SoftwareSerial) 
+        mvSerial.begin(set.baud, SWSERIAL_8N1, mav_rxPin, mav_txPin);   // SoftwareSerial           
+        Log.println("Using SoftwareSerial for MvSerial");
+      #else  // ESP32 HardwareSerial
+        // system can wait here for a few seconds (timeout) if there is no telemetry in
+         mvSerial.begin(set.baud, SERIAL_8N1, mav_rxPin, mav_txPin);   //  rx,tx, cts, rts  
+      #endif
       delay(100);
-    #else
+    #endif
+   
+    #if (defined ESP8266)           // Always HardwareSerial
       mvSerial.begin(set.baud);  
-      delay(20);  // for esp8266 debug on txd1  
-    #endif 
+      delay(60);  // for esp8266 debug on txd1     
+    #endif
+        
+    #if ( (defined TEENSY3X)  || (defined RP2040) )
+      mvSerial.begin(set.baud);      // Always HardwareSerial
+    #endif
+     
     Log.printf("Mavlink serial on pins rx:%d and tx:%d  baud:%d\n", mav_rxPin, mav_txPin, set.baud); 
-    delay(40);  // for esp8266 debug on txd1
   }
+  
   #if (defined frBuiltin)  
     if (set.fr_io & 0x01) {  // Serial bit flag set
       FrPort.initialise();

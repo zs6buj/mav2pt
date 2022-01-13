@@ -1,4 +1,4 @@
- /*
+/*
 =====================================================================================================================
      Mav2PT  (Mavlink To FrSky Passthru) Protocol Translator
 
@@ -106,33 +106,20 @@
      
     N.B!  The dreaded "Telemetry Lost" enunciation!
 
-    The popular LUA telemetry scripts use RSSI to determine that a telemetry connection has been successfully established 
-    between the 'craft and the Taranis/Horus. Be sure to set-up RSSI properly before testing the system.
+    The popular LUA telemetry scripts use RSSI to determine that a telemetry connection has been 
+    successfully established between the 'craft and the Taranis/Horus. Be sure to set-up RSSI properly 
+    before testing the system.
 
+    ======================================================================================================
 
-    =====================================================================================================================
+    Connections to boards depend on the board variant 
 
-
-   Connections to ESP32 or ESP8266 boards depend on the board variant
-
-    Go to config.h tab and look for "S E L E C T   E S P   B O A R D   V A R I A N T" 
-
-    
-   Connections to Teensy3.2 are:
-    0) USB                         Flashing and serial monitor for debug
-    1) F/SPort     -->tx1 Pin 1    F/SPort out to XSR  or Taranis bay, bottom pin
-    2) Mavlink_In  <--rx2 Pin 9    Mavlink source to Teensy - mav_rxPin
-    3) Mavlink_In  -->tx2 Pin 10   Mavlink source to Taranis
-    4) Mavlink_Out <--rx3 Pin 7    Optional feature - see #defined
-    5) Mavlink_Out -->tx3 Pin 8    Optional feature - see #defined
-    6) MavStatusLed       Pin 13   BoardLed
-    7) BufStatusLed  1
-    8) Vcc 3.3V !
-    9) GND
+    Go to config.h tab and look for "S E L E C T   B O A R D   V A R I A N T" 
 
     NOTE : STM32 support is deprecated as of 2020-02-27 v2.56.2
+
+    ======================================================================================================    
 */
-//    =====================================================================================================================
 
 
 #include <CircularBuffer.h>
@@ -801,8 +788,9 @@ void setup()  {
   #endif
 
 #endif
+
 //=================================================================================================   
-//                                    S E T U P   S E R I A L
+//                             S E T U P   S E R I A  L   -  Serial (uart0) setup in config.h
 //=================================================================================================  
 
   if ((set.fc_io == fc_ser) || (set.gs_io == gs_ser))  {  //  Serial
@@ -812,18 +800,47 @@ void setup()  {
       String s_baud=String(set.baud);   // integer to string. "String" overloaded
       LogScreenPrintln("Mav baud:"+ s_baud);        
     #endif   
-    #if (defined ESP32)   
+    
+    #if (defined ESP32) 
       delay(100);
-      // system can wait here for a few seconds (timeout) if there is no telemetry in
-      mvSerial.begin(set.baud, SERIAL_8N1, mav_rxPin, mav_txPin);   //  rx,tx, cts, rts  
+      #if (defined ESP32_Mav_SoftwareSerial) 
+        mvSerial.begin(set.baud, SWSERIAL_8N1, mav_rxPin, mav_txPin);   // SoftwareSerial           
+        Log.println("Using SoftwareSerial for mvSerial");
+      #else  // ESP32 HardwareSerial
+        // system can wait here for a few seconds (timeout) if there is no telemetry in
+         mvSerial.begin(set.baud, SERIAL_8N1, mav_rxPin, mav_txPin);   //  rx,tx, cts, rts  
+      #endif
       delay(100);
-    #else
+
+      #if defined Support_SBUS_Out 
+        uint8_t sbusInvert = true;
+        delay(100);
+        sbusSerial.begin(100000, SERIAL_8E1, sbus_rxPin, sbus_txPin, sbusInvert);     // HardwareSerial  
+        delay(100);     
+        Log.printf("SBUS out on UART1 pin tx:%d\n", sbus_txPin);
+      #endif 
+    #endif
+   
+    #if (defined ESP8266)           // Always HardwareSerial
       mvSerial.begin(set.baud);  
-      delay(20);  // for esp8266 debug on txd1  
-    #endif 
+      delay(60);  // for esp8266 debug on txd1     
+    #endif
+        
+    #if (defined TEENSY3X)          // Always HardwareSerial
+      mvSerial.begin(set.baud);      
+      #if defined Support_SBUS_Out 
+        sbusSerial.begin(100000, SERIAL_8E1_TXINV);        // SBUS out = tx pin 
+        Log.printf("SBUS out on UART2 pin tx:%d\n", sbus_txPin );
+      #endif      
+    #endif
+
+    #if (defined RP2040) 
+      mvSerial.begin(set.baud);      // Always HardwareSerial  
+    #endif
+     
     Log.printf("Mavlink serial on pins rx:%d and tx:%d  baud:%d\n", mav_rxPin, mav_txPin, set.baud); 
-    delay(40);  // for esp8266 debug on txd1
   }
+  
   #if (defined frBuiltin)  
     if (set.fr_io & 0x01) {  // Serial bit flag set
       FrPort.initialise();

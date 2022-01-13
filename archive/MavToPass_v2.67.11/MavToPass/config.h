@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      67
-#define PATCH_LEVEL        10
+#define PATCH_LEVEL        11
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -20,49 +20,99 @@ GitHub Tag
 V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS 
 V2.67.08  2021-12-03   Fix OTA in AP mode with embedded jquery (acknowledgement M.Mastenbroek)
 v2.67.09  2021-12-10   No web input fields for BT if BT not compiled in. (PR by Vabe7) 
-v2.67.10  2021-12-13   Retro fix APM bat capacity request.                                         
+v2.67.10  2021-12-13   Retro fix APM bat capacity request. 
+v2.67.11  2022-01-13   Extend F.Port to SBUS functionality                                        
                                                                                                                                          
 */
-//===========================================================================================
+
+//=================================================================================================                            
+//===========================     S E L E C T   B O A R D   V A R I A N T     =====================  
+//=================================================================================================
+
+// Board is derived from board selected in IDE, variant is selected here
+
+//#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
+//#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
+//#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi - Select ESP32 Dev Board in IDE
+//#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
+//#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
+//#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
+#define ESP32_Variant     7    //  ESP32 Dev Board with separate ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
+
+//#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
+#define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - use Generic ESP8266 on IDE
+//#define ESP8266_Variant   3   // ESP-12F - Wemos® LOLIN D1 Mini
+
+#define RP2040_Variant     1    //  Raspberry pi pico  select Raspberry Pi RP2040 Boards in Arduino IDE
+
+//=================================================================================================
 //
-//                      PLEASE SELECT YOUR DEFAULT OPTIONS BELOW BEFORE COMPILING
+//                      PLEASE SELECT YOUR DEFAULT SETTINGS BELOW BEFORE COMPILING
 //
+//=================================================================================================
+
 //              Most of the settings below are saved to EEPROM the first time mav2pt runs
 //              Use the web interface to change them, or Reset_EEPROM below
-//              
-//
-//=========================================================================================================
-                         // Most of the settings below are saved to EEPROM the first time mav2pt runs
-                         // They can ONLY be changed via the web interface, or RESET to the defaults in config.h
+
 //#define Reset_EEPROM   // Reset EEPROM settings to config.h. Do this if you have changed default settings below, or
                          // suspect EEPROM settings are corrupt -  USE SPARINGLY. Do not leave this macro active.
                          // Alternatively, during normal operation, hold the designated resetEepromPin high (3.3v)
                          // for more than 10 seconds. For ESP0866, hold the resetEepromPin low (gnd).
-//========================================================================================================
+                         
+//=================================================================================================
+//===================================          W E B   S U P P O R T   ============================
+//================================================================================================= 
+
+#define webSupport              // ESP only. Enable wifi web support, including OTA firmware updating. Browse to IP.
+#define webPassword  "admin"    // Web password / user name : admin
+
+//=================================================================================================
+//===========================           M A V L I N K   S E T T I N G S   =========================
+//=================================================================================================   
+
+#define Device_sysid     251                     // Our Mavlink Identity - APM FC is 1, Mission Planner is 255, QGC default is 0 
+#define Device_compid    MAV_COMP_ID_PERIPHERAL  // 158 Generic autopilot peripheral - APM FC is 1, MP is 190, QGC is  https://mavlink.io/en/messages/common.html
+    
+//#define ESP32_Mav_SoftwareSerial   // otherwise HardwareSerial is used 
+
+                                     // NOTE: Set mvBaud = 57600 for RFD900X
+#define mvBaud            57600      // Mavlink to/from the flight controller - max 921600 - must match FC or long range radio
+//#define MavAutoBaud                  // Auto detect Mavlink telemetry speed              
+
+//=================================================================================================
+//=========================       F R S K Y   S / F P O R T    S E T T I N G S    =================  
+//=================================================================================================
+
+//#define ESP32_Frs_SoftwareSerial            // otherwise HardwareSerial is used 
+
+// NOTE: frBaud depends on FrSky_Port_Type - S.Port=57600 - F.Port = 115200 
+
+// Choose only one of these default FrSky S/Port I/O channels
+// How does FrSky telemetry leave this translator? 
+// Select one option or combination only
+
+//#define FrSky_IO     0     // None  - then Mav2PT becomes a Mavlink Switch
+#define FrSky_IO     1     // Serial  
+//#define FrSky_IO     2     // UDP  
+//#define FrSky_IO     3     // Serial & UDP
+//#define FrSky_IO     4     // SD Card
+//#define FrSky_IO     5     // Serial & SD Card
+//#define FrSky_IO     6     // UDP & SD Card
+//#define FrSky_IO     7     // Serial & UDP & SD Card
+#if (not defined FrSky_IO) 
+  #define FrSky_IO  0 
+#endif
 
 // Choose only one setting for FrSky Port Type 
 //#define FrSky_Port_Type 0   // No FrSky Port support needed. Now I'm a "Mavlink Switch"
 //#define FrSky_Port_Type 1   // F.Port v1
 //#define FrSky_Port_Type 2   // F.Port v2 FrSky ISRM/ACCESS capable transmitters and receivers only
 #define FrSky_Port_Type 3   // S.Port / legacy
-//#define FrSky_Port_Type 4   // Auto detect
+//#define FrSky_Port_Type 4   // Auto detect, will also auto detect speed
 
-
-#define Device_sysid     251                     // Our Mavlink Identity - APM FC is 1, Mission Planner is 255, QGC default is 0 
-#define Device_compid    MAV_COMP_ID_PERIPHERAL  // 158 Generic autopilot peripheral - APM FC is 1, MP is 190, QGC is  https://mavlink.io/en/messages/common.html
-
-#define webSupport                     // ESP only. Enable wifi web support, including OTA firmware updating. Browse to IP.
-#define webPassword      "admin"       // Web password / user name : admin
-     
-                                       // NOTE: Set mvBaud = 57600 for Dragonlink and RFD900X
-#define mvBaud            57600        // Mavlink to/from the flight controller - max 921600 - must match FC or long range radio
-//#define MavAutoBaud                    // Auto detect Mavlink telemetry speed             
-                                       // Default for FrSky is auto detect telemetry speed    
-// Do not enable below for FlightDeck
-#define PlusVersion                    // Added support for 0x5009 Mission WPs, 0x50F1 Servo_Channels, 0x50F2 VFR_Hud
 
 //=================================================================================================
-//           D E F A U L T   T R A N S L A T I O N   M O D E   S E T T I N G S   
+//==================           T R A N S L A T I O N   M O D E   S E T T I N G S   ================
 //=================================================================================================       
 // Choose only one of these three translation modes
 #define Ground_Mode          // Translator between Taranis et al and LRS transceiver (like Dragonlink, ULRS, RFD900...)
@@ -71,7 +121,7 @@ v2.67.10  2021-12-13   Retro fix APM bat capacity request.
 
 
 //=================================================================================================
-//                 D E F A U L T   U P L I N K   ( F C )   S E T T I N G S   
+//============================      U P L I N K   ( F C )   S E T T I N G S    ==================== 
 //=================================================================================================
 // Choose only one of these default Flight-Controller-side I/O channels 
 // How does Mavlink telemetry enter this translator?
@@ -82,7 +132,7 @@ v2.67.10  2021-12-13   Retro fix APM bat capacity request.
 
 
 //=================================================================================================
-//                  D E F A U L T   D O W N L I N K   ( G C S )   S E T T I N G S    
+//=========================       D O W N L I N K   ( G C S )   S E T T I N G S     ===============   
 //=================================================================================================
 // Choose only one of these default GCS-side I/O channels
 // How does Mavlink telemetry leave this translator?
@@ -98,66 +148,20 @@ v2.67.10  2021-12-13   Retro fix APM bat capacity request.
   #define GCS_Mavlink_IO  9    // NONE (default)
 #endif
 
-//=================================================================================================
-//                D E F A U L T   F R S K Y   S/F P O R T   I / O    S E T T I N G S    
-//=================================================================================================
-// Choose only one of these default FrSky S/Port I/O channels
-// How does FrSky telemetry leave this translator? 
-// Select one option or combination only
-
-//#define FrSky_IO     0     // None  - Mav2PT becomes a Mavlink Switch
-#define FrSky_IO     1     // Serial  
-//#define FrSky_IO     2     // UDP  
-//#define FrSky_IO     3     // Serial & UDP
-//#define FrSky_IO     4     // SD Card
-//#define FrSky_IO     5     // Serial & SD Card
-//#define FrSky_IO     6     // UDP & SD Card
-//#define FrSky_IO     7     // Serial & UDP & SD Card
-#if (not defined FrSky_IO) 
-  #define FrSky_IO  0 
-#endif
-
-
-
 
 // NOTE: The Bluetooth class library uses a lot of SRAM application memory. During Compile/Flash
 //       you may need to select Tools/Partition Scheme: "Minimal SPIFFS (1.9MB APP ...) or similar
 
 
-//================================================================================================= 
-//=================================================================================================                             
-//                          S E L E C T   E S P   B O A R D   V A R I A N T   
 //=================================================================================================
-//================================================================================================= 
-//#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
-//#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
-//#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi - Select ESP32 Dev Board in IDE
-//#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
-//#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
-//#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
-#define ESP32_Variant     7    //  ESP32 Dev Board with separate ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
-
-#define RP2040_Variant     1    //  Raspberry pi pico  select Raspberry Pi RP2040 Boards in Arduino IDE
-
-//#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
-#define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - use Generic ESP8266 on IDE
-//#define ESP8266_Variant   3   // ESP-12F - Wemos® LOLIN D1 Mini
-
-//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
-
-
-
-//                      D E F A U L T   B L U E T O O T H   S E T T I N G S   
+//================================      B L U E T O O T H   S E T T I N G S     ===================  
 //=================================================================================================
 //#define BT_Mode  1           // Master Mode - active, initiate connection with slave (name)
 #define BT_Mode  2           // Slave Mode - passive, advertise our hostname & wait for master to connect to us
 #define BT_ConnectToSlave     "Mavlink2BT"  // e.g. "Crossfire 0277"  "TARANISEP" 
 
 //=================================================================================================
-//                            D E F A U L T   W I F I   S E T T I N G S   
+//=============================        W I F I   S E T T I N G S       ============================ 
 //=================================================================================================
 
 #define Start_WiFi                              // Start WiFi at startup, override startWiFi pin
@@ -186,7 +190,7 @@ uint16_t  UDP_remotePort = 14550;   // sendPort - (default 14550) remote host re
 //#define UDP_Broadcast      // Comment out (default) if you want to track and target remote udp client ips
 // NOTE; UDP is not a connection based protocol. To communicate with > 1 client at a time, we must broadcast on the subnet  
 //=================================================================================================
-//                            R  S  S  I    O  P  T  I  O  N  S  
+//==============================    R  S  S  I    O  P  T  I  O  N  S    ========================== 
 //=================================================================================================
 
 #define Rssi_Pacemaker   200  // mS. RSSI 0xF101 frame sent with this period regardless of rate of RSSI arrival
@@ -200,7 +204,7 @@ uint16_t  UDP_remotePort = 14550;   // sendPort - (default 14550) remote host re
 //      Third:  #35 RC_CHANNELS_RAW
 
 //=================================================================================================
-//                   I N F O R M A T I O N   D  I S P L A Y   O P T I O N S   
+// ===================    I N F O R M A T I O N   D  I S P L A Y   O P T I O N S    =============== 
 //=================================================================================================
 //
 //    If you have an ILI9341 display, an information HUD appears after bootup. The HUD displays 
@@ -225,8 +229,11 @@ uint16_t  UDP_remotePort = 14550;   // sendPort - (default 14550) remote host re
        
 
 //=================================================================================================
-//                            O T H E R   U S E R   O P T I O N S  
+//============================     O T H E R   U S E R   O P T I O N S      =======================   
 //=================================================================================================
+
+// Do not enable below for FlightDeck
+#define PlusVersion                    // Added support for 0x5009 Mission WPs, 0x50F1 Servo_Channels, 0x50F2 VFR_Hud
 
 #define Report_Packetloss   2         // Report S.Port & F.Port packet loss every n minutes
 
@@ -250,7 +257,7 @@ const uint16_t bat2_capacity = 0;
 
 #define Data_Streams_Enabled        // Requests data streams from FC. Requires both rx and tx lines to FC. Rather set SRn in Mission Planner
 
-//================================== Set your time zone here ======================================
+//================================== Set your time zone here ====================================
 // Only for SD / TF Card adapter option
 // Date and time determines the TLog file name only
 //const float Time_Zone = 10.5;    // Adelaide, Australia
@@ -258,16 +265,16 @@ const float Time_Zone = 2.0;    // Jo'burg
 bool daylightSaving = false;
 
 //=================================================================================================
-//                        E X P E R I M E N T A L    O P T I O N S  
+//==========================  E X P E R I M E N T A L    O P T I O N S      ======================= 
+//==================================================================================================          
 //    Don't change anything here unless you are confident you know the outcome
 
-//#define ESP32_SoftwareSerial            // otherwise HardwareSerial is used 
 //#define ESP_Air_Relay_Blind_Inject      // Blind inject instead of interleaving
 //#define Support_MavLite
 //#define OnTheFly_FrPort_Change_Allowed  // e.g. change from Fport1 to Fport 2 on-the-fly
 
 //=================================================================================================   
-//                              Auto Determine Target Platform
+//==========================      Auto Determine Target Platform      =============================  
 //================================================================================================= 
 //
 //                Don't change anything here
@@ -290,7 +297,7 @@ bool daylightSaving = false;
 #endif
 
 //=================================================================================================   
-//                              CHECK #MACRO OPTIONS LOGIC
+//==========================          CHECK #MACRO OPTIONS LOGIC      =============================
 //================================================================================================= 
 
 #if defined PlusVersion
@@ -415,8 +422,8 @@ bool daylightSaving = false;
   #endif
 
  #if defined ESP_Onewire 
-   #if not defined ESP32_SoftwareSerial 
-     #error ESP_Onewire is predicated on ESP32_SoftwareSerial
+   #if not defined ESP32_Frs_SoftwareSerial 
+     #error ESP_Onewire is predicated on ESP32_Frs_SoftwareSerial
    #endif
  #endif
   
@@ -924,7 +931,7 @@ bool daylightSaving = false;
 
   #endif  
   //=================================================================================================   
-  //                      D I S P L A Y   S U P P O R T    E S P  O N L Y - for now
+  //=========================  D I S P L A Y   S U P P O R T    E S P  O N L Y - for now ============
   //=================================================================================================  
 
   #if defined displaySupport
@@ -1083,7 +1090,7 @@ bool daylightSaving = false;
   #endif   // end of Display_Support
 
   //=================================================================================================   
-  //                     B L U E T O O T H   S U P P O R T -  E S P 3 2  O n l y
+  //===================    B L U E T O O T H   S U P P O R T -  E S P 3 2  O n l y   ================
   //================================================================================================= 
 
   #if ((defined ESP32) && (defined btBuiltin))
@@ -1099,7 +1106,7 @@ bool daylightSaving = false;
   #endif  
 
   //=================================================================================================   
-  //                       W I F I   S U P P O R T - ESP32 and ES8266 Only
+  //==========================  W I F I   S U P P O R T - ESP32 and ES8266 Only  ====================
   //=================================================================================================  
 
     uint16_t  udp_read_port;
@@ -1195,19 +1202,31 @@ bool daylightSaving = false;
   #endif  // end of ESP32 and ESP8266
   
 //=================================================================================================   
-//                                 S E R I A L
+//==================================     S E R I A L   ============================================
 //=================================================================================================
 
 #if (defined ESP32)  
-  #define Log                 Serial         // USB
-  #define mvSerial            Serial2        // RXD2 and TXD2
+  #define Log                 Serial         // USB UART0
 
-  #if defined ESP32_SoftwareSerial
+  #if defined ESP32_Mav_SoftwareSerial
     #include <SoftwareSerial.h>
+    SoftwareSerial mvSerial; 
+  #else     // default HW Serial
+    #define mvSerial            Serial2        // RXD2 and TXD2 UART2 (last one)
+  #endif 
+
+  #if defined ESP32_Frs_SoftwareSerial
+    #if not defined ESP32_Mav_SoftwareSerial
+      #include <SoftwareSerial.h>
+    #endif  
     SoftwareSerial frSerial; 
   #else     // default HW Serial
-    #define frSerial          Serial1     
+    #define frSerial          Serial1        // UART1
   #endif   
+                
+  #if defined Support_SBUS_Out 
+       
+  #endif 
     
 #elif (defined ESP8266)
   #define Log                 Serial1        //  D4  OR  TXD1 debug out  - no RXD1 !
@@ -1235,7 +1254,7 @@ bool daylightSaving = false;
 
 
 //=================================================================================================   
-//                                 D E B U G G I N G   O P T I O N S
+//=============================     D E B U G G I N G   O P T I O N S   ===========================
 //=================================================================================================
 
 //#define inhibit_SPort     // Use me to send debug messages only, out of GPIO1/TX0 on ESP32_Variant 3, DL V3 internal ESP32
