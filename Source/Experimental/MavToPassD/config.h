@@ -22,8 +22,9 @@ V2.67.08  2021-12-03   Fix OTA in AP mode with embedded jquery (acknowledgement 
 v2.67.09  2021-12-10   No web input fields for BT if BT not compiled in. (PR by Vabe7) 
 v2.67.10  2021-12-13   Retro fix APM bat capacity request. 
 v2.67.11  2022-01-13   Add F.Port to SBUS functionality 
-                       Add SoftwareSerial option for mavSerial on ESP32                                      
-                                                                                                                                         
+                       Add SoftwareSerial option for mavSerial on ESP32 
+        D 2022-01-14   Fix converting a string constant to ‘char* with (char*) cast                                     
+                       First guess at SBUS pins on ESP32 variants                                                                                                                  
 */
 
 //=================================================================================================                            
@@ -48,7 +49,7 @@ v2.67.11  2022-01-13   Add F.Port to SBUS functionality
 
 //=================================================================================================
 //
-//                      PLEASE SELECT YOUR DEFAULT SETTINGS BELOW BEFORE COMPILING
+//====================  PLEASE SELECT YOUR DEFAULT SETTINGS BELOW BEFORE COMPILING  ===============
 //
 //=================================================================================================
 
@@ -84,7 +85,9 @@ v2.67.11  2022-01-13   Add F.Port to SBUS functionality
 //============================        F R S K Y    S E T T I N G S       ==========================  
 //=================================================================================================
 
-#define Support_SBUS_Out  // Derive SBUS from F.Port and present it on a uart tx pin 
+// NOTE: frBaud depends on FrSky_Port_Type - S.Port=57600 - F.Port = 115200 
+
+#define Support_SBUS_Out  // Derive SBUS from F.Port and present it on a uart tx pin - ESP32 and Teensy 3.x only
 
 #if ( (defined ESP32) && (defined Support_SBUS_Out)  ) // Then we need uart1 for the SBUS out
   #if not defined ESP32_Mav_SoftwareSerial 
@@ -94,12 +97,11 @@ v2.67.11  2022-01-13   Add F.Port to SBUS functionality
 
 //#define ESP32_Frs_SoftwareSerial            // Experimental - don't use me
 
-// NOTE: frBaud depends on FrSky_Port_Type - S.Port=57600 - F.Port = 115200 
-
+//===========================================================
 // Choose only one of these default FrSky S/Port I/O channels
 // How does FrSky telemetry leave this translator? 
 // Select one option or combination only
-
+//===========================================================
 //#define FrSky_IO     0     // None  - then Mav2PT becomes a Mavlink Switch
 #define FrSky_IO     1     // Serial  
 //#define FrSky_IO     2     // UDP  
@@ -111,8 +113,9 @@ v2.67.11  2022-01-13   Add F.Port to SBUS functionality
 #if (not defined FrSky_IO) 
   #define FrSky_IO  0 
 #endif
-
+//===========================================================
 // Choose only one setting for FrSky Port Type 
+//===========================================================
 //#define FrSky_Port_Type 0   // No FrSky Port support needed. Now I'm a "Mavlink Switch"
 //#define FrSky_Port_Type 1   // F.Port v1
 //#define FrSky_Port_Type 2   // F.Port v2 FrSky ISRM/ACCESS capable transmitters and receivers only
@@ -157,11 +160,9 @@ v2.67.11  2022-01-13   Add F.Port to SBUS functionality
   #define GCS_Mavlink_IO  9    // NONE (default)
 #endif
 
-
+//=================================================================================================
 // NOTE: The Bluetooth class library uses a lot of SRAM application memory. During Compile/Flash
 //       you may need to select Tools/Partition Scheme: "Minimal SPIFFS (1.9MB APP ...) or similar
-
-
 //=================================================================================================
 //================================      B L U E T O O T H   S E T T I N G S     ===================  
 //=================================================================================================
@@ -362,6 +363,8 @@ bool daylightSaving = false;
     #define mav_txPin      26        // Mavlink serial tx
     #define fr_rxPin       16        // FPort- Not used in 1-wire mode DON'T use 12!
     #define fr_txPin        4        // FPorttx - Use me in single wire mode
+    #define sbus_rxPin     99        // not used - don't care
+    #define sbus_txPin     14        // ?try 17 Optional SBUS out pin     
     #define startWiFiPin    5        // Trigger WiFi startup  
     #define resetEepromPin 34        // 99=none Trigger EEPROM reset to default settings in config.h        
     //#define displaySupport     // activate me if you have a display
@@ -402,6 +405,8 @@ bool daylightSaving = false;
     #define mav_txPin      26        // Mavlink serial tx
     #define fr_rxPin       13        // FPort- Not used in single wire mode DON'T use 12!
     #define fr_txPin       14        // FPorttx - Use me in single wire mode
+    #define sbus_rxPin     99        // not used - don't care
+    #define sbus_txPin     17        // ?Optional SBUS out pin     
     #define startWiFiPin   18        // Trigger WiFi startup
     #define resetEepromPin 99        // 99=none try 35 Trigger EEPROM reset to default settings in config.h     
     #if (defined displaySupport)     // Display type defined with # define displaySupport 
@@ -433,6 +438,8 @@ bool daylightSaving = false;
     #define mav_txPin      17        // Mavlink serial tx
     #define fr_rxPin       13        // FPort- Not used in single wire mode DON'T use 12!
     #define fr_txPin       01        // FPorttx - Use me in single wire mode
+    #define sbus_rxPin     99        // not used - don't care
+    #define sbus_txPin     14        // ?Optional SBUS out pin     
     #define startWiFiPin   99        // Trigger WiFi startup  
     #define resetEepromPin 99        // 99=none try 34, 35 Trigger EEPROM reset to default settings in config.h     
     #if (defined displaySupport)   // Display type defined with # define displaySupport   
@@ -460,6 +467,8 @@ bool daylightSaving = false;
     #define mav_txPin       17        // Mavlink serial tx
     #define fr_rxPin        13        // FPort rx - (NOTE: DON'T use pin 12! boot fails if pulled high)
     #define fr_txPin        14        // FPort tx - Use me in single wire mode
+    #define sbus_rxPin      99        // not used - don't care
+    #define sbus_txPin      18        // ?Optional SBUS out pin   
     #define startWiFiPin    99        // Trigger WiFi startup 
     #define resetEepromPin  05        // 5, 99=none use non digital touch pin
     #if !defined displaySupport       // I2C OLED board is built into Heltec WiFi Kit 32
@@ -499,7 +508,7 @@ bool daylightSaving = false;
     #define fr_rxPin      13        // F/SPort rx - (NOTE: DON'T use pin 12! boot fails if pulled high)
     #define fr_txPin      15        // F/SPort tx - Use me in single wire mode
     #define sbus_rxPin    99        // not used - don't care
-    #define sbus_txPin    12        // Optional SBUS out pin - not 16
+    #define sbus_txPin    12        // ?Optional SBUS out pin - not 16
     #define startWiFiPin  99        // 99=none. No input pin available (non touch!) Could use touch with a bit of messy work.
     #define resetEepromPin 37       // 99=none. HIGH (3.3V) triggers EEPROM reset to default settings in config.h   HIGH =Press
     #if !defined displaySupport    // I2C TFT board is built into TTGO T-Display
@@ -532,6 +541,8 @@ bool daylightSaving = false;
     #define mav_txPin      18        // Mavlink serial tx
     #define fr_rxPin       19        // FPort rx - possible 22 / 23
     #define fr_txPin       21        // FPort tx - Use me in single wire mode
+    #define sbus_rxPin     99        // not used - don't care
+    #define sbus_txPin     27        // ?try 25, 26 Optional SBUS out pin     
     #define startWiFiPin   99        // 99=none. No input pin available (non touch!) Could use touch with a bit of messy work.
     #define resetEepromPin 99        // Trigger EEPROM reset to default settings in config.h   
     #if !defined sdBuiltin           // SD reader is built into TTGO T2
@@ -567,6 +578,8 @@ bool daylightSaving = false;
     #define mav_txPin      17        // Mavlink serial tx
     #define fr_rxPin       13        // FPort- Not used in 1-wire mode DON'T use 12!
     #define fr_txPin        4        // FPort tx - Use me in single wire mode
+    #define sbus_rxPin     99        // not used - don't care
+    #define sbus_txPin     14        // ?Optional SBUS out pin       
     #define startWiFiPin    5        // 5 Trigger WiFi startup  
     #define resetEepromPin 99        // 34 Trigger EEPROM reset to default settings in config.h after 10 seconds      
     #if !defined displaySupport      // I2C OLED board is built into TTGO T2
@@ -785,7 +798,7 @@ bool daylightSaving = false;
        #error WiFi and webSupport only work on an ESP32 or ESP8266 board
      #endif 
     #if ( (defined Support_SBUS_Out) && (frPort_Serial  == 3) )
-       #error Support_SBUS_Out and (frPort_Serial  == 3) can't both use Serial 3
+       #error Support_SBUS_Out and (frPort_Serial  == 3) can not both use Serial 3
     #endif
   #endif
 
