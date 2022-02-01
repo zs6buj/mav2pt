@@ -182,7 +182,9 @@
     uint8_t       crcGet(uint8_t *buf, uint8_t lth);
     bool          crcGood(uint8_t *buf, uint8_t lth);                
     bool          BytesToPWM(uint8_t *buf, int16_t *ch, uint8_t lth); 
-    void          WriteSBUS(uint8_t *buf);
+    #if (defined Support_SBUS_Out)       
+      void          WriteSBUS(uint8_t *buf);
+    #endif  
     void          crcStepIn(uint8_t b);     
     void          crcStepOut(uint8_t b);  
     void          crcStep(int16_t *mycrc, uint8_t b); 
@@ -3154,7 +3156,7 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
       return "f_none";             
     }
     //=================================================================== 
-    #if defined Support_SBUS_Out         
+    #if defined Support_SBUS_Out        
     void FrSkyPort::WriteSBUS(uint8_t *buf) {
    
       uint32_t byteDuration = 0;
@@ -3165,7 +3167,7 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
         byteDuration += micros();
         if (byteDuration >= 124){
           byteDuration = 0;
-          sbusSerial.write(buf[byt]); // write one byte
+           sbusSerial.write(buf[byt]); // write one byte
           byt++; 
         }
       }

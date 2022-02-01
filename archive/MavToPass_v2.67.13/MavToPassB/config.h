@@ -42,9 +42,9 @@ v2.17.12  2022-01-31   Clean up ESP8266 compile (sbus options)
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     7    //  ESP32 Dev Board with separate ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
 
-//#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
-//#define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - use Generic ESP8266 in the IDE
-#define ESP8266_Variant   3   // ESP-12F - Wemos® LOLIN D1 Mini - use Generic ESP8266 in the IDE
+#define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
+//#define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - choose Generic ESP8266 in the IDE
+//#define ESP8266_Variant   3   // ESP-12F - Wemos® LOLIN D1 Mini - choose LOLIN D1 mini in Arduino IDE
 
 #define RP2040_Variant     1    //  Raspberry pi pico  select Raspberry Pi RP2040 Boards in Arduino IDE
 
@@ -101,9 +101,9 @@ v2.17.12  2022-01-31   Clean up ESP8266 compile (sbus options)
 // Choose only one of these default GCS-side I/O channels
 // How does Mavlink telemetry leave this translator?
 // These are optional, and in addition to the F.Port telemetry output
-//#define GCS_Mavlink_IO  0    // Serial Port - simultaneous uplink and downlink serial not supported. Not enough uarts.   
+#define GCS_Mavlink_IO  0    // Serial Port -  Teensy 3.x only for now   
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
 
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with GCS I/O
@@ -319,24 +319,24 @@ bool daylightSaving = false;
   #define MavStatusLed  13
   #define InvertMavLed false   
   #define BufStatusLed  14        
-  #define mav_rxPin      9  
-  #define mav_txPin     10
+  #define fc_rxPin      9        // rx2
+  #define fc_txPin     10        // tx2
   #define frPort_Serial    1      // Teensy F/SPort port1=pin1, port3=pin8. The default is Serial 1, but 3 is possible 
 
   #if (frPort_Serial == 1)
-    #define fr_rxPin       0      // FPort rx - optional
-    #define fr_txPin       1      // FPort tx - Use me in single wire mode 
-    #define GC_Mav_rxPin   7    
-    #define GC_Mav_txPin   8   
+    #define fr_rxPin       0      // FPort rx1 - optional
+    #define fr_txPin       1      // FPort tx1 - Use me in single wire mode 
+    #define gs_rxPin       7      // Optional GCS rx3  
+    #define gs_txPin       8      // Optional GCS tx3 
   #elif (frPort_Serial == 3)
-    #define fr_txPin       7      // Optional FPort rx  
-    #define fr_txPin       8      // Optional FPort tx - use me in single wire mode 
+    #define fr_txPin       7       // Optional FPort rx3  
+    #define fr_txPin       8       // Optional FPort tx3 - use me in single wire mode 
   #endif
   
   #if defined Support_SBUS_Out 
-    #define sbus_txPin     8       // SBUS out = tx pin  
+    #define sbus_txPin     8       // SBUS out = tx3 pin  
   #endif 
-    
+   
    // #define displaySupport       // un-comment for displaySupport
     #if (defined displaySupport)   // Display type defined with # define displaySupport 
       #define SSD1306_Display      // I2C OLED display type   
@@ -361,8 +361,8 @@ bool daylightSaving = false;
     #define MavStatusLed   02        // Onboard LED
     #define InvertMavLed  false      
     #define BufStatusLed   99        // Mavlink serial tx    99=none 
-    #define mav_rxPin      27        // Mavlink serial rx
-    #define mav_txPin      26        // Mavlink serial tx
+    #define fc_rxPin       27        // Mavlink serial rx
+    #define fc_txPin       26        // Mavlink serial tx
     #define fr_rxPin       16        // FPort- Not used in 1-wire mode DON'T use 12!
     #define fr_txPin        4        // FPorttx - Use me in single wire mode
     #define sbus_rxPin     99        // not used - don't care
@@ -403,8 +403,8 @@ bool daylightSaving = false;
     #define MavStatusLed   15        // No Onboard LED
     #define InvertMavLed  false     
     #define BufStatusLed   99        // None    
-    #define mav_rxPin      25        // Mavlink serial rx
-    #define mav_txPin      26        // Mavlink serial tx
+    #define fc_rxPin       25        // Mavlink serial rx
+    #define fc_txPin       26        // Mavlink serial tx
     #define fr_rxPin       13        // FPort- Not used in single wire mode DON'T use 12!
     #define fr_txPin       14        // FPorttx - Use me in single wire mode
     #define sbus_rxPin     99        // not used - don't care
@@ -436,8 +436,8 @@ bool daylightSaving = false;
     #define MavStatusLed   18        // Blue LED
     #define InvertMavLed  false    
     #define BufStatusLed   19        // Green LED        
-    #define mav_rxPin      16        // Mavlink serial rx
-    #define mav_txPin      17        // Mavlink serial tx
+    #define fc_rxPin       16        // Mavlink serial rx
+    #define fc_txPin       17        // Mavlink serial tx
     #define fr_rxPin       13        // FPort- Not used in single wire mode DON'T use 12!
     #define fr_txPin       01        // FPorttx - Use me in single wire mode
     #define sbus_rxPin     99        // not used - don't care
@@ -465,8 +465,8 @@ bool daylightSaving = false;
     #define MavStatusLed    25        // Onboard LED
     #define InvertMavLed   false     
     #define BufStatusLed    99        // none  
-    #define mav_rxPin       27        // Mavlink serial rx
-    #define mav_txPin       17        // Mavlink serial tx
+    #define fc_rxPin        27        // Mavlink serial rx
+    #define fc_txPin        17        // Mavlink serial tx
     #define fr_rxPin        13        // FPort rx - (NOTE: DON'T use pin 12! boot fails if pulled high)
     #define fr_txPin        14        // FPort tx - Use me in single wire mode
     #define sbus_rxPin      99        // not used - don't care
@@ -505,8 +505,8 @@ bool daylightSaving = false;
     #define MavStatusLed  25        // Add your own LED with around 1K series resistor
     #define InvertMavLed false     
     #define BufStatusLed  99        // none
-    #define mav_rxPin     27        // Mavlink serial rx
-    #define mav_txPin     26        // Mavlink serial tx
+    #define fc_rxPin      27        // Mavlink serial rx
+    #define fc_txPin      26        // Mavlink serial tx
     #define fr_rxPin      13        // F/SPort rx - (NOTE: DON'T use pin 12! boot fails if pulled high)
     #define fr_txPin      15        // F/SPort tx - Use me in single wire mode
     #define sbus_rxPin    99        // not used - don't care
@@ -539,8 +539,8 @@ bool daylightSaving = false;
     #define MavStatusLed    5        // BoardLED
     #define InvertMavLed true     
     #define BufStatusLed   99        // none
-    #define mav_rxPin      17        // Mavlink serial rx
-    #define mav_txPin      18        // Mavlink serial tx
+    #define fc_rxPin       17        // Mavlink serial rx
+    #define fc_txPin       18        // Mavlink serial tx
     #define fr_rxPin       19        // FPort rx - possible 22 / 23
     #define fr_txPin       21        // FPort tx - Use me in single wire mode
     #define sbus_rxPin     99        // not used - don't care
@@ -576,8 +576,8 @@ bool daylightSaving = false;
     #define MavStatusLed   02        // Onboard LED
     #define InvertMavLed  false      
     #define BufStatusLed   27        // untested pin      
-    #define mav_rxPin      16        // Mavlink serial rx
-    #define mav_txPin      17        // Mavlink serial tx
+    #define fc_rxPin       16        // Mavlink serial rx
+    #define fc_txPin       17        // Mavlink serial tx
     #define fr_rxPin       13        // FPort- Not used in 1-wire mode DON'T use 12!
     #define fr_txPin        4        // FPort tx - Use me in single wire mode
     #define sbus_rxPin     99        // not used - don't care
@@ -615,8 +615,8 @@ bool daylightSaving = false;
     #define InvertMavLed  true      
     #define BufStatusLed   99        // None     
    //                      D4        // TXD1 - Serial-1 debug log out SHARED WITH BOARD LED                         
-    #define mav_rxPin      D9        // RXD0 default  
-    #define mav_txPin      D10       // TXD0 default    
+    #define fc_rxPin       D9        // RXD0 default  
+    #define fc_txPin       D10       // TXD0 default    
     #define fr_rxPin       D5        // FPort- Not used in single wire mode
     #define fr_txPin       D6        // FPorttx - Use me in single wire mode
     #define startWiFiPin   99        // 99=none or D3/D7 - Trigger WiFi startup 
@@ -656,8 +656,8 @@ bool daylightSaving = false;
     #define InvertMavLed  true         // On board LED needs inverted logic 
     #define BufStatusLed   99          // None
     //                     D4          // TXD1 - Serial1 default debug log out SHARED WITH BOARD LED                           
-    #define mav_rxPin      D9          // RXD0 default  
-    #define mav_txPin      D10         // TXD0 default    
+    #define fc_rxPin       D9          // RXD0 default  
+    #define fc_txPin       D10         // TXD0 default    
     #define fr_rxPin       D5          // FPort- Not used in single wire mode
     #define fr_txPin       D2          // FPort(half-duplex) inverted - Use me in single wire mode
     #define startWiFiPin   D6          // Trigger WiFi startup
@@ -679,37 +679,36 @@ bool daylightSaving = false;
   #endif // end of this ESP8266 variant 
   
   //========================================================================= 
-  #if (ESP8266_Variant == 3)   // ESP-12F, Wemos® LOLIN D1 Mini - use Generic ESP8266 on Arduino IDE
-    //  Pin Map as per C:\Users\<user>\AppData\Local\Arduino15\packages\esp8266\hardware\esp8266\2.7.1\variants\d1_mini\pins_arduino.h
+  #if (ESP8266_Variant == 3)   // ESP-12F, Wemos® LOLIN D1 Mini - choose LOLIN D1 mini in Arduino IDE
+  //  Pin Map as per C:\Users\<user>\AppData\Local\Arduino15\packages\esp8266\hardware\esp8266\2.7.1\variants\d1_mini\pins_arduino.h
 
-    #define LED_BUILTIN 2
-
-    static const uint8_t D0   = 16;  // WiFi trigger
-    static const uint8_t D1   = 5;   // SCL - optional
-    static const uint8_t D2   = 4;   // SDA - optional
-    static const uint8_t D3   = 0;   // Flash - reserved
-    static const uint8_t D4   = 2;   // LED_BUILTIN & TXD1 optional debug out
-    static const uint8_t D5   = 14;  // FPortrx (unused in half-duplex)
-    static const uint8_t D6   = 12;  // FPorttx - Use me in single wire mode
-    static const uint8_t D7   = 13;  // CTS 
-    static const uint8_t D8   = 15;  // RTS
-    static const uint8_t D9   = 3;   // RXD0
-    static const uint8_t D10  = 1;   // TCD0 
+    //D0   = 16;  // WiFi trigger
+    //D1   = 5;   // SCL - optional
+    //D2   = 4;   // SDA - optional
+    //D3   = 0;   // Flash - reserved
+    //D4   = 2;   // LED_BUILTIN & TXD1 optional debug out
+    //D5   = 14;  // FPortrx (unused in half-duplex)
+    //D6   = 12;  // FPorttx - Use me in single wire mode
+    //D7   = 13;  // CTS 
+    //D8   = 15;  // RTS
+    static const uint8_t   D9   = 3;   // RXD0
+    static const uint8_t   D10  = 1;   // TCD0 
     
-    #define MavStatusLed   D4        // D4 Board LED - Mav Status LED inverted logic - NB NB NB NB NB NB use 99 while debugging on txd1
+    #define MavStatusLed   D4        // D4 Board LED - Mav Status LED inverted logic - use 99 while debug
     #define InvertMavLed  true    
     #define BufStatusLed   99        // None
-    //                     D4        // TXD1 - Serial1 default debug log out SHARED WITH LED_BUILTIN BOARD LED                           
-    #define mav_rxPin      D9        // RXD0 - Serial(0) 
-    #define mav_txPin      D10       // TXD0 - Serial(0) 
-    #define fr_rxPin       D5        // FPort- Not used in single wire mode
-    #define fr_txPin       D6        // FPort- inverted - Use me in single wire mode
+    //                     D4        // TXD1 - Serial1 default debug log out SHARED WITH LED_BUILTIN BOARD LED  
+    #define fc_rxPin       D9        // RXD0 - Serial(0) 
+    #define fc_txPin       D10       // TXD0 - Serial(0)                              
+    #define fr_rxPin       RX        // FPort- Not used in single wire mode
+    #define fr_txPin       TX        // FPort- inverted - Use me in single wire mode
     #define startWiFiPin   D16       // Trigger WiFi startup 
-    #define resetEepromPin 99          // Try D8, trigger EEPROM reset to default settings in config.h  HIGH(3.3V)=Press            
+    #define resetEepromPin 99        // Try D8, trigger EEPROM reset to default settings in config.h  HIGH(3.3V)=Press                  
     #if (defined displaySupport)   // Display type defined with # define displaySupport   
       /* Below please choose Digital pin-pair for display scrolling
        *  Pin == 99 means the pin-pair is not used
-       */           
+       */ 
+      #define Pinfo         99        // Digital pin to toggle information/log page           
       #define Pup           99        // D3 Board Button 1 to scroll the display up
       #define Pdn           99        // D7 Board Button 2 to scroll the display down    
       #define SCL           D1        // I2C OLED board   
@@ -718,6 +717,7 @@ bool daylightSaving = false;
     #endif 
  
   #endif // end of this ESP8266 variant 
+
   
 #elif defined RP2040                     // RP2040 Board Types
 
@@ -726,8 +726,8 @@ bool daylightSaving = false;
     #define MavStatusLed    25        // or LED_BUILTIN    
     #define InvertMavLed   false     
     #define BufStatusLed    99        // none  
-    #define mav_rxPin        1        // Serial1 uart0 Mavlink rx - GPIO1  (2 × UARTs Only)
-    #define mav_txPin        0        // Serial1 uart0 Mavlink tx - GPIO0
+    #define fc_rxPin         1        // Serial1 uart0 Mavlink rx - GPIO1  (2 × UARTs Only)
+    #define fc_txPin         0        // Serial1 uart0 Mavlink tx - GPIO0
     #define fr_rxPin         9        // Serial2 uart1 FPort rx - GPIO9 - not mapped, but default
     #define fr_txPin         8        // Serial2 uart1 FPort tx - GPIO8
     #define startWiFiPin    99        // Trigger WiFi startup   
@@ -785,17 +785,6 @@ bool daylightSaving = false;
      #if defined webSupport
        #undef  webSupport
      #endif
-     #if defined FC_Mavlink
-       #undef FC_Mavlink
-     #endif  
-     #if defined FC_Mavlink_IO
-       #undef  FC_Mavlink_IO     
-       #define FC_Mavlink_IO  0
-     #endif
-     #if defined GCS_Mavlink_IO
-       #undef GCS_Mavlink_IO
-     #endif   
-     #define GCS_Mavlink_IO 9      
      #if (FC_Mavlink_IO == 2) || (GCS_Mavlink_IO == 2) || (GCS_Mavlink_IO == 3) || (defined webSupport)   // if wifi selected
        #error WiFi and webSupport only work on an ESP32 or ESP8266 board
      #endif 
@@ -872,11 +861,12 @@ bool daylightSaving = false;
      #error ESP_Onewire is predicated on ESP32_Frs_SoftwareSerial
    #endif
  #endif
-  
- #if (FC_Mavlink_IO == 0 && GCS_Mavlink_IO == 0)
-   #error Similtaneous serial uplink and serial downlink not supported. Not enough uarts.
- #endif
- 
+
+ #if (not defined TEENSY3X)
+   #if (FC_Mavlink_IO == 0 && GCS_Mavlink_IO == 0)
+     #error Similtaneous serial uplink and serial downlink not supported. Not enough uarts.
+   #endif
+#endif 
 #if (not defined FrSky_Port_Type)
   #error define FrSky_Port_Type, None or SPort_Version or FPort_Version 1 or 2 or Auto
 #endif    
@@ -1207,7 +1197,7 @@ bool daylightSaving = false;
     //IPAddress AP_gateway(10, 10, 1, 1);
     //IPAddress AP_mask(255, 255, 255, 0);
  
-   //====================       W i F i   O b j e c t s 
+   //====================       I n s t a n t i a t e   W i F i   O b j e c t s 
    
     #define max_clients    6
     uint8_t active_client_idx = 0;  // for TCP 
@@ -1243,9 +1233,9 @@ bool daylightSaving = false;
 
   #if defined ESP32_Mav_SoftwareSerial
     #include <SoftwareSerial.h>
-    SoftwareSerial mvSerial; 
+    SoftwareSerial fcSerial; 
   #else     // default HW Serial
-    #define mvSerial            Serial2        // RXD2 and TXD2 UART2 (last one, no Serial3)
+    #define fcSerial            Serial2        // RXD2 and TXD2 UART2 (last one, no Serial3)
   #endif 
 
   #if defined ESP32_Frs_SoftwareSerial
@@ -1263,27 +1253,30 @@ bool daylightSaving = false;
     
 #elif (defined ESP8266)
   #define Log                 Serial1        //  D4  OR  TXD1 debug out  - no RXD1 !
-  #define mvSerial            Serial         //  RXD0 and TXD0
+  #define fcSerial            Serial         //  RXD0 and TXD0
   #include <SoftwareSerial.h>
   SoftwareSerial frSerial;                   // frSerial.begin(frBaud, SWSERIAL_8N1, frRx, frTx, frInvert);
   
 #elif (defined RP2040)  
   #define Log                 Serial         // USB
-  #define mvSerial            Serial1        // uart0 
+  #define fcSerial            Serial1        // uart0 
   #define frSerial            Serial2        // uart1 
 
 #elif (defined TEENSY3X)      //  Teensy 3.1
   #define Log                 Serial         // USB  
-  #define mvSerial            Serial2   
+  #define fcSerial            Serial2   
   #if (frPort_Serial == 1) 
-    #define frSerial          Serial1        // F.Port 
+    #define frSerial          Serial1        // F.Port/S.Port 
   #elif (frPort_Serial == 3)
-    #define frSerial          Serial3        // F.Port 
+    #define frSerial          Serial3        // F.Port/S.Port 
   #else
     #error frPort_Serial can only be 1 or 3. Please correct.
   #endif 
+  #if (GCS_Mavlink_IO == 0)
+    #define gsSerial          Serial3 
+  #endif
   #if (defined Support_SBUS_Out) 
-    #define sbusSerial       Serial3
+    #define sbusSerial        Serial3
   #endif
 #endif 
 
@@ -1451,7 +1444,7 @@ v2.25 2019-08-28 Version for RFD900x. Bug fixes on rssi. Include #define StartWi
 v2.26 2019-08-31 Improved GCS to FC debugging. Make baud rate sensing optional. 
 v2.27 2019-09-13 Small additions to test LILYGO®_TTGO_MINI32_ESP32-WROVER_B
 v2.28 2019-09-17 Localise pin definitions in one place to define ESP32 variants more easily
-v2.29 2019-09-24 Use #if (TargetBoard == 3) to define soft pins for mvSerial
+v2.29 2019-09-24 Use #if (TargetBoard == 3) to define soft pins for fcSerial
 v2.30 2019-09-26 Don't push #5007 into F.Port table from #147. Push from #1 only.
 v2.31 2019-09-30 Configurable declarations moved to config.h file
 v2.32 2019-10-08 Source line corrupted in v2.17 affecting Relay Mode, fixed. Thank you burtgree! 
@@ -1513,7 +1506,7 @@ v2.59.1 2020-04-02 Support for QLRS (rssi) by giacomo892. Style and function imp
 v2.59.2 2020-04-21 Some structural tidying up.   
 v2.59.3            Main loop minor fix.  
                    wifiBuiltin and btBuiltim macros added.  
-        2020-04-28 GetBaud(mav_rxPin) fix. Thanks has1123. 
+        2020-04-28 GetBaud(fc_rxPin) fix. Thanks has1123. 
 v2.59.4 2020-05-08 Broadcast on the subnet we attached to. Can't assume 192.168.1/24 :) 
         Patch by Stefan Arbes.   
 v2.59.5 2020-05-11 Fixed TCP_LocalPort initialisation 

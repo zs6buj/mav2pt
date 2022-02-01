@@ -1238,7 +1238,7 @@ void RawSettingsToStruct() {
   }  
 
   if (GCS_Mavlink_IO == 0) {
-    set.gs_io = gs_ser;
+    set.gs_io = gs_ser;  
   } else 
   if (GCS_Mavlink_IO == 1) {
     set.gs_io = gs_bt;

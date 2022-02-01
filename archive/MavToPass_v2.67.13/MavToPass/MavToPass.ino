@@ -121,11 +121,14 @@
     ======================================================================================================    
 */
 
-
 #include <CircularBuffer.h>
 #include <mavlink_types.h>
 #include "global_variables.h"
 #include "config.h"                      // ESP_IDF libs included here
+
+#if defined ESP8266
+  #include<sstream> // for esp8266 (bug in standard library?
+#endif  
 
 #if (defined frBuiltin)
   #include "FrSky_Ports.h"
@@ -504,7 +507,7 @@ void setup()  {
   #endif
 
   if (set.fc_io == fc_ser)   {
-    Log.println("Mavlink Serial In");
+    Log.println("Mavlink Serial  In");
     LogScreenPrintln("Mav Serial In");
   }
 
@@ -794,6 +797,7 @@ void setup()  {
 //=================================================================================================  
 
   if ((set.fc_io == fc_ser) || (set.gs_io == gs_ser))  {  //  Serial
+    
     #if defined MavAutoBaud
       set.baud = FrPort.getBaud(mav_rxPin, idle_high); // mavlink port is a regular non-inverted port
       Log.printf("Mavlink baud detected at %d b/s on rx:%d\n", set.baud, mav_rxPin);  
@@ -804,11 +808,11 @@ void setup()  {
     #if (defined ESP32) 
       delay(100);
       #if (defined ESP32_Mav_SoftwareSerial) 
-        mvSerial.begin(set.baud, SWSERIAL_8N1, mav_rxPin, mav_txPin);   // SoftwareSerial           
-        Log.println("Using SoftwareSerial for mvSerial");
+        fcSerial.begin(set.baud, SWSERIAL_8N1, mav_rxPin, mav_txPin);   // SoftwareSerial           
+        Log.println("Using SoftwareSerial for fcSerial");
       #else  // ESP32 HardwareSerial
         // system can wait here for a few seconds (timeout) if there is no telemetry in
-         mvSerial.begin(set.baud, SERIAL_8N1, mav_rxPin, mav_txPin);   //  rx,tx, cts, rts  
+         fcSerial.begin(set.baud, SERIAL_8N1, mav_rxPin, mav_txPin);   //  rx,tx, cts, rts  
       #endif
       delay(100);
 
@@ -822,12 +826,15 @@ void setup()  {
     #endif
    
     #if (defined ESP8266)           // Always HardwareSerial
-      mvSerial.begin(set.baud);  
+      fcSerial.begin(set.baud);  
       delay(60);  // for esp8266 debug on txd1     
     #endif
         
     #if (defined TEENSY3X)          // Always HardwareSerial
-      mvSerial.begin(set.baud);      
+      fcSerial.begin(set.baud);   
+      if (set.gs_io == gs_ser) {
+        gsSerial.begin(set.baud);           
+      }      
       #if defined Support_SBUS_Out 
         sbusSerial.begin(100000, SERIAL_8E1_TXINV);        // SBUS out = tx pin 
         Log.printf("SBUS out on UART2 pin tx:%d\n", sbus_txPin );
@@ -835,7 +842,7 @@ void setup()  {
     #endif
 
     #if (defined RP2040) 
-      mvSerial.begin(set.baud);      // Always HardwareSerial  
+      fcSerial.begin(set.baud);      // Always HardwareSerial  
     #endif
      
     Log.printf("Mavlink serial on pins rx:%d and tx:%d  baud:%d\n", mav_rxPin, mav_txPin, set.baud); 
@@ -1141,8 +1148,8 @@ bool Read_FC_To_RingBuffer() {
   if (set.fc_io == fc_ser)  {  // Serial
     mavlink_status_t status;
 
-    while(mvSerial.available()) { 
-      byte c = mvSerial.read();
+    while(fcSerial.available()) { 
+      byte c = fcSerial.read();
      // Printbyte(c, 1, '<');
       if(mavlink_parse_char(MAVLINK_COMM_0, c, &F2Rmsg, &status)) {  // Read a frame
          #ifdef  Debug_FC_Down
@@ -1274,8 +1281,8 @@ void Read_From_GCS() {
 
     if (set.gs_io == gs_ser)  {  // Serial 
       mavlink_status_t status;
-      while(mvSerial.available()) { 
-        uint8_t c = mvSerial.read();
+      while(gsSerial.available()) { 
+        uint8_t c = gsSerial.read();
         if(mavlink_parse_char(MAVLINK_COMM_0, c, &G2Fmsg, &status)) {  // Read a frame from GCS  
           GCS_available = true;  // Record waiting
           #ifdef  Debug_GCS_Up
@@ -1639,7 +1646,7 @@ void Send_To_FC(uint32_t msg_id) {
   
   if (set.fc_io == fc_ser)  {   // Serial to FC
     len = mavlink_msg_to_send_buffer(FCbuf, &G2Fmsg);
-    mvSerial.write(FCbuf,len);  
+    fcSerial.write(FCbuf,len);  
          
     #if defined  Debug_FC_Up || defined Debug_GCS_Up
       if (msg_id) {    //  dont print heartbeat - too much info
@@ -1734,9 +1741,10 @@ void MavToRingBuffer() {
 void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
   
   if ((set.gs_io == gs_ser) || (set.gs_io == gs_bt) || (set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt) || (set.gs_sd == gs_on)) {
+    
       if (set.gs_io == gs_ser) {  // Serial
         len = mavlink_msg_to_send_buffer(GCSbuf, &R2Gmsg);
-        mvSerial.write(GCSbuf,len);  
+        gsSerial.write(GCSbuf,len);  
 
         #ifdef  Debug_GCS_Down
           Log.printf("Sent from ring buffer to GCS Serial: len=%d\n", len);
