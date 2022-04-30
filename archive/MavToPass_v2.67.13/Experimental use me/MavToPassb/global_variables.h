@@ -14,8 +14,12 @@ String    pgm_name;
 const uint8_t snp_max = 32;
 char          snprintf_buf[snp_max];       // for use with snprintf() formatting of display line
 
-volatile uint32_t debnceTimr;              // for pin interrupts
-volatile uint32_t delaytm = 100;
+volatile uint32_t debnceTimr = 0;          // for pin interrupts
+volatile uint32_t delaytm = 100;           // mS
+
+uint32_t eepromStart = 0;  
+uint32_t eepromElapsed = 0; 
+uint32_t eepromTrigger = 10000;       // mS - pin true period to trigger eeprom reset
 
 uint8_t   MavLedState = LOW; 
 uint8_t   BufLedState = LOW; 
@@ -688,7 +692,7 @@ uint32_t pt_rssi;
     typedef enum io_side_set { fc_side = 0, gcs_side = 1 } io_side_t;  
            
     typedef struct  {
-      byte          validity_check;  // 0xdc     
+      byte          validity_check;    // 0xdc DEPRECATED in favour of version numbers    
       trmode_t      trmode;    
       frport_t      frport;            // position 164 in EEPROM    
       fr_io_t       fr_io;             // position 165 in EEPROM                
@@ -713,7 +717,8 @@ uint32_t pt_rssi;
       char          btConnectToSlave[20];  // 140 - 159 in EEPROM - 160 byte unused
       uint8_t       major_version;      // position 166 in EEPROM 
       uint8_t       minor_version;      // position 167 in EEPROM  
-      uint8_t       patch_level;        // position 168 in EEPROM       
+      uint8_t       patch_level;        // position 168 in EEPROM 
+      
       // NOT saved in EEPROM
       uint8_t       rssi_override;    
       bool          Support_MavLite;   

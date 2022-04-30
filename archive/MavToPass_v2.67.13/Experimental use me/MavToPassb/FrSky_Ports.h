@@ -72,7 +72,7 @@
     byte      fpbuf[frameSize];
 
     static const uint8_t max_ch = 26;         // 24 + 2 digi ch
-    int16_t   pwm_val[max_ch];                 // PWM Channels
+    int16_t   pwm_ch[max_ch];                 // PWM Channels
     uint8_t   pwm_rssi = 0;
   
     int16_t   crcin = 0;                      // CRC of inbound frsky frame   
@@ -190,6 +190,10 @@
     void          crcStep(int16_t *mycrc, uint8_t b); 
     void          crcEnd(int16_t *mycrc);          
     void          WriteCrc(); 
+    void          Print_PWM_Channels(int16_t *ch, uint16_t max_ch); 
+    void          PrintBuffer(uint8_t *buf, uint8_t lth);   
+    void          CheckForTimeouts();   
+    void          ServiceStatusLed();
     void          BlinkFpLed(uint32_t period);
     void          InjectUplinkFrame(uint8_t _prime);  
     uint16_t      PopNextFrame();  
@@ -220,10 +224,6 @@
     void          Push_VFR_Hud_50F2(uint16_t msg_id);    
     void          Push_Wind_Estimate_50F3(uint16_t msg_id);
     void          Push_Rssi_F101(uint16_t msg_id);   
-    void          Print_PWM_Channels(int16_t *ch, uint16_t max_ch); 
-    void          PrintBuffer(uint8_t *buf, uint8_t lth);   
-    void          CheckForTimeouts();   
-    void          ServiceStatusLed();    
     void          PrintPayload(msg_class_t msg_class, telem_direction_t telem_direction);                                                         
     void          PrintMavLiteUplink(); 
     String        frportName(frport_t);
@@ -707,7 +707,7 @@
               FrSkyPort::parseGood = FrSkyPort::ParseFrame(buf, fr_lth);
               if (FrSkyPort::parseGood) {
                 #if defined Derive_PWM           
-                  FrSkyPort::pwmGood = FrSkyPort::BytesToPWM(buf+3, &FrSkyPort::pwm_val[0], fr_lth);
+                  FrSkyPort::pwmGood = FrSkyPort::BytesToPWM(buf+3, &FrSkyPort::pwm_ch[0], fr_lth);
                   if (FrSkyPort::pwmGood) {
                     FrSkyPort::pwmGood_millis = millis();
                   }
@@ -792,7 +792,7 @@
               FrSkyPort::parseGood = FrSkyPort::ParseFrame(buf, fr_lth+1);                        
               if (FrSkyPort::parseGood) {
                 #if defined Derive_PWM           
-                  FrSkyPort::pwmGood = FrSkyPort::BytesToPWM(buf+3, &FrSkyPort::pwm_val[0], fr_lth);
+                  FrSkyPort::pwmGood = FrSkyPort::BytesToPWM(buf+3, &FrSkyPort::pwm_ch[0], fr_lth);
                   if (FrSkyPort::pwmGood) {
                     FrSkyPort::pwmGood_millis = millis();
                   }
@@ -1177,7 +1177,7 @@
      FrSkyPort::pwm_rssi = *(buf+23);
 
      #if defined Debug_PWM_Channels 
-        FrSkyPort::Print_PWM_Channels(&FrSkyPort::pwm_val[0], num_of_channels);
+        FrSkyPort::Print_PWM_Channels(&FrSkyPort::pwm_ch[0], num_of_channels);
      #endif   
 
      if (*ch > 0) {

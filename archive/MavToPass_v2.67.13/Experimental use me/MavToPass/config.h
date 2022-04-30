@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      67
-#define PATCH_LEVEL        14
+#define PATCH_LEVEL        13
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -26,8 +26,7 @@ v2.67.11  2022-01-13   Add F.Port to SBUS functionality
         D 2022-01-14   Fix converting a string constant to ‘char* with (char*) cast                                     
                        First guess at SBUS pins on ESP32 variants 
 v2.17.12  2022-01-31   Clean up ESP8266 compile (sbus options) 
-v2.17.13  2022-02-01   Enable FC serial passthrough (on Teensy 3.x only)  
-V2.17.14  2022-04-06   define Reset_EEPROM resurrected                                                                                                                                    
+v2.17.13  2022-02-01   Enable FC serial passthrough (on Teensy 3.x only)                                                                                                                                       
 */
 
 //=================================================================================================                            
@@ -105,7 +104,7 @@ V2.17.14  2022-04-06   define Reset_EEPROM resurrected
 // These are optional, and in addition to the F.Port telemetry output
 //#define GCS_Mavlink_IO  0    // Serial Port -  Teensy 3.x only for now   
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
+#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
 
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with GCS I/O
@@ -531,9 +530,9 @@ bool daylightSaving = false;
     
     #define SCR_ORIENT     1        // 1 Landscape or 0 Portrait
  
-    //#define SDA           21        // I2C TFT board 
-    //#define SCL           22        // I2C TFT board
-    //#define i2cAddr      0x3C       // I2C TFT board
+    #define SDA           21        // I2C TFT board 
+    #define SCL           22        // I2C TFT board
+    #define i2cAddr      0x3C       // I2C TFT board
   #endif
  
    //=========================================================================   

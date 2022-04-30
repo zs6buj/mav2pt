@@ -168,9 +168,8 @@ void RecoverSettingsFromFlash() {
 
   set.major_version = EEPROMRead8(166);
   set.minor_version = EEPROMRead8(167);   
-  set.patch_level = EEPROMRead8(168);  
-  Log.printf("EEPROM settings version:%u.%u.%u\n", set. major_version, set.minor_version, set.patch_level);
-
+  set.patch_level = EEPROMRead8(168); 
+   
   #if defined Reset_EEPROM
     Log.println("Reset_EEPROM defined. ALL SETTINGS IN EEPROM SET TO COMPILE_TIME DEFAULTS");     
     set.major_version = MAJOR_VERSION;
@@ -186,7 +185,6 @@ void RecoverSettingsFromFlash() {
       WriteSettingsToEEPROM();
       } 
   #endif  
-            
   ReadSettingsFromEEPROM();                           
 
 }
@@ -472,8 +470,7 @@ byte b;
     } else if (b == 1) {
       set.gs_sd = gs_on;
     } 
-    
-    b = EEPROMRead8(161);     // sport sd
+     b = EEPROMRead8(161);     // sport sd
     if (b == 0) {
       set.sport_sd = spsd_off;
     } else if (b == 1) {

@@ -120,17 +120,26 @@ from FLASH memory without first copying it to RAM. So, there is no need to use t
 
 void RecoverSettingsFromFlash() {
   
-  set.validity_check = EEPROMRead8(1);         // apFailover is in 0
+  set.major_version = EEPROMRead8(166);
+  set.minor_version = EEPROMRead8(167);   
+  set.patch_level = EEPROMRead8(168);  
+  Log.printf("EEPROM settings version:%u.%u.%u\n", set. major_version, set.minor_version, set.patch_level);
 
-  #if defined Reset_Web_Defaults
-    set.validity_check = 0;                    // reset
-  #endif
-
-  if (set.validity_check != 0xdc) {            // eeprom does not contain previously stored setings
-                                               // so write default settings to eeprom
-    Log.println("NOTE! ALL SETTINGS IN EEPROM SET TO COMPILE_TIME DEFAULTS!");                                           
+  #if defined Reset_EEPROM
+    Log.println("Reset_EEPROM defined. ALL SETTINGS IN EEPROM SET TO COMPILE_TIME DEFAULTS");     
+    set.major_version = MAJOR_VERSION;
+    set.minor_version = MINOR_VERSION;  
+    set.patch_level = PATCH_LEVEL;                                           
     WriteSettingsToEEPROM();
-    }  
+  #else
+    if ( (set.major_version != MAJOR_VERSION) || (set.minor_version != MINOR_VERSION) || (set.patch_level != PATCH_LEVEL) ) {          
+      Log.println("Version change detected. ALL SETTINGS IN EEPROM SET TO COMPILE_TIME DEFAULTS");     
+      set.major_version = MAJOR_VERSION;
+      set.minor_version = MINOR_VERSION;  
+      set.patch_level = PATCH_LEVEL;                                           
+      WriteSettingsToEEPROM();
+      } 
+  #endif  
       
   ReadSettingsFromEEPROM();                           
 
@@ -499,6 +508,9 @@ byte b;
       Log.print("udp_remotePort = "); Log.println(set.udp_remotePort); 
       Log.print("bt mode = "); Log.println(set.btmode); 
       Log.print("SlaveConnect To Name = "); Log.println(set.btConnectToSlave);
+      Log.print("Major version = "); Log.println(set.major_version); 
+      Log.print("Minor version = "); Log.println(set.minor_version);  
+      Log.print("Patch level = "); Log.println(set.patch_level);        
       Log.println();          
     #endif  
 
@@ -530,7 +542,10 @@ void WriteSettingsToEEPROM() {
       EEPROMWrite16(135, set.udp_localPort);         // 135 thru 136
       EEPROMWrite16(137, set.udp_remotePort);        // 137 thru 138
       EEPROMWrite8(139, set.btmode);                 // 139     
-      EEPROMWriteString(140, set.btConnectToSlave);  // 140 thru 159 - 160 unused for now      
+      EEPROMWriteString(140, set.btConnectToSlave);  // 140 thru 159 - 160 unused for now   
+      EEPROMWrite8(166, set.major_version);          // 166   
+      EEPROMWrite8(167, set.minor_version);          // 167  
+      EEPROMWrite8(168, set.patch_level);            // 168            
       EEPROM.commit();  
       RefreshHTMLButtons();
                                                                   
@@ -559,7 +574,10 @@ void WriteSettingsToEEPROM() {
         Log.print("udp_localPort = "); Log.println(set.udp_localPort);
         Log.print("udp_remotePort = "); Log.println(set.udp_remotePort); 
         Log.print("bt mode = "); Log.println(set.btmode); 
-        Log.print("Master to Slave Name = "); Log.println(set.btConnectToSlave);       
+        Log.print("Master to Slave Name = "); Log.println(set.btConnectToSlave); 
+        Log.print("Major version = "); Log.println(set.major_version); 
+        Log.print("Minor version = "); Log.println(set.minor_version);  
+        Log.print("Patch level = "); Log.println(set.patch_level);               
         Log.println();             
       #endif 
 }  

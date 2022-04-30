@@ -304,13 +304,15 @@
            delay(1000);
          }
         }
-        Log.println("mDNS responder started"); 
+        Log.println("mDNS responder started");  
 
         localIP = WiFi.localIP();  // TCP and UDP
    
         UDP_remoteIP = localIP;    // Initially broadcast on the subnet we are attached to. patch by Stefan Arbes. 
         UDP_remoteIP[3] = 255;     // patch by Stefan Arbes  
                                
+        Log.println();
+        Log.println("WiFi connected!");
         Log.print("Local IP address: ");
         Log.print(localIP);
         if (set.mav_wfproto == tcp)  {   // TCP
@@ -418,12 +420,10 @@
    #if defined webSupport
      if (wifiSuGood) {
        WebServerSetup();
-       
        std::string s = set.host;
        std::transform(s.begin(), s.end(), s.begin(),
            [](unsigned char c) -> unsigned char { return std::tolower(c); });
        Log.printf("Web support active on http://%s.local\n", s.c_str()); 
-       
        //Log.println(localIP.toString().c_str());
        LogScreenPrintln("webSupprt active");  
      }  else {

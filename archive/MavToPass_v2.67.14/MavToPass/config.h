@@ -27,7 +27,7 @@ v2.67.11  2022-01-13   Add F.Port to SBUS functionality
                        First guess at SBUS pins on ESP32 variants 
 v2.17.12  2022-01-31   Clean up ESP8266 compile (sbus options) 
 v2.17.13  2022-02-01   Enable FC serial passthrough (on Teensy 3.x only)  
-V2.17.14  2022-04-06   define Reset_EEPROM resurrected                                                                                                                                    
+V2.17.14  2022-04-06   define Reset_EEPROM resurected                                                                                                                                    
 */
 
 //=================================================================================================                            
