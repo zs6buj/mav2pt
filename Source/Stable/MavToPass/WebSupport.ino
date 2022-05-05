@@ -1326,8 +1326,8 @@ void RawSettingsToStruct() {
   strcpy(set.host, HostName);        
   set.tcp_localPort = TCP_localPort;
   set.tcp_remotePort = TCP_remotePort;  
-  set.udp_localPort = UDP_remotePort;
-  set.udp_remotePort = UDP_localPort;  
+  set.udp_localPort = UDP_localPort;
+  set.udp_remotePort = UDP_remotePort;  
 
   if ( BT_Mode == 1 ) {
     set.btmode = master;
