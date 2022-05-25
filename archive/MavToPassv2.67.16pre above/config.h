@@ -30,8 +30,7 @@ v2.67.13  2022-02-01   Enable FC serial passthrough (on Teensy 3.x only)
 V2.67.14  2022-04-06   define Reset_EEPROM resurected     
 v2.67.15  2022-05-05   Fixed nasty transposition of udp local and remote port numbers   
 v2.67.16  2022-05-12   Clear sb[idx].inuse at end of popNexFrame()      
-          2022-05-24   Improve FC and GCS uart read 
-          2022-05-25   Refresh web interface.                                                                                                                     
+          2022-05-24   Improve FC and GCS uart read                                                                                                                      
 */
 
 //=================================================================================================                            
@@ -40,11 +39,11 @@ v2.67.16  2022-05-12   Clear sb[idx].inuse at end of popNexFrame()
 
 // Board is derived from board selected in IDE, variant is selected here
 
-//#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
+#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi - Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
-#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
+//#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     7    //  ESP32 Dev Board with separate ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
 

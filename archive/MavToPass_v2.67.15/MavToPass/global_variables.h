@@ -61,7 +61,7 @@ uint32_t  fchb_millis=0;
 uint32_t  gshb_millis=0;
 
 uint32_t  rssi_millis=0;
-uint32_t  uplink_millis=0; 
+uint32_t  downlink_millis=0; 
 uint32_t  rds_millis=0;
 uint32_t  acc_millis=0;
 uint32_t  blind_inject_millis=0;

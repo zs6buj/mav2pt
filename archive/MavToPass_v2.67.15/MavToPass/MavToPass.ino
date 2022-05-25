@@ -865,7 +865,7 @@ void setup()  {
   homGood = false;     
   hb_count = 0;
   hb_millis=millis();
-  uplink_millis = millis();       // mavlink uplink to gcs timimg
+  downlink_millis = millis();       // mavlink uplink to gcs timimg
   fchb_millis = millis();
   gshb_millis = millis();
   acc_millis = millis();
@@ -978,7 +978,7 @@ void loop() {
 
   //====================    R i n g   B u f f e r   D e c o d e  &  S e n d   T o   G C S
    
- // if (millis() - uplink_millis > 1) {   // main timing loop for mavlink decode and to GCS
+ // if (millis() - downlink_millis > 1) {   // main timing loop for mavlink decode and to GCS
     RB_To_Decode_and_GCS();
  // }
  

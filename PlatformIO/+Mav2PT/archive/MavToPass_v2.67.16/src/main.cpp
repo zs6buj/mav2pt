@@ -108,39 +108,29 @@
      
     N.B!  The dreaded "Telemetry Lost" enunciation!
 
-    The popular LUA telemetry scripts use RSSI to determine that a telemetry connection has been successfully established 
-    between the 'craft and the Taranis/Horus. Be sure to set-up RSSI properly before testing the system.
+    The popular LUA telemetry scripts use RSSI to determine that a telemetry connection has been 
+    successfully established between the 'craft and the Taranis/Horus. Be sure to set-up RSSI properly 
+    before testing the system.
 
+    ======================================================================================================
 
-    =====================================================================================================================
+    Connections to boards depend on the board variant 
 
-
-   Connections to ESP32 or ESP8266 boards depend on the board variant
-
-    Go to config.h tab and look for "S E L E C T   E S P   B O A R D   V A R I A N T" 
-
-    
-   Connections to Teensy3.2 are:
-    0) USB                         Flashing and serial monitor for debug
-    1) F/SPort     -->tx1 Pin 1    F/SPort out to XSR  or Taranis bay, bottom pin
-    2) Mavlink_In  <--rx2 Pin 9    Mavlink source to Teensy - mav_rxPin
-    3) Mavlink_In  -->tx2 Pin 10   Mavlink source to Taranis
-    4) Mavlink_Out <--rx3 Pin 7    Optional feature - see #defined
-    5) Mavlink_Out -->tx3 Pin 8    Optional feature - see #defined
-    6) MavStatusLed       Pin 13   BoardLed
-    7) BufStatusLed  1
-    8) Vcc 3.3V !
-    9) GND
+    Go to config.h tab and look for "S E L E C T   B O A R D   V A R I A N T" 
 
     NOTE : STM32 support is deprecated as of 2020-02-27 v2.56.2
-*/
-//    =====================================================================================================================
 
+    ======================================================================================================    
+*/
 
 #include <CircularBuffer.h>
 #include <mavlink_types.h>
 #include "global_variables.h"
 #include "config.h"                      // ESP_IDF libs included here
+
+#if defined ESP8266
+  #include<sstream> // for esp8266 (bug in standard library?
+#endif  
 
 #if (defined frBuiltin)
   #include "FrSky_Ports.h"
@@ -170,7 +160,7 @@ void Start_Access_Point();
 bool NewOutboundTCPClient();
 bool Read_FC_To_RingBuffer();
 void RB_To_Decode_and_GCS();
-void Read_From_GCS();
+bool Read_From_GCS();
 void Decode_GCS_To_FC();
 void Send_To_FC(uint32_t);
 void Send_FC_Heartbeat();
@@ -233,7 +223,6 @@ void EEPROMWriteString(uint16_t, char*);
 void EEPROMWrite32(uint16_t, uint32_t);
 uint32_t bit32Extract(uint32_t, uint8_t, uint8_t);
 float RadToDeg (float);
-void PrintMavBuffer(const void *object);
 
 void PrintRemoteIP();
 void LogScreenPrint(String);
@@ -520,7 +509,7 @@ void setup()  {
   #endif
 
   if (set.fc_io == fc_ser)   {
-    Log.println("Mavlink Serial In");
+    Log.println("Mavlink Serial  In");
     LogScreenPrintln("Mav Serial In");
   }
 
@@ -804,33 +793,63 @@ void setup()  {
   #endif
 
 #endif
+
 //=================================================================================================   
-//                                    S E T U P   S E R I A L
+//                             S E T U P   S E R I A  L   -  Serial (uart0) setup in config.h
 //=================================================================================================  
 
-
-
-
-
   if ((set.fc_io == fc_ser) || (set.gs_io == gs_ser))  {  //  Serial
+    
     #if defined MavAutoBaud
-      set.baud = FrPort.getBaud(mav_rxPin, idle_high); // mavlink port is a regular non-inverted port
-      Log.printf("Mavlink baud detected at %d b/s on rx:%d\n", set.baud, mav_rxPin);  
+      set.baud = FrPort.getBaud(fc_rxPin, idle_high); // mavlink port is a regular non-inverted port
+      Log.printf("Mavlink baud detected at %d b/s on rx:%d\n", set.baud, fc_rxPin);  
       String s_baud=String(set.baud);   // integer to string. "String" overloaded
       LogScreenPrintln("Mav baud:"+ s_baud);        
     #endif   
-    #if (defined ESP32)   
+    
+    #if (defined ESP32) 
       delay(100);
-      // system can wait here for a few seconds (timeout) if there is no telemetry in
-      mvSerial.begin(set.baud, SERIAL_8N1, mav_rxPin, mav_txPin);   //  rx,tx, cts, rts  
+      #if (defined ESP32_Mav_SoftwareSerial) 
+        fcSerial.begin(set.baud, SWSERIAL_8N1, fc_rxPin, fc_txPin);   // SoftwareSerial           
+        Log.println("Using SoftwareSerial for fcSerial");
+      #else  // ESP32 HardwareSerial
+        // system can wait here for a few seconds (timeout) if there is no telemetry in
+         fcSerial.begin(set.baud, SERIAL_8N1, fc_rxPin, fc_txPin);   //  rx,tx, cts, rts  
+      #endif
       delay(100);
-    #else
-      mvSerial.begin(set.baud);  
-      delay(20);  // for esp8266 debug on txd1  
-    #endif 
-    Log.printf("Mavlink serial on pins rx:%d and tx:%d  baud:%d\n", mav_rxPin, mav_txPin, set.baud); 
-    delay(40);  // for esp8266 debug on txd1
+
+      #if defined Support_SBUS_Out 
+        uint8_t sbusInvert = true;
+        delay(100);
+        sbusSerial.begin(100000, SERIAL_8E1, sbus_rxPin, sbus_txPin, sbusInvert);     // HardwareSerial  
+        delay(100);     
+        Log.printf("SBUS out on UART1 pin tx:%d\n", sbus_txPin);
+      #endif 
+    #endif
+   
+    #if (defined ESP8266)           // Always HardwareSerial
+      fcSerial.begin(set.baud);  
+      delay(60);  // for esp8266 debug on txd1     
+    #endif
+        
+    #if (defined TEENSY3X)          // Always HardwareSerial
+      fcSerial.begin(set.baud);   
+      if (set.gs_io == gs_ser) {
+        gsSerial.begin(set.baud);           
+      }      
+      #if defined Support_SBUS_Out 
+        sbusSerial.begin(100000, SERIAL_8E1_TXINV);        // SBUS out = tx pin 
+        Log.printf("SBUS out on UART2 pin tx:%d\n", sbus_txPin );
+      #endif      
+    #endif
+
+    #if (defined RP2040) 
+      fcSerial.begin(set.baud);      // Always HardwareSerial  
+    #endif
+     
+    Log.printf("Mavlink serial on pins rx:%d and tx:%d  baud:%d\n", fc_rxPin, fc_txPin, set.baud); 
   }
+  
   #if (defined frBuiltin)  
     if (set.fr_io & 0x01) {  // Serial bit flag set
       FrPort.initialise();
@@ -848,7 +867,7 @@ void setup()  {
   homGood = false;     
   hb_count = 0;
   hb_millis=millis();
-  uplink_millis = millis();       // mavlink uplink to gcs timimg
+  downlink_millis = millis();       // mavlink uplink to gcs timimg
   fchb_millis = millis();
   gshb_millis = millis();
   acc_millis = millis();
@@ -961,7 +980,7 @@ void loop() {
 
   //====================    R i n g   B u f f e r   D e c o d e  &  S e n d   T o   G C S
    
- // if (millis() - uplink_millis > 1) {   // main timing loop for mavlink decode and to GCS
+ // if (millis() - downlink_millis > 1) {   // main timing loop for mavlink decode and to GCS
     RB_To_Decode_and_GCS();
  // }
  
@@ -973,13 +992,15 @@ void loop() {
 
   //====================   R e a d   F r o m   G C S
   
-  Read_From_GCS();  
+  if (Read_From_GCS()) {
+    if (GCS_available) {
+      Decode_GCS_To_FC();
+      Send_To_FC(G2Fmsg.msgid);  
+      GCS_available = false;                      
+    }   
+  }
 
-  if (GCS_available) {
-    Decode_GCS_To_FC();
-    Send_To_FC(G2Fmsg.msgid);  
-    GCS_available = false;                      
-   }
+
 
   //==================== Check For Heartbeat from GCS Timeout
   
@@ -1056,10 +1077,10 @@ void loop() {
   // Request battery capacity params 
   if (mavGood) {
     if (!ap_bat_paramsReq) {
-      Mavlink_Param_Request_Read(356, "BATT_CAPACITY");    // Request Bat1 capacity   do this twice in case of lost frame
-      Mavlink_Param_Request_Read(356, "BATT_CAPACITY");    
-      Mavlink_Param_Request_Read(364, "BATT2_CAPACITY");    // Request Bat2 capacity
-      Mavlink_Param_Request_Read(364, "BATT2_CAPACITY");    
+      Mavlink_Param_Request_Read(356, (char*)"BATT_CAPACITY");    // Request Bat1 capacity   do this twice in case of lost frame
+      Mavlink_Param_Request_Read(356, (char*)"BATT_CAPACITY");    
+      Mavlink_Param_Request_Read(364, (char*)"BATT2_CAPACITY");    // Request Bat2 capacity
+      Mavlink_Param_Request_Read(364, (char*)"BATT2_CAPACITY");     
       Log.println("Battery capacities requested");
       LogScreenPrintln("Bat mAh from FC");    
       ap_bat_paramsReq = true;
@@ -1129,10 +1150,11 @@ void loop() {
 bool Read_FC_To_RingBuffer() {
 
   if (set.fc_io == fc_ser)  {  // Serial
+    
     mavlink_status_t status;
-
-    while(mvSerial.available()) { 
-      byte c = mvSerial.read();
+    static bool got_one = false; 
+    while(fcSerial.available()) { 
+      byte c = fcSerial.read();
      // Printbyte(c, 1, '<');
       if(mavlink_parse_char(MAVLINK_COMM_0, c, &F2Rmsg, &status)) {  // Read a frame
          #ifdef  Debug_FC_Down
@@ -1140,9 +1162,15 @@ bool Read_FC_To_RingBuffer() {
            PrintMavBuffer(&F2Rmsg);
         #endif              
         MavToRingBuffer();    
+        got_one = true;   
       }
     }
-    return true;  
+    if (got_one) {
+      got_one = false;
+      return true;
+    } else {
+      return false;  
+    }
   } 
 
   #if (defined btBuiltin) 
@@ -1260,21 +1288,31 @@ void RB_To_Decode_and_GCS() {
 }  
 
 //================================================================================================= 
-void Read_From_GCS() {
+bool Read_From_GCS() {
 
+  #if (defined TEENSY3X)
     if (set.gs_io == gs_ser)  {  // Serial 
       mavlink_status_t status;
-      while(mvSerial.available()) { 
-        uint8_t c = mvSerial.read();
+      static bool got_one = false;      
+      while(gsSerial.available()) { 
+        uint8_t c = gsSerial.read();
         if(mavlink_parse_char(MAVLINK_COMM_0, c, &G2Fmsg, &status)) {  // Read a frame from GCS  
           GCS_available = true;  // Record waiting
           #ifdef  Debug_GCS_Up
             Log.println("Passed up from GCS Serial to G2Fmsg:");
             PrintMavBuffer(&G2Fmsg);
           #endif     
+          got_one = true;   
         }
-      } 
-     } 
+      }
+      if (got_one) {
+        got_one = false;
+        return true;
+      } else {
+        return false;  
+      }
+    } 
+  #endif 
 
   #if (defined btBuiltin) 
     if ((set.gs_io == gs_bt) || (set.gs_io == gs_wifi_bt)) {  // Bluetooth
@@ -1288,6 +1326,7 @@ void Read_From_GCS() {
             if (msgReceived) PrintMavBuffer(&G2Fmsg);
           #endif      
         }
+        return true;
     }  
   #endif
 
@@ -1306,6 +1345,7 @@ void Read_From_GCS() {
             if (msgReceived) PrintMavBuffer(&G2Fmsg);
           #endif      
         }
+        return true; 
       }
       
       if (set.mav_wfproto == udp)  { // UDP from GCS
@@ -1330,10 +1370,12 @@ void Read_From_GCS() {
           #if defined  Debug_Read_UDP || defined Debug_GCS_Up || defined Debug_Read_UDP_GCS  
             Log.printf("Read WiFi UDP from GCS to G2Fmsg: msgReceived=%d ==============================\n", msgReceived); 
             PrintMavBuffer(&G2Fmsg);
-          #endif      
+          #endif 
+          return true;     
         }   
       } 
     }
+    return false;
   #endif  
 }
 
@@ -1629,7 +1671,7 @@ void Send_To_FC(uint32_t msg_id) {
   
   if (set.fc_io == fc_ser)  {   // Serial to FC
     len = mavlink_msg_to_send_buffer(FCbuf, &G2Fmsg);
-    mvSerial.write(FCbuf,len);  
+    fcSerial.write(FCbuf,len);  
          
     #if defined  Debug_FC_Up || defined Debug_GCS_Up
       if (msg_id) {    //  dont print heartbeat - too much info
@@ -1724,15 +1766,18 @@ void MavToRingBuffer() {
 void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
   
   if ((set.gs_io == gs_ser) || (set.gs_io == gs_bt) || (set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt) || (set.gs_sd == gs_on)) {
+
+    #if (defined TEENSY3X)
       if (set.gs_io == gs_ser) {  // Serial
         len = mavlink_msg_to_send_buffer(GCSbuf, &R2Gmsg);
-        mvSerial.write(GCSbuf,len);  
+        gsSerial.write(GCSbuf,len);  
 
         #ifdef  Debug_GCS_Down
           Log.printf("Sent from ring buffer to GCS Serial: len=%d\n", len);
           PrintMavBuffer(&R2Gmsg);
         #endif
       }
+    #endif  
  
   #if (defined btBuiltin)
     if ((set.gs_io == gs_bt) || (set.gs_io == gs_wifi_bt))  {  // Bluetooth     
@@ -3210,7 +3255,6 @@ void Mavlink_Request_Home_Position() {  // #410  https://mavlink.io/en/messages/
  //================================================================================================= 
  
 
-
  //=================================================================================================  
 //================================================================================================= 
 //
@@ -3507,7 +3551,9 @@ void Mavlink_Request_Home_Position() {  // #410  https://mavlink.io/en/messages/
         if (set.wfmode == sta_ap) {   // in sta failover to ap mode we had successful sta connect
           set.wfmode = sta;           // so set correct mode      
         }
-
+        Log.println();
+        Log.println("WiFi connected!");
+                
         /*use mdns for host name resolution*/
         if (!MDNS.begin(HostName)) { //http://<HostName>.local
           Log.println("Error setting up MDNS responder!");
@@ -3522,8 +3568,6 @@ void Mavlink_Request_Home_Position() {  // #410  https://mavlink.io/en/messages/
         UDP_remoteIP = localIP;    // Initially broadcast on the subnet we are attached to. patch by Stefan Arbes. 
         UDP_remoteIP[3] = 255;     // patch by Stefan Arbes  
                                
-        Log.println();
-        Log.println("WiFi connected!");
         Log.print("Local IP address: ");
         Log.print(localIP);
         if (set.mav_wfproto == tcp)  {   // TCP
@@ -3631,10 +3675,12 @@ void Mavlink_Request_Home_Position() {  // #410  https://mavlink.io/en/messages/
    #if defined webSupport
      if (wifiSuGood) {
        WebServerSetup();
+       
        std::string s = set.host;
        std::transform(s.begin(), s.end(), s.begin(),
            [](unsigned char c) -> unsigned char { return std::tolower(c); });
        Log.printf("Web support active on http://%s.local\n", s.c_str()); 
+       
        //Log.println(localIP.toString().c_str());
        LogScreenPrintln("webSupprt active");  
      }  else {
@@ -5598,7 +5644,6 @@ void WiFiEventHandler(WiFiEvent_t event)  {
     //===================================================================  
      
 
-
      //================================================================================================= 
 //================================================================================================= 
 //
@@ -5649,9 +5694,9 @@ from FLASH memory without first copying it to RAM. So, there is no need to use t
 */
 
  static const String styleLogin =  // Stored in FLASH not SRAM Heap - see above
-    "<style>h1{background:#3498db;color:#fff;border-radius:5px;height:34px;font-family:sans-serif;}"
-    "#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
-    "input{background:#f1f1f1;border:0;padding:0 15px}body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
+    "<style>h1{background:#3498db;color:#fff;border-radius:5px;height:30px;font-family:sans-serif;}"
+    "#file-input,input{width:100%;height:30px;border-radius:4px;margin:10px auto;font-size:12px}"
+    "input{background:#f1f1f1;border:0;padding:0 12px}body{background:#3498db;font-family:sans-serif;font-size:12px;color:#777}"
     "form{background:#fff;max-width:258px;margin:75px auto;padding:30px;border-radius:5px;text-align:center}"
     ".btn{background:#3498db;color:#fff;cursor:pointer} .big{ width: 1em; height: 1em;}"
     "::placeholder {color: white; opacity: 1; /* Firefox */}"
@@ -5661,22 +5706,23 @@ from FLASH memory without first copying it to RAM. So, there is no need to use t
     "<style>"
     "h{color:#fff;font-family:sans-serif;}"
     "h3{background:#3498db;color:#fff;border-radius:5px;height:22px;font-family:sans-serif;}"
-    "input{background:#f1f1f1;border:1;margin:8px auto;font-size:14px}"
+    "input{background:#f1f1f1;border:1;margin:8px auto;font-size:12px}"
     "body{background:#3498db;font-family:arial;font-size:10px;color:black}"
     "#bar,#prgbar{background-color:#f1f1f1;border-radius:10px}#bar{background-color:#3498db;width:0%;height:10px}"
-    "form{background:#fff;max-width:440px;margin:30px auto;padding:30px;border-radius:10px;text-align:left;font-size:16px}"
+    "form{background:#fff;max-width:360px;margin:30px auto;padding:30px;border-radius:10px;text-align:left;font-size:12px}"
     ".big{ width: 1em; height: 1em;} .bold {font-weight: bold;}"
     "</style>";
 
  static const String styleOTA =
-    "<style>#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
+    "<style>#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:12px}"
     "input{background:#f1f1f1;border:0;padding:0}"
-    "body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
+    "body{background:#3498db;font-family:sans-serif;font-size:12px;color:#777}"
     "#file-input{padding:0;border:1px solid #ddd;line-height:44px;text-align:left;display:block;cursor:pointer}"
     "#bar,#prgbar{background-color:#f1f1f1;border-radius:10px}#bar{background-color:#3498db;width:0%;height:10px}"
     "form{background:#fff;margin:75px auto;padding:30px;text-align:center;max-width:450px;border-radius:10px;}"       
     ".btn{background:#3498db;color:#fff;cursor:pointer; width: 80px;} .big{ width: 1em; height: 1em;}</style>"  
     "<script>function backtoLogin() {window.close(); window.open('/');} </script>";
+
 
    
  static const String otaIndex = styleOTA +  
@@ -5771,14 +5817,23 @@ void RecoverSettingsFromFlash() {
   set.minor_version = EEPROMRead8(167);   
   set.patch_level = EEPROMRead8(168);  
   Log.printf("EEPROM settings version:%u.%u.%u\n", set. major_version, set.minor_version, set.patch_level);
-  if ( (set.major_version != MAJOR_VERSION) || (set.minor_version != MINOR_VERSION) || (set.patch_level != PATCH_LEVEL) ) {          
-    Log.println("Version change detected. ALL SETTINGS IN EEPROM SET TO COMPILE_TIME DEFAULTS");     
+
+  #if defined Reset_EEPROM
+    Log.println("Reset_EEPROM defined. ALL SETTINGS IN EEPROM SET TO COMPILE_TIME DEFAULTS");     
     set.major_version = MAJOR_VERSION;
     set.minor_version = MINOR_VERSION;  
     set.patch_level = PATCH_LEVEL;                                           
     WriteSettingsToEEPROM();
-    }       
-      
+  #else
+    if ( (set.major_version != MAJOR_VERSION) || (set.minor_version != MINOR_VERSION) || (set.patch_level != PATCH_LEVEL) ) {          
+      Log.println("Version change detected. ALL SETTINGS IN EEPROM SET TO COMPILE_TIME DEFAULTS");     
+      set.major_version = MAJOR_VERSION;
+      set.minor_version = MINOR_VERSION;  
+      set.patch_level = PATCH_LEVEL;                                           
+      WriteSettingsToEEPROM();
+      } 
+  #endif  
+            
   ReadSettingsFromEEPROM();                           
 
 }
@@ -6064,7 +6119,8 @@ byte b;
     } else if (b == 1) {
       set.gs_sd = gs_on;
     } 
-     b = EEPROMRead8(161);     // sport sd
+    
+    b = EEPROMRead8(161);     // sport sd
     if (b == 0) {
       set.sport_sd = spsd_off;
     } else if (b == 1) {
@@ -6839,7 +6895,7 @@ void RawSettingsToStruct() {
   }  
 
   if (GCS_Mavlink_IO == 0) {
-    set.gs_io = gs_ser;
+    set.gs_io = gs_ser;  
   } else 
   if (GCS_Mavlink_IO == 1) {
     set.gs_io = gs_bt;
@@ -6917,8 +6973,8 @@ void RawSettingsToStruct() {
   strcpy(set.host, HostName);        
   set.tcp_localPort = TCP_localPort;
   set.tcp_remotePort = TCP_remotePort;  
-  set.udp_localPort = UDP_remotePort;
-  set.udp_remotePort = UDP_localPort;  
+  set.udp_localPort = UDP_localPort;
+  set.udp_remotePort = UDP_remotePort;  
 
   if ( BT_Mode == 1 ) {
     set.btmode = master;

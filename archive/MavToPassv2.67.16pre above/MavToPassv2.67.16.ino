@@ -1324,7 +1324,6 @@ bool Read_From_GCS() {
             if (msgReceived) PrintMavBuffer(&G2Fmsg);
           #endif      
         }
-        return true;
     }  
   #endif
 
@@ -1343,7 +1342,6 @@ bool Read_From_GCS() {
             if (msgReceived) PrintMavBuffer(&G2Fmsg);
           #endif      
         }
-        return true; 
       }
       
       if (set.mav_wfproto == udp)  { // UDP from GCS
@@ -1368,14 +1366,12 @@ bool Read_From_GCS() {
           #if defined  Debug_Read_UDP || defined Debug_GCS_Up || defined Debug_Read_UDP_GCS  
             Log.printf("Read WiFi UDP from GCS to G2Fmsg: msgReceived=%d ==============================\n", msgReceived); 
             PrintMavBuffer(&G2Fmsg);
-          #endif 
-          return true;     
+          #endif      
         }   
       } 
     }
-    return false;
   #endif  
-} 
+}
 
 //================================================================================================= 
   #if (defined btBuiltin) 

@@ -72,7 +72,7 @@
     byte      fpbuf[frameSize];
 
     static const uint8_t max_ch = 26;         // 24 + 2 digi ch
-    int16_t   pwm_ch[max_ch];                 // PWM Channels
+    int16_t   pwm_val[max_ch];                 // PWM Channels
     uint8_t   pwm_rssi = 0;
   
     int16_t   crcin = 0;                      // CRC of inbound frsky frame   
@@ -182,15 +182,14 @@
     uint8_t       crcGet(uint8_t *buf, uint8_t lth);
     bool          crcGood(uint8_t *buf, uint8_t lth);                
     bool          BytesToPWM(uint8_t *buf, int16_t *ch, uint8_t lth); 
+    #if (defined Support_SBUS_Out)       
+      void          WriteSBUS(uint8_t *buf);
+    #endif  
     void          crcStepIn(uint8_t b);     
     void          crcStepOut(uint8_t b);  
     void          crcStep(int16_t *mycrc, uint8_t b); 
     void          crcEnd(int16_t *mycrc);          
     void          WriteCrc(); 
-    void          Print_PWM_Channels(int16_t *ch, uint16_t max_ch); 
-    void          PrintBuffer(uint8_t *buf, uint8_t lth);   
-    void          CheckForTimeouts();   
-    void          ServiceStatusLed();
     void          BlinkFpLed(uint32_t period);
     void          InjectUplinkFrame(uint8_t _prime);  
     uint16_t      PopNextFrame();  
@@ -221,6 +220,10 @@
     void          Push_VFR_Hud_50F2(uint16_t msg_id);    
     void          Push_Wind_Estimate_50F3(uint16_t msg_id);
     void          Push_Rssi_F101(uint16_t msg_id);   
+    void          Print_PWM_Channels(int16_t *ch, uint16_t max_ch); 
+    void          PrintBuffer(uint8_t *buf, uint8_t lth);   
+    void          CheckForTimeouts();   
+    void          ServiceStatusLed();    
     void          PrintPayload(msg_class_t msg_class, telem_direction_t telem_direction);                                                         
     void          PrintMavLiteUplink(); 
     String        frportName(frport_t);
@@ -259,7 +262,7 @@
     void FrSkyPort::set_gpio_out_ninv( uint8_t pin_num ) {
       set_gpio_inout_pol( pin_num, 0, 0);
     } 
-         
+       
     void FrSkyPort::set_gpio_inout_pol( uint8_t pin_num, uint8_t dir, uint8_t  pol ) {  
        volatile int* var = (int*)(0x40014000 + (8*pin_num) + 4);  // get pointer to address
        uint32_t val = *var;  // get the value at addr ...             
@@ -268,7 +271,7 @@
        *var  = (val & pol_mask) | pol_value;  // changes the memory located at ....  
     }
   #endif // end of RP2040
-      
+  // ==================================================================================     
     void FrSkyPort::initialise()  {  
 
     for (int i=0 ; i < sb_rows ; i++) {  // initialise F.Port table
@@ -365,7 +368,7 @@
       frRx = fr_rxPin;
       frTx = fr_txPin;
 
-      #if ( (defined ESP8266) || ( (defined ESP32) && (defined ESP32_SoftwareSerial)) )
+      #if ( (defined ESP8266) || ( (defined ESP32) && (defined ESP32_Frs_SoftwareSerial)) )
           if (set.trmode == ground) {
             Log.printf("FrSky is 1-wire simplex on tx pin:%d\n", frTx);
           } else { 
@@ -704,12 +707,13 @@
               FrSkyPort::parseGood = FrSkyPort::ParseFrame(buf, fr_lth);
               if (FrSkyPort::parseGood) {
                 #if defined Derive_PWM           
-                  FrSkyPort::pwmGood = FrSkyPort::BytesToPWM(buf+3, &FrSkyPort::pwm_ch[0], fr_lth);
+                  FrSkyPort::pwmGood = FrSkyPort::BytesToPWM(buf+3, &FrSkyPort::pwm_val[0], fr_lth);
                   if (FrSkyPort::pwmGood) {
                     FrSkyPort::pwmGood_millis = millis();
                   }
                 #endif  
                 #if defined Support_SBUS_Out 
+                  WriteSBUS(buf+3);
                 #endif    
               }  
               break;
@@ -788,13 +792,14 @@
               FrSkyPort::parseGood = FrSkyPort::ParseFrame(buf, fr_lth+1);                        
               if (FrSkyPort::parseGood) {
                 #if defined Derive_PWM           
-                  FrSkyPort::pwmGood = FrSkyPort::BytesToPWM(buf+3, &FrSkyPort::pwm_ch[0], fr_lth);
+                  FrSkyPort::pwmGood = FrSkyPort::BytesToPWM(buf+3, &FrSkyPort::pwm_val[0], fr_lth);
                   if (FrSkyPort::pwmGood) {
                     FrSkyPort::pwmGood_millis = millis();
                   }
                 #endif  
-                #if defined Support_SBUS_Out      
-                #endif     
+                #if defined Support_SBUS_Out 
+                  WriteSBUS(buf+3);
+                #endif        
               }
  
               break;
@@ -887,7 +892,7 @@
     #if (defined ESP8266) || (defined ESP32) 
         if(mode == tx && modeNow !=tx) { 
           modeNow=mode;
-          #if (defined ESP_Onewire) && (defined ESP32_SoftwareSerial)        
+          #if (defined ESP_Onewire) && (defined ESP32_Frs_SoftwareSerial)        
           frSerial.enableTx(true);  // Switch F.Port into send mode
           #endif
           #if defined Debug_FrPort_Switching
@@ -896,7 +901,7 @@
         }   else 
         if(mode == rx && modeNow != rx) {   
           modeNow=mode; 
-          #if (defined ESP_Onewire) && (defined ESP32_SoftwareSerial)                  
+          #if (defined ESP_Onewire) && (defined ESP32_Frs_SoftwareSerial)                  
           frSerial.enableTx(false);  // disable interrupts on tx pin     
           #endif
           #if defined Debug_FrPort_Switching
@@ -1172,7 +1177,7 @@
      FrSkyPort::pwm_rssi = *(buf+23);
 
      #if defined Debug_PWM_Channels 
-        FrSkyPort::Print_PWM_Channels(&FrSkyPort::pwm_ch[0], num_of_channels);
+        FrSkyPort::Print_PWM_Channels(&FrSkyPort::pwm_val[0], num_of_channels);
      #endif   
 
      if (*ch > 0) {
@@ -1282,7 +1287,7 @@
           Log.printf("  age=%3d mS \n" , sb_oldest_tier1 );        
         }
       #endif
-
+      sb[idx].inuse = 0;      // 0=free to use, 1=occupied - for passthru and mavlite
       return idx;  // return the index of the oldest frame
      }
     //===================================================================   
@@ -1436,7 +1441,7 @@
         mtf_payload = {};                                     // clear mavlite payload struct
       }
   
-      sb[idx].inuse = 0;                                      // 0=free to use, 1=occupied - for passthru and mavlite
+      //sb[idx].inuse = 0;    //now done back at popNextFrame 
 
       #if (defined wifiBuiltin)
         if (set.fr_io & 0x02)  {       // FrSky send UDP packet
@@ -3150,7 +3155,26 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
       }
       return "f_none";             
     }
-    //===================================================================   
+    //=================================================================== 
+    #if defined Support_SBUS_Out        
+    void FrSkyPort::WriteSBUS(uint8_t *buf) {
+   
+      uint32_t byteDuration = 0;
+      uint8_t byt = 0;
+      while (byt < 25) {   //  22 bytes plus digi byte = 16 channels plus ch 17 digi channel               
+        // Sending one byte of data takes 11bits in 8E1 which = 110us at 100000 baud, but we 
+        // need one stopbit longer so we start the sending the next byte after 120us not 110
+        byteDuration += micros();
+        if (byteDuration >= 124){
+          byteDuration = 0;
+           sbusSerial.write(buf[byt]); // write one byte
+          byt++; 
+        }
+      }
+    }
+    #endif
+   //===================================================================
+    
 #endif  // end of FrSky port support
 
 

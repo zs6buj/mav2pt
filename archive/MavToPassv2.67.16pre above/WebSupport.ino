@@ -48,9 +48,9 @@ from FLASH memory without first copying it to RAM. So, there is no need to use t
 */
 
  static const String styleLogin =  // Stored in FLASH not SRAM Heap - see above
-    "<style>h1{background:#3498db;color:#fff;border-radius:5px;height:30px;font-family:sans-serif;}"
-    "#file-input,input{width:100%;height:30px;border-radius:4px;margin:10px auto;font-size:12px}"
-    "input{background:#f1f1f1;border:0;padding:0 12px}body{background:#3498db;font-family:sans-serif;font-size:12px;color:#777}"
+    "<style>h1{background:#3498db;color:#fff;border-radius:5px;height:34px;font-family:sans-serif;}"
+    "#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
+    "input{background:#f1f1f1;border:0;padding:0 15px}body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
     "form{background:#fff;max-width:258px;margin:75px auto;padding:30px;border-radius:5px;text-align:center}"
     ".btn{background:#3498db;color:#fff;cursor:pointer} .big{ width: 1em; height: 1em;}"
     "::placeholder {color: white; opacity: 1; /* Firefox */}"
@@ -60,23 +60,22 @@ from FLASH memory without first copying it to RAM. So, there is no need to use t
     "<style>"
     "h{color:#fff;font-family:sans-serif;}"
     "h3{background:#3498db;color:#fff;border-radius:5px;height:22px;font-family:sans-serif;}"
-    "input{background:#f1f1f1;border:1;margin:8px auto;font-size:12px}"
+    "input{background:#f1f1f1;border:1;margin:8px auto;font-size:14px}"
     "body{background:#3498db;font-family:arial;font-size:10px;color:black}"
     "#bar,#prgbar{background-color:#f1f1f1;border-radius:10px}#bar{background-color:#3498db;width:0%;height:10px}"
-    "form{background:#fff;max-width:360px;margin:30px auto;padding:30px;border-radius:10px;text-align:left;font-size:12px}"
+    "form{background:#fff;max-width:440px;margin:30px auto;padding:30px;border-radius:10px;text-align:left;font-size:16px}"
     ".big{ width: 1em; height: 1em;} .bold {font-weight: bold;}"
     "</style>";
 
  static const String styleOTA =
-    "<style>#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:12px}"
+    "<style>#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
     "input{background:#f1f1f1;border:0;padding:0}"
-    "body{background:#3498db;font-family:sans-serif;font-size:12px;color:#777}"
+    "body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
     "#file-input{padding:0;border:1px solid #ddd;line-height:44px;text-align:left;display:block;cursor:pointer}"
     "#bar,#prgbar{background-color:#f1f1f1;border-radius:10px}#bar{background-color:#3498db;width:0%;height:10px}"
     "form{background:#fff;margin:75px auto;padding:30px;text-align:center;max-width:450px;border-radius:10px;}"       
     ".btn{background:#3498db;color:#fff;cursor:pointer; width: 80px;} .big{ width: 1em; height: 1em;}</style>"  
     "<script>function backtoLogin() {window.close(); window.open('/');} </script>";
-
 
    
  static const String otaIndex = styleOTA +  
