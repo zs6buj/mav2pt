@@ -2069,7 +2069,7 @@ void DecodeOneMavFrame() {
             else ap_ccell_count1= 0;
             
           pt_bat1_volts = ap_voltage_battery1 * 0.01F;         // mV -> dV
-          pt_bat1_amps = ap_current_battery1 * 0.1F;           // cA -> dA 
+          pt_bat1_amps = ap_current_battery1 ;                 // Remain       dA  - A * 10 
                      
           #if defined Mav_Debug_All || defined Mav_Debug_SysStatus || defined Debug_Batteries
             Log.print("Mavlink from FC #1 Sys_status: ");     
