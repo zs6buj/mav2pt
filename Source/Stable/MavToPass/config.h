@@ -33,7 +33,8 @@ v2.67.16  2022-05-12   Clear sb[idx].inuse at end of popNexFrame()
           2022-05-24   Improve FC and GCS uart read 
           2022-05-25   Refresh web interface.  
 v2.67.17  2022-05-31   Revert battery current UOM fro cA back to dA (v2.62.8) - ninja-zx11 
-          2022-06-02   Also OLED disply, pt_bat1_amps * 0.1F -> pt_bat1_amps                                                                                                                  
+       bc  2022-06-02   Also OLED disply, pt_bat1_amps * 0.1F -> 
+       d   2022-06-02   Also ILI9341_Display                                                                                                                    
 */
 
 //=================================================================================================                            

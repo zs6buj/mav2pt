@@ -1962,7 +1962,7 @@ void WiFiEventHandler(WiFiEvent_t event)  {
           xx = 9 * char_w_px;
           yy = 16 * char_w_px;        
           display.setCursor(xx, yy); 
-          snprintf(snprintf_buf, snp_max, "A:%.0f", pt_bat1_amps * 0.1F);     
+          snprintf(snprintf_buf, snp_max, "A:%.0f", pt_bat1_amps);     
           display.fillRect(xx+(2*char_w_px), yy, (6*char_w_px), char_h_px, ILI9341_BLUE); // clear the previous line   
           display.println(snprintf_buf); 
           
