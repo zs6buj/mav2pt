@@ -2085,7 +2085,7 @@ void WiFiEventHandler(WiFiEvent_t event)  {
             yy = 5.4 * char_h_px;  
           #endif            
           display.setCursor(xx, yy);               
-          snprintf(snprintf_buf, snp_max, "%2.1fV %2.0fA %2.1fAh", pt_bat1_volts * 0.1F, pt_bat1_amps * 0.1F, pt_bat1_mAh * 0.001F);     
+          snprintf(snprintf_buf, snp_max, "%2.1fV %2.0fA %2.1fAh", pt_bat1_volts * 0.1F, pt_bat1_amps, pt_bat1_mAh * 0.001F);     
           display.fillRect(xx, yy, scr_w_px, char_h_px, SCR_BACKGROUND); // clear the whole line  
           display.println(snprintf_buf); 
 
