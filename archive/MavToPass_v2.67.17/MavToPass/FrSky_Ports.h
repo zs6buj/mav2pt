@@ -2259,7 +2259,7 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
       #endif
     
       bit32Pack(pt_bat1_volts ,0, 9);
-      uint16_t w_bat1_amps = prep_number(roundf(pt_bat1_amps * 0.1F),2,1);    // NOTE, (0.1F) rounds to whole Amps for dA   
+      uint16_t w_bat1_amps = prep_number(roundf(pt_bat1_amps),2,1);
       bit32Pack(w_bat1_amps,9, 8);
       bit32Pack(pt_bat1_mAh,17, 15);
       //Log.printf("mantissa:%d  10exponent:%d mutiplier:%d \n", bit32Extract(pt_payload,10,7), bit32Extract(pt_payload,9,1), TenToPwr(bit32Extract(pt_payload,9,1)) );
