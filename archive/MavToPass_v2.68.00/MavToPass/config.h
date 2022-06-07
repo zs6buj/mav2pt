@@ -5,8 +5,8 @@
 // 
 
 #define MAJOR_VERSION      2
-#define MINOR_VERSION      67
-#define PATCH_LEVEL        17
+#define MINOR_VERSION      68
+#define PATCH_LEVEL        00
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -16,26 +16,14 @@ Complete change log and debugging options are at the bottom of this tab
 
 GitHub Tag
 ----------                                            
-  
-V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS 
-V2.67.08  2021-12-03   Fix OTA in AP mode with embedded jquery (acknowledgement M.Mastenbroek)
-v2.67.09  2021-12-10   No web input fields for BT if BT not compiled in. (PR by Vabe7) 
-v2.67.10  2021-12-13   Retro fix APM bat capacity request. 
-v2.67.11  2022-01-13   Add F.Port to SBUS functionality 
-                       Add SoftwareSerial option for mavSerial on ESP32 
-        D 2022-01-14   Fix converting a string constant to ‘char* with (char*) cast                                     
-                       First guess at SBUS pins on ESP32 variants 
-v2.67.12  2022-01-31   Clean up ESP8266 compile (sbus options) 
-v2.67.13  2022-02-01   Enable FC serial passthrough (on Teensy 3.x only)  
-V2.67.14  2022-04-06   define Reset_EEPROM resurected     
-v2.67.15  2022-05-05   Fixed nasty transposition of udp local and remote port numbers   
 v2.67.16  2022-05-12   Clear sb[idx].inuse at end of popNexFrame()      
           2022-05-24   Improve FC and GCS uart read 
           2022-05-25   Refresh web interface.  
 v2.67.17  2022-05-31   Revert battery current UOM fro cA back to dA (v2.62.8) - ninja-zx11 
        bc  2022-06-02  Also OLED disply, pt_bat1_amps * 0.1F -> 
        d   2022-06-02  Also ILI9341_Display, and mAh!
-v2.67.18  2022-06-04   Fix OLED display amps display, 0x5003 uom is dA, but divided again                                                                                                                          
+v2.67.18  2022-06-04   Fix OLED display amps display, 0x5003 uom is dA, but divided again   
+v2.68.00  2022-06-07   Add support for command_long from GCS                                                                                                                       
 */
 
 //=================================================================================================                            
@@ -1308,7 +1296,7 @@ bool daylightSaving = false;
 //#define Debug_FC_Down         // traffic down from FC to Ring Buffer
 //#define Debug_FC_Up           // traffic up to FC from GCS
 //#define Debug_GCS_Down        // traffic from RB to GCS
-//#define Debug_GCS_Up          // traffic up from GCS to FC
+#define Debug_GCS_Up          // traffic up from GCS to FC
 
 //#define Debug_Read_UDP_GCS  
 
@@ -1365,7 +1353,9 @@ bool daylightSaving = false;
 //#define Debug_SD   
 //#define Debug_WiFi
 //#define Debug_Loop_Period
-//#define Mav_Debug_Command_Ack
+
+//#define Mav_Debug_Commands
+
 //#define Debug_SRAM
 
 //#define Debug_Web_Settings
@@ -1373,9 +1363,9 @@ bool daylightSaving = false;
 //#define Mav_Debug_FC_Heartbeat
 //#define Mav_Debug_GCS_Heartbeat
 //#define Debug_Our_FC_Heartbeat
-//#define Debug_Param_Request_Read  // #20
-//#define Debug_Param_Request_List  // #21
-//#define Mav_Debug_Params
+#define Debug_Param_Request_Read  // #20
+#define Debug_Param_Request_List  // #21
+#define Mav_Debug_Params
 //#define Frs_Debug_Payload
 //#define Debug_FrPort_Serial_Loop
 //#define Debug_FrPort_Switching
@@ -1650,5 +1640,17 @@ v2.67.04  2021-08-19   Add NVM reset pins for ESP8266
                        Tinfo and Pinfo pins obsolete, removed code
 v2.67.05  2021-09-11   Tidy up Mavlink BT to GCS    
 V2.67.06  2021-11-25   Reset NVM settings to config settings if fw version change detected
-                       On NVM reset call RawSettingsToStruct() and reboot                                                                                                                                                                                                                                                                                                                         
+                       On NVM reset call RawSettingsToStruct() and reboot  
+V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS 
+V2.67.08  2021-12-03   Fix OTA in AP mode with embedded jquery (acknowledgement M.Mastenbroek)
+v2.67.09  2021-12-10   No web input fields for BT if BT not compiled in. (PR by Vabe7) 
+v2.67.10  2021-12-13   Retro fix APM bat capacity request. 
+v2.67.11  2022-01-13   Add F.Port to SBUS functionality 
+                       Add SoftwareSerial option for mavSerial on ESP32 
+        D 2022-01-14   Fix converting a string constant to ‘char* with (char*) cast                                     
+                       First guess at SBUS pins on ESP32 variants 
+v2.67.12  2022-01-31   Clean up ESP8266 compile (sbus options) 
+v2.67.13  2022-02-01   Enable FC serial passthrough (on Teensy 3.x only)  
+V2.67.14  2022-04-06   define Reset_EEPROM resurected     
+v2.67.15  2022-05-05   Fixed nasty transposition of udp local and remote port numbers                                                                                                                                                                                                                                                                                                                                                 
 */
