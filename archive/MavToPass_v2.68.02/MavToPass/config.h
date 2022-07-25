@@ -90,9 +90,9 @@ v2.68.02  2022-07 25   Improve udp remote client fc/gcs reporting
 //=================================================================================================
 // Choose only one of these default Flight-Controller-side I/O channels 
 // How does Mavlink telemetry enter this translator?
-//#define FC_Mavlink_IO  0    // Serial Port (default)         
+#define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define FC_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
+//#define FC_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
 //#define FC_Mavlink_IO  3    // SD Card / TF - ESP32 only
 
 
@@ -104,7 +104,7 @@ v2.68.02  2022-07 25   Improve udp remote client fc/gcs reporting
 // These are optional, and in addition to the F.Port telemetry output
 //#define GCS_Mavlink_IO  0    // Serial Port -  Teensy 3.x only for now   
 //#define GCS_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
+//#define GCS_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only - auto selects on ESP8266
 //#define GCS_Mavlink_IO  3    // WiFi AND Bluetooth simultaneously. DON'T DO THIS UNLESS YOU NEED IT. SRAM is scarce! - ESP32 only
 
 //#define GCS_Mavlink_SD       // SD Card - ESP32 only - mutually inclusive with GCS I/O
@@ -148,10 +148,10 @@ v2.68.02  2022-07 25   Improve udp remote client fc/gcs reporting
 //===========================================================
 // Choose only one setting for FrSky Port Type 
 //===========================================================
-#define FrSky_Port_Type 0   // No FrSky Port support needed. Now I'm a "Mavlink Switch"
+//#define FrSky_Port_Type 0   // No FrSky Port support needed. Now I'm a "Mavlink Switch"
 //#define FrSky_Port_Type 1   // F.Port v1
 //#define FrSky_Port_Type 2   // F.Port v2 FrSky ISRM/ACCESS capable transmitters and receivers only
-//#define FrSky_Port_Type 3   // S.Port / legacy
+#define FrSky_Port_Type 3   // S.Port / legacy
 //#define FrSky_Port_Type 4   // Auto detect, will also auto detect speed
 
 
@@ -180,10 +180,10 @@ v2.68.02  2022-07 25   Improve udp remote client fc/gcs reporting
 #define Start_WiFi                              // Start WiFi at startup, override startWiFi pin
 
 #define HostName             "MavToPass"        // This translator's host name
-#define APssid               "UAVS_Ground"             // The AP SSID that we advertise         ====>
+#define APssid               "AP_SSID"          // The AP SSID that we advertise         ====>
 #define APpw                 "password"         // Change me! Must be >= 8 chars
 #define APchannel            9                  // The wifi channel to use for our AP
-#define STAssid              "UAVS_Air"            // Target AP to connect to (in STA mode) <====
+#define STAssid              "STA_SSID"         // Target AP to connect to (in STA mode) <====
 #define STApw                "password"         // Target AP password (in STA mode). Must be >= 8 chars      
 
 // Choose one default mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
