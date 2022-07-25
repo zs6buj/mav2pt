@@ -222,7 +222,7 @@ void EEPROMWrite32(uint16_t, uint32_t);
 uint32_t bit32Extract(uint32_t, uint8_t, uint8_t);
 float RadToDeg (float);
 
-void printRemoteIP(io_side_t);
+void printRemoteIP();
 void LogScreenPrint(String);
 #if (defined ESP32) || (defined ESP8266)
   void IRAM_ATTR gotButtonDn();
@@ -1487,7 +1487,7 @@ bool readGCS() {
                       if (io_side == fc_side) {
                         if (udpremoteip[0] != UDP_remoteIP) {
                           udpremoteip[0] = UDP_remoteIP;   // IP [0] reserved for FC side. can only ever have one FC client at a time
-                          Log.printf("%s FC client inserted in table\n", UDP_remoteIP.toString().c_str() ); 
+                          Log.printf("%s inserted in table\n", UDP_remoteIP.toString().c_str() ); 
                         }                
                       } else {     // gcs side
                       
@@ -1502,7 +1502,7 @@ bool readGCS() {
                           for (int i = 1 ; i < max_clients ; i++) {
                             if ((udpremoteip[i][0] == 0) || (udpremoteip[i][3] == 255)) {    // overwrite empty or broadcast ips
                               udpremoteip[i] = UDP_remoteIP;    // remember unique IP of remote udp client so we can target it  
-                              Log.printf("%s GCS client inserted in UDP client table\n", UDP_remoteIP.toString().c_str() );
+                              Log.printf("%s inserted in UDP client table\n", UDP_remoteIP.toString().c_str() );
                               FtRemIP = true;   
                               break;      
                             }
@@ -1511,7 +1511,7 @@ bool readGCS() {
                       }
                     #endif  
                     
-                    printRemoteIP(io_side);  
+                    printRemoteIP();  
                                    
                     if(!hb_heard_from) {
                         if(msgptr->msgid == MAVLINK_MSG_ID_HEARTBEAT) {

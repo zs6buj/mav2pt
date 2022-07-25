@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      68
-#define PATCH_LEVEL        02
+#define PATCH_LEVEL        01
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -24,9 +24,9 @@ v2.67.17  2022-05-31   Revert battery current UOM fro cA back to dA (v2.62.8) - 
        d   2022-06-02  Also ILI9341_Display, and mAh!
 v2.67.18  2022-06-04   Fix OLED display amps display, 0x5003 uom is dA, but divided again   
 v2.68.00  2022-06-07   Add support for command_long from GCS 
-v2.68.01  2022-06-10   Correct 5009 waypoints, 500A rpm, 500B terrain, 50f1 servo_raw, 50f2 hud, 50f3 wind
+V2.68.01  2022-06-10   Correct 5009 waypoints, 500A rpm, 500B terrain, 50f1 servo_raw, 50f2 hud, 50f3 wind
           2022-06-28   Update printMavBuffer().
-v2.68.02  2022-07 25   Improve udp remote client fc/gcs reporting                                                                                                            
+                                                                                                                     
 */
 
 //=================================================================================================                            
@@ -58,7 +58,7 @@ v2.68.02  2022-07 25   Improve udp remote client fc/gcs reporting
 //              Most of the settings below are saved to EEPROM the first time mav2pt runs
 //              Use the web interface to change them, or Reset_EEPROM below
 
-#define Reset_EEPROM   // Reset EEPROM settings to config.h. Do this if you have changed default settings below, or
+//#define Reset_EEPROM   // Reset EEPROM settings to config.h. Do this if you have changed default settings below, or
                          // suspect EEPROM settings are corrupt -  USE SPARINGLY. Do not leave this macro active.
                          // Alternatively, during normal operation, hold the designated resetEepromPin high (3.3v)
                          // for more than 10 seconds. For ESP0866, hold the resetEepromPin low (gnd).
@@ -90,9 +90,9 @@ v2.68.02  2022-07 25   Improve udp remote client fc/gcs reporting
 //=================================================================================================
 // Choose only one of these default Flight-Controller-side I/O channels 
 // How does Mavlink telemetry enter this translator?
-//#define FC_Mavlink_IO  0    // Serial Port (default)         
+#define FC_Mavlink_IO  0    // Serial Port (default)         
 //#define FC_Mavlink_IO  1    // BlueTooth Classic - ESP32 only
-#define FC_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
+//#define FC_Mavlink_IO  2    // WiFi - ESP32 or ESP8266 only
 //#define FC_Mavlink_IO  3    // SD Card / TF - ESP32 only
 
 
@@ -148,10 +148,10 @@ v2.68.02  2022-07 25   Improve udp remote client fc/gcs reporting
 //===========================================================
 // Choose only one setting for FrSky Port Type 
 //===========================================================
-#define FrSky_Port_Type 0   // No FrSky Port support needed. Now I'm a "Mavlink Switch"
+//#define FrSky_Port_Type 0   // No FrSky Port support needed. Now I'm a "Mavlink Switch"
 //#define FrSky_Port_Type 1   // F.Port v1
 //#define FrSky_Port_Type 2   // F.Port v2 FrSky ISRM/ACCESS capable transmitters and receivers only
-//#define FrSky_Port_Type 3   // S.Port / legacy
+#define FrSky_Port_Type 3   // S.Port / legacy
 //#define FrSky_Port_Type 4   // Auto detect, will also auto detect speed
 
 
@@ -180,10 +180,10 @@ v2.68.02  2022-07 25   Improve udp remote client fc/gcs reporting
 #define Start_WiFi                              // Start WiFi at startup, override startWiFi pin
 
 #define HostName             "MavToPass"        // This translator's host name
-#define APssid               "UAVS_Ground"             // The AP SSID that we advertise         ====>
+#define APssid               "Crossfire_AP"             // The AP SSID that we advertise         ====>
 #define APpw                 "password"         // Change me! Must be >= 8 chars
 #define APchannel            9                  // The wifi channel to use for our AP
-#define STAssid              "UAVS_Air"            // Target AP to connect to (in STA mode) <====
+#define STAssid              "Crossfire_AP"            // Target AP to connect to (in STA mode) <====
 #define STApw                "password"         // Target AP password (in STA mode). Must be >= 8 chars      
 
 // Choose one default mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
@@ -1190,8 +1190,8 @@ bool daylightSaving = false;
       #endif      
     #endif
 
-    IPAddress AP_default_IP(192, 168, 5, 1); // this IP range changed to avoid identical subnet range offered by FC side AP
-    IPAddress AP_gateway(192, 168, 5, 1);
+    IPAddress AP_default_IP(192, 168, 4, 1); 
+    IPAddress AP_gateway(192, 168, 4, 1);
     IPAddress AP_mask(255, 255, 255, 0);
    
     //IPAddress AP_default_IP(10, 10, 1, 1);

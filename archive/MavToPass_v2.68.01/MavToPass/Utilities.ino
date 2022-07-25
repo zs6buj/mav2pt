@@ -237,7 +237,6 @@
    }
  
    if ((set.wfmode == sta) || (set.wfmode == ap_sta) || (set.wfmode == sta_ap) )  {  // STA mode or AP_STA mode or STA failover to AP mode
-     apFailover = false;
      if (!apFailover) {   
      
       uint8_t retry = 0;
@@ -535,15 +534,9 @@
   }
 
   //=================================================================================================  
-   void printRemoteIP(io_side_t io_side) {
+   void printRemoteIP() {
     if (FtRemIP)  {
       FtRemIP = false;
-      if (io_side == fc_side) {
-        Log.print("FC Side:");
-      } else 
-      if (io_side == gcs_side) {
-        Log.print("GCS Side:");
-      }        
       Log.print("UDP client identified, remote IP: "); Log.print(UDP_remoteIP);
       Log.print(", remote port: "); Log.println(udp_send_port);
       LogScreenPrintln("UDP client connected");
