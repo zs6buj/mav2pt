@@ -58,7 +58,7 @@ v2.68.02  2022-07 25   Improve udp remote client fc/gcs reporting
 //              Most of the settings below are saved to EEPROM the first time mav2pt runs
 //              Use the web interface to change them, or Reset_EEPROM below
 
-#define Reset_EEPROM   // Reset EEPROM settings to config.h. Do this if you have changed default settings below, or
+//#define Reset_EEPROM   // Reset EEPROM settings to config.h. Do this if you have changed default settings below, or
                          // suspect EEPROM settings are corrupt -  USE SPARINGLY. Do not leave this macro active.
                          // Alternatively, during normal operation, hold the designated resetEepromPin high (3.3v)
                          // for more than 10 seconds. For ESP0866, hold the resetEepromPin low (gnd).
