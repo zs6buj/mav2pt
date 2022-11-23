@@ -3089,7 +3089,7 @@ void Send_FC_Heartbeat() {
   apo_base_mode = 0;
   apo_system_status = MAV_STATE_ACTIVE;         // 4
    
-  mavlink_msg_heartbeat_pack(apo_sysid, apo_compid, &G2Fmsg, apo_type, apo_autopilot, apo_base_mode, apo_system_status, 0); 
+  mavlink_msg_heartbeat_pack(apo_sysid, apo_compid, &G2Fmsg, apo_type, apo_autopilot, apo_base_mode, 0, apo_system_status); 
   Send_To_FC(0); 
   #if defined Debug_Our_FC_Heartbeat
      Log.print("Our own heartbeat to FC: #0 Heartbeat: ");  
