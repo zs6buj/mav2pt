@@ -36,42 +36,42 @@
   
   //===============================       H a n d l e   W i F i   E v e n t s 
   
-    void CheckStaLinkStatus();  // Forward declaration 
+    void checkStaLinkStatus();  // Forward declaration 
     
-    void ServiceWiFiRoutines() {
+    void serviceWiFiRoutines() {
       
       SenseWiFiPin();   // check optional start-wifi pin
       
       if ((set.wfmode == sta) && wifiSuGood && wifiSuDone)  { // in sta mode check for disconnect from AP
-        CheckStaLinkStatus();    // Handle disconnect/reconnect from AP
+        checkStaLinkStatus();    // Handle disconnect/reconnect from AP
       }
       
-      ServiceInboundTCPClients();  // from GCS side
+      serviceInboundTCPClients();  // from GCS side
 
       // Report stations connected to/from our AP
       AP_sta_count = WiFi.softAPgetStationNum();
       
       if (AP_sta_count > AP_prev_sta_count) {  
         AP_prev_sta_count = AP_sta_count;
-        Log.printf("Remote STA %d connected to our AP\n", AP_sta_count);  
+        log.printf("Remote STA %d connected to our AP\n", AP_sta_count);  
         snprintf(snprintf_buf, snp_max, "STA %d connected", AP_sta_count);                
         LogScreenPrintln(snprintf_buf); 
         
         if ((set.fc_io == fc_wifi) && (set.mav_wfproto == tcp))  {  // if we expect wifi from the fc, we are a client
           if (!outbound_clientGood) // and we don't have an active tcp session, start a new session
-          outbound_clientGood = NewOutboundTCPClient();
+          outbound_clientGood = newOutboundTCPClient();
         }                         
       } else 
       if (AP_sta_count < AP_prev_sta_count) {      // a device has disconnected from the AP
         AP_prev_sta_count = AP_sta_count;
-        Log.println("A STA disconnected from our AP");     // back in listening mode
+        log.println("A STA disconnected from our AP");     // back in listening mode
         LogScreenPrintln("A STA disconnected"); 
       }
    }  
 
    //===============================     H a n d l e   I n B o u n d   T C P   C l i e n t s ( G C S   s i d e )
 
-   void ServiceInboundTCPClients() {
+   void serviceInboundTCPClients() {
     
     if ((set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt)) {  // Only when we expect incoming remote tcp_client
       
@@ -85,7 +85,7 @@
                 tcp_client[i] = new WiFiClient(newClient);  // create new client object to use
                 inbound_clientGood = true;
                 active_client_idx = i;
-                Log.printf("Remote tcp client %d connected\n", i+1);
+                log.printf("Remote tcp client %d connected\n", i+1);
                 snprintf(snprintf_buf, snp_max, "Client %d connected", i+1);        
                 LogScreenPrintln(snprintf_buf);               
                 break;
@@ -101,7 +101,7 @@
                   tcp_client[i] = NULL;
                   nbdelay(100);  
                   inbound_clientGood = false; 
-                  Log.println("TCP client disconnected");
+                  log.println("TCP client disconnected");
                   LogScreenPrintln("TCP client discnct");           
                 }
                 break;
@@ -114,10 +114,10 @@
 
    //===================     H a n d l e   S T A   D i s c o n n e c t  /  R e c o n n e c t
   
-   void CheckStaLinkStatus() {
+   void checkStaLinkStatus() {
 
       if ( !WiFi.isConnected() )   { 
-        if (!wifiDisconnected) StartWiFiTimer();   // start wifi retry interrupt timer 
+        if (!wifiDisconnected) startWiFiTimer();   // start wifi retry interrupt timer 
         wifiDisconnected = true;
  
         #if (defined ESP32)
@@ -128,20 +128,20 @@
             portENTER_CRITICAL(&timerMux);
            //  do something here if necessary   
             portEXIT_CRITICAL(&timerMux);
-            RestartWiFiSta();
+            restartWiFiSta();
           } 
         #endif  
 
         #if (defined ESP8266)
           if ( (esp8266_wifi_retry_millis > 0) && ( (millis() - esp8266_wifi_retry_millis) > 5000) ) {
-            RestartWiFiSta();
+            restartWiFiSta();
             esp8266_wifi_retry_millis = millis();  // restart timer
           }
         #endif           
 
       } else {
         if (wifiDisconnected) {
-          Log.println("Wifi link restored");
+          log.println("Wifi link restored");
           LogScreenPrintln("Wifi link restored"); 
           wifiDisconnected = false;
           
@@ -158,7 +158,7 @@
    }
    //==================================================  
   
-   void StartWiFiTimer() {
+   void startWiFiTimer() {
     #if (defined ESP32)
       timerAlarmEnable(timer);
     #endif
@@ -169,8 +169,8 @@
     
    }
    //==================================================
-   void RestartWiFiSta() { 
-     Log.println("WiFi link lost - retrying");
+   void restartWiFiSta() { 
+     log.println("WiFi link lost - retrying");
      LogScreenPrintln("Wifilink lost- retry"); 
      WiFi.disconnect(false); 
      if (set.wfmode == ap_sta) {
@@ -224,19 +224,20 @@
     
     apFailover = byte(EEPROM.read(0));              //  Read first eeprom byte
     #if defined Debug_Eeprom
-      Log.print("Read EEPROM apFailover = "); Log.println(apFailover); 
+      log.print("Read EEPROM apFailover = "); log.println(apFailover); 
     #endif
 
     //=====================================  S T A T I O N ========================================== 
 
    if ( (set.fc_io == fc_wifi) && ((set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt)) ) {  // if user selects wifi fc uplink AND wifi gcs downlink simultaneously, then wifi mode must be ap_sta
      if (set.wfmode != ap_sta) {
-       Log.println("User selected wifi fc uplink AND wifi gcs downlink simultaneously. Switching to AP_STA mode");  
+       log.println("User selected wifi fc uplink AND wifi gcs downlink simultaneously. Switching to AP_STA mode");  
        set.wfmode = ap_sta;    
      }
    }
  
    if ((set.wfmode == sta) || (set.wfmode == ap_sta) || (set.wfmode == sta_ap) )  {  // STA mode or AP_STA mode or STA failover to AP mode
+     apFailover = false;
      if (!apFailover) {   
      
       uint8_t retry = 0;
@@ -245,20 +246,20 @@
       
       if (set.wfmode == ap_sta) {
         if (WiFi.mode(WIFI_AP_STA)) {
-           Log.println("WiFi mode set to AP_STA sucessfully"); 
+           log.println("WiFi mode set to AP_STA sucessfully"); 
         } else {
-          Log.println("WiFi mode set to AP_STA failed!");  
+          log.println("WiFi mode set to AP_STA failed!");  
         }
       } else {
         if (WiFi.mode(WIFI_STA)) {
-           Log.println("WiFi mode set to STA sucessfully");  
+           log.println("WiFi mode set to STA sucessfully");  
         } else {
-          Log.println("WiFi mode set to STA failed!");  
+          log.println("WiFi mode set to STA failed!");  
         }
       }
       
-      Log.print("Trying to connect to ");  
-      Log.print(set.staSSID); 
+      log.print("Trying to connect to ");  
+      log.print(set.staSSID); 
       LogScreenPrintln("WiFi trying ..");    
       nbdelay(500);
       
@@ -266,18 +267,18 @@
       while (WiFi.status() != WL_CONNECTED){
         retry++;
         if (retry > 20) {
-          Log.println();
-          Log.println("Failed to connect in STA mode");
+          log.println();
+          log.println("Failed to connect in STA mode");
           LogScreenPrintln("No connect STA Mode");
           if (set.wfmode == sta_ap) {  // STA failover to AP mode
             apFailover = true;         
-            Log.println("Failover to AP. Rebooting ....");
+            log.println("Failover to AP. Rebooting ....");
             LogScreenPrintln("Failover to AP");  
             apFailover = 1;                // set STA failover to AP flag
             EEPROM.write(0, apFailover);   // (addr, val)  
             EEPROM.commit();
             #if defined Debug_Eeprom
-              Log.print("Write EEPROM apFailover = "); Log.println(apFailover); 
+              log.print("Write EEPROM apFailover = "); log.println(apFailover); 
             #endif          
             delay(1000);
             ESP.restart();                 // esp32 and esp8266
@@ -286,7 +287,7 @@
           break;
         }
         nbdelay(500);
-        Log.print(".");
+        log.print(".");
       }
       
       if (WiFi.status() == WL_CONNECTED) {
@@ -294,47 +295,47 @@
         if (set.wfmode == sta_ap) {   // in sta failover to ap mode we had successful sta connect
           set.wfmode = sta;           // so set correct mode      
         }
-        Log.println();
-        Log.println("WiFi connected!");
+        log.println();
+        log.println("WiFi connected!");
                 
         /*use mdns for host name resolution*/
         if (!MDNS.begin(HostName)) { //http://<HostName>.local
-          Log.println("Error setting up MDNS responder!");
+          log.println("Error setting up MDNS responder!");
           while (1) {
            delay(1000);
          }
         }
-        Log.println("mDNS responder started"); 
+        log.println("mDNS responder started"); 
 
         localIP = WiFi.localIP();  // TCP and UDP
    
         UDP_remoteIP = localIP;    // Initially broadcast on the subnet we are attached to. patch by Stefan Arbes. 
         UDP_remoteIP[3] = 255;     // patch by Stefan Arbes  
                                
-        Log.print("Local IP address: ");
-        Log.print(localIP);
+        log.print("Local IP address: ");
+        log.print(localIP);
         if (set.mav_wfproto == tcp)  {   // TCP
-          Log.print("  port: ");
-          Log.println(set.tcp_localPort);    //  UDP port is printed lower down
+          log.print("  port: ");
+          log.println(set.tcp_localPort);    //  UDP port is printed lower down
         } else {
-          Log.println();
+          log.println();
         }
  
         wifi_rssi = WiFi.RSSI();
-        Log.print("WiFi RSSI:");
-        Log.print(wifi_rssi);
-        Log.println(" dBm");
+        log.print("WiFi RSSI:");
+        log.print(wifi_rssi);
+        log.println(" dBm");
 
         LogScreenPrintln("Connected!");
         LogScreenPrintln(localIP.toString());
 
         if (set.mav_wfproto == tcp)  {   // TCP     
           if (set.fc_io == fc_wifi) {    // if we expect wifi from the fc, we are a client, so need a new session
-             outbound_clientGood = NewOutboundTCPClient();
+             outbound_clientGood = newOutboundTCPClient();
           }
    
           TCPserver.begin(set.tcp_localPort);                     //  tcp server socket started
-          Log.println("TCP server started");  
+          log.println("TCP server started");  
           LogScreenPrintln("TCP server started");
         }
 
@@ -350,12 +351,12 @@
           if (set.mav_wfproto == udp) {
             WiFiUDP UDP_STA_Object;        
             udp_object[0] = new WiFiUDP(UDP_STA_Object);   
-            Log.printf("Begin UDP using STA UDP object  read port:%d  send port:%d\n", udp_read_port, udp_send_port);                                                             
+            log.printf("Begin UDP using STA UDP object  read port:%d  send port:%d\n", udp_read_port, udp_send_port);                                                             
             udp_object[0]->begin(udp_read_port);      // there are 2 possible udp objects, STA [0]    and    AP [1]  
           }
           
           if (set.fr_io & 0x02)  {  // UDP
-            Log.printf("Begin UDP using Frs UDP object  read port:%d  send port:%d\n", set.udp_localPort+1, set.udp_remotePort+1);                       
+            log.printf("Begin UDP using Frs UDP object  read port:%d  send port:%d\n", set.udp_localPort+1, set.udp_remotePort+1);                       
             frs_udp_object.begin(set.udp_localPort+1);          // use local port + 1 for Frs out                   
           }
           
@@ -369,14 +370,14 @@
             udpremoteip[1] = UDP_remoteIP;                             // [1] IPs reserved for GCS side              
           }    
  
-          Log.printf("UDP for STA started, local %s   remote %s\n", localIP.toString().c_str(), 
+          log.printf("UDP for STA started, local %s   remote %s\n", localIP.toString().c_str(), 
               UDP_remoteIP.toString().c_str());
           snprintf(snprintf_buf, snp_max, "Local port=%d", set.udp_localPort);     
           LogScreenPrintln(snprintf_buf);
        
         }
         if (set.wfmode == ap_sta) {
-          Start_Access_Point(); 
+          startAccessPoint(); 
         }
         wifiSuGood = true;
         
@@ -386,7 +387,7 @@
         EEPROM.write(0, apFailover);   // (addr, val)  
         EEPROM.commit();
         #if defined Debug_Eeprom
-          Log.print("Clear EEPROM apFailover = "); Log.println(apFailover); 
+          log.print("Clear EEPROM apFailover = "); log.println(apFailover); 
         #endif  
       }
 
@@ -397,9 +398,9 @@
    if ((set.wfmode == ap) || (set.wfmode == sta_ap)) { // AP mode or STA failover to AP mode
     if (!wifiSuGood) {  // not already setup in STA above  
     
-      Log.printf("WiFi mode set to WIFI_AP %s\n", WiFi.mode(WIFI_AP) ? "" : "Failed!"); 
+      log.printf("WiFi mode set to WIFI_AP %s\n", WiFi.mode(WIFI_AP) ? "" : "Failed!"); 
       
-      Start_Access_Point();
+      startAccessPoint();
       
       if (set.wfmode == sta_ap) {  // in sta_ap mode we had successful failover to ap
         set.wfmode = ap;           // so set correct mode      
@@ -412,7 +413,7 @@
    }        // end of AP ===========================================================================         
 
    #if defined Debug_SRAM
-     Log.printf("==============>Free Heap after WiFi setup = %d\n", ESP.getFreeHeap());
+     log.printf("==============>Free Heap after WiFi setup = %d\n", ESP.getFreeHeap());
    #endif
 
    #if defined webSupport
@@ -422,12 +423,12 @@
        std::string s = set.host;
        std::transform(s.begin(), s.end(), s.begin(),
            [](unsigned char c) -> unsigned char { return std::tolower(c); });
-       Log.printf("Web support active on http://%s.local\n", s.c_str()); 
+       log.printf("Web support active on http://%s.local\n", s.c_str()); 
        
-       //Log.println(localIP.toString().c_str());
+       //log.println(localIP.toString().c_str());
        LogScreenPrintln("webSupprt active");  
      }  else {
-       Log.println("No web support possible"); 
+       log.println("No web support possible"); 
        LogScreenPrintln("No web support!");  
      }
    #endif
@@ -436,40 +437,40 @@
     
   } 
   //=================================================================================================  
-  void Start_Access_Point() {
+  void startAccessPoint() {
     
       WiFi.softAP(set.apSSID, set.apPw, set.channel);
       delay(100);
-      Log.print("AP_default_IP:"); Log.print(AP_default_IP); // these print statement give the module time to complete the above setting
-      Log.print("  AP_gateway:"); Log.print(AP_gateway);  
-      Log.print("  AP_mask:"); Log.println(AP_mask);    
+      log.print("AP_default_IP:"); log.print(AP_default_IP); // these print statement give the module time to complete the above setting
+      log.print("  AP_gateway:"); log.print(AP_gateway);  
+      log.print("  AP_mask:"); log.println(AP_mask);    
       WiFi.softAPConfig(AP_default_IP, AP_gateway, AP_mask);
       
       localIP = WiFi.softAPIP();   // tcp and udp
 
-      Log.print("AP IP address: ");
-      Log.print (localIP); 
+      log.print("AP IP address: ");
+      log.print (localIP); 
       snprintf(snprintf_buf, snp_max, "AP IP = %s", localIP.toString().c_str());        
       LogScreenPrintln(snprintf_buf);  
       
-      Log.print("  SSID: ");
-      Log.println(String(set.apSSID));
+      log.print("  SSID: ");
+      log.println(String(set.apSSID));
       LogScreenPrintln("WiFi AP SSID =");
       snprintf(snprintf_buf, snp_max, "%s", set.apSSID);        
       LogScreenPrintln(snprintf_buf);  
 
       /*use mdns for host name resolution*/
       if (!MDNS.begin(HostName)) { //http://<HostName>.local
-        Log.println("Error setting up MDNS responder!");
+        log.println("Error setting up MDNS responder!");
         while (1) {
           delay(1000);
         }
       }
-      Log.println("mDNS responder started"); 
+      log.println("mDNS responder started"); 
       
       if (set.mav_wfproto == tcp)  {         // TCP
           TCPserver.begin(set.tcp_localPort);   //  Server for TCP/IP traffic     
-          Log.printf("TCP/IP started, local IP:port %s:%d\n", localIP.toString().c_str(), set.tcp_localPort);
+          log.printf("TCP/IP started, local IP:port %s:%d\n", localIP.toString().c_str(), set.tcp_localPort);
           snprintf(snprintf_buf, snp_max, "TCP port = %d", set.tcp_localPort);        
           LogScreenPrintln(snprintf_buf);        
         }
@@ -481,14 +482,14 @@
                       
           // Start FrSky UDP Object 
           if (set.fr_io & 0x02) {  
-            Log.printf("Begin UDP using Frs UDP object  read port:%d  send port:%d\n", set.udp_localPort+1, set.udp_remotePort+1);                    
+            log.printf("Begin UDP using Frs UDP object  read port:%d  send port:%d\n", set.udp_localPort+1, set.udp_remotePort+1);                    
             frs_udp_object.begin(set.udp_localPort+1);          // use local port + 1 for Frs out                   
           } 
           
           // Start Mavlink UDP Object 
           WiFiUDP UDP_STA_Object;    
           udp_object[1] = new WiFiUDP(UDP_STA_Object);         
-          Log.printf("Begin UDP using AP UDP object  read port:%d  send port:%d\n", udp_read_port, udp_send_port);                      
+          log.printf("Begin UDP using AP UDP object  read port:%d  send port:%d\n", udp_read_port, udp_send_port);                      
           udp_object[1]->begin(udp_read_port);    // there are 2 possible udp objects, STA [0]    and    AP [1]            
                
           UDP_remoteIP = WiFi.softAPIP();
@@ -501,7 +502,7 @@
           udpremoteip[0] = UDP_remoteIP;
           udpremoteip[1] = UDP_remoteIP; 
           
-          Log.printf("UDP for AP started, local %s   remote %s\n", WiFi.softAPIP().toString().c_str(), 
+          log.printf("UDP for AP started, local %s   remote %s\n", WiFi.softAPIP().toString().c_str(), 
               UDP_remoteIP.toString().c_str());         
           snprintf(snprintf_buf, snp_max, "UDP port = %d", set.udp_localPort);        
           LogScreenPrintln(snprintf_buf);            
@@ -509,23 +510,23 @@
   }
   
   //=================================================================================================  
-  bool NewOutboundTCPClient() {
+  bool newOutboundTCPClient() {
   static uint8_t retry = 3;
 
     WiFiClient newClient;        
     while (!newClient.connect(TCP_remoteIP, TCP_remotePort)) {
-      Log.printf("Local outbound tcp client connect failed, retrying %d\n", retry);
+      log.printf("Local outbound tcp client connect failed, retrying %d\n", retry);
       retry--;
       if (retry == 0) {
-         Log.println("Tcp client connect aborted!");
+         log.println("Tcp client connect aborted!");
          return false;
       }
       nbdelay(4000);
     }
     active_client_idx = 0;     // reserve the first tcp client object for our single outbound session   
     tcp_client[0] = new WiFiClient(newClient); 
-    Log.print("Local tcp client connected to remote server IP:"); Log.print(TCP_remoteIP);
-    Log.print(" remote Port:"); Log.println(TCP_remotePort);
+    log.print("Local tcp client connected to remote server IP:"); log.print(TCP_remoteIP);
+    log.print(" remote Port:"); log.println(TCP_remotePort);
 
     LogScreenPrintln("Client connected");
     LogScreenPrintln("to remote TCP IP =");
@@ -534,11 +535,17 @@
   }
 
   //=================================================================================================  
-   void PrintRemoteIP() {
+   void printRemoteIP(io_side_t io_side) {
     if (FtRemIP)  {
       FtRemIP = false;
-      Log.print("UDP client identified, remote IP: "); Log.print(UDP_remoteIP);
-      Log.print(", remote port: "); Log.println(udp_send_port);
+      if (io_side == fc_side) {
+        log.print("FC Side:");
+      } else 
+      if (io_side == gcs_side) {
+        log.print("GCS Side:");
+      }        
+      log.print("UDP client identified, remote IP: "); log.print(UDP_remoteIP);
+      log.print(", remote port: "); log.println(udp_send_port);
       LogScreenPrintln("UDP client connected");
       LogScreenPrintln("Remote IP =");
       snprintf(snprintf_buf, snp_max, "%s", UDP_remoteIP.toString().c_str());        
@@ -594,23 +601,21 @@ void BlinkMavLed(uint32_t period) {
 
 //=================================================================================================  
 
-void Printbyte(byte b, bool LF, char delimiter) {
+void printbyte(byte b, bool LF, char delimiter) {
   if ((b == 0x7E) && (LF)) {
-    Log.println();
+    log.println();
   }
 
-  if (b<=0xf) Log.print("0");
-  Log.print(b,HEX);
-  Log.write(delimiter);
+  if (b<=0xf) log.print("0");
+  log.print(b,HEX);
+  log.write(delimiter);
 }
 
 //=================================================================================================  
-void PrintMavBuffer(const void *object){
+void printMavBuffer(const void *object){
 
     const unsigned char * const bytes = static_cast<const unsigned char *>(object);
   int j;
-
-uint8_t   tl;
 
 uint8_t mavNum;
 
@@ -618,13 +623,14 @@ uint8_t mavNum;
 uint8_t mav_magic;               // protocol magic marker
 uint8_t mav_len;                 // Length of payload
 
-//uint8_t mav_incompat_flags;    // MAV2 flags that must be understood
-//uint8_t mav_compat_flags;      // MAV2 flags that can be ignored if not understood
-
+uint8_t mavincompat_flags;    // MAV2 flags that must be understood
+uint8_t mavcompat_flags;      // MAV2 flags that can be ignored if not understood
 uint8_t mav_seq;                // Sequence of packet
-//uint8_t mav_sysid;            // ID of message sender system/aircraft
-//uint8_t mav_compid;           // ID of the message sender component
-uint8_t mav_msgid;            
+uint8_t mavsysid;            // ID of message sender system/aircraft
+uint8_t mavcompid;           // ID of the message sender component
+uint8_t mav_msgid; 
+
+           
 /*
 uint8_t mav_msgid_b1;           ///< first 8 bits of the ID of the message 0:7; 
 uint8_t mav_msgid_b2;           ///< middle 8 bits of the ID of the message 8:15;  
@@ -635,7 +641,7 @@ uint16_t mav_checksum;          ///< X.25 crcout
 
   
   if ((bytes[0] == 0xFE) || (bytes[0] == 0xFD)) {
-    j = -2;   // relative position moved forward 2 places
+    j = -2;   // relative position moved forward 2 places for CRC bytes
   } else {
     j = 0;
   }
@@ -647,122 +653,113 @@ uint16_t mav_checksum;          ///< X.25 crcout
     mavNum = 2;
   }
 /* Mav1:   8 bytes header + payload
- * magic
- * length
- * sequence
- * sysid
- * compid
- * msgid
+[2]  0xFE = magic 
+[3]         length
+[4]         incompat_flags
+[5]         mav_compat_flags 
+[6]         sequence
+[7]         sysid
+[8]         compid 
+[9]         msgid  1B long
+
  */
   
   if (mavNum == 1) {
-    Log.print("mav1: /");
+    log.print("mav1: CRC:/");
 
     if (j == 0) {
-      Printbyte(bytes[0], 0, '|');   // crcout1
-      Printbyte(bytes[1], 0, '|');   // crcout2
-      Log.print("/");
+      printbyte(bytes[0], 0, ' ');   // crcout1
+      printbyte(bytes[1], 0, ' ');   // crcout2
+      log.print("/");
       }
     mav_magic = bytes[j+2];   
     mav_len = bytes[j+3];
- //   mav_incompat_flags = bytes[j+4];;
- //   mav_compat_flags = bytes[j+5];;
     mav_seq = bytes[j+6];
- //   mav_sysid = bytes[j+7];
- //   mav_compid = bytes[j+8];
+    mavsysid = bytes[j+7];
+    mavcompid = bytes[j+8];
     mav_msgid = bytes[j+9];
 
-    //Log.print(TimeString(millis()/1000)); Log.print(": ");
-  
-    Log.print("seq="); Log.print(mav_seq); Log.print("\t"); 
-    Log.print("len="); Log.print(mav_len); Log.print("\t"); 
-    Log.print("/");
+    log.print("  seq="); log.print(mav_seq); log.print("\t"); 
+    log.print("paylength="); log.print(mav_len); log.print("\t"); 
+    log.print("header:");
     for (int i = (j+2); i < (j+10); i++) {  // Print the header
-      Printbyte(bytes[i], 0, '|'); 
+     printbyte(bytes[i], 0, ' '); 
     }
-    
-    Log.print("  ");
-    Log.print("#");
-    Log.print(mav_msgid);
-    if (mav_msgid < 100) Log.print(" ");
-    if (mav_msgid < 10)  Log.print(" ");
-    Log.print("\t");
-    
-    tl = (mav_len+10);                // Total length: 8 bytes header + Payload + 2 bytes crcout
- //   for (int i = (j+10); i < (j+tl); i++) {  
-    for (int i = (j+10); i <= (tl); i++) {    
-     Printbyte(bytes[i], 0, '|');     
-    }
-    if (j == -2) {
-      Log.print("//");
-      Printbyte(bytes[mav_len + 8], 0, '|'); 
-      Printbyte(bytes[mav_len + 9], 0, '|'); 
-      }
-    Log.println("//");  
-  } else {
 
-/* Mav2:   10 bytes
- * magic
- * length
- * incompat_flags
- * mav_compat_flags 
- * sequence
- * sysid
- * compid
- * msgid[11] << 16) | [10] << 8) | [9]
+    log.print("  ");
+    log.print("#");
+    log.print(mav_msgid);
+    if (mav_msgid < 100) log.print(" ");
+    if (mav_msgid < 10)  log.print(" ");
+    log.print("\tPayload:");
+
+    //payload
+    uint8_t n = j+14;
+    for (int i = n; i < (n+mav_len); i++) {   
+      printbyte(bytes[i], 0, ' '); 
+    }
+    log.println();
+
+
+  } else {
+    
+/* 
+[0]         crcout1
+[1]         crcout2
+
+Mav2:   10 bytes
+[2]  0xFD = magic 
+[3]         length
+[4]         incompat_flags
+[5]         mav_compat_flags 
+[6]         sequence
+[7]         sysid
+[8]         compid 
+[11][10][9] msgid[11]  3B long
  */
     
-    Log.print("mav2:  /");
+    log.print("mav2:  CRC:/");
     if (j == 0) {
-      Printbyte(bytes[0], 0, '|');   // crcout1
-      Printbyte(bytes[1], 0, '|');   // crcout2 
-      Log.print("/");
+      printbyte(bytes[0], 0, ' ');   // crcout1
+      printbyte(bytes[1], 0, ' ');   // crcout2 
+      log.print("/");
     }
     mav_magic = bytes[2]; 
     mav_len = bytes[3];
-//    mav_incompat_flags = bytes[4]; 
-  //  mav_compat_flags = bytes[5];
+    mavincompat_flags = bytes[4]; 
+    mavcompat_flags = bytes[5];
     mav_seq = bytes[6];
-//    mav_sysid = bytes[7];
-   // mav_compid = bytes[8]; 
+    mavsysid = bytes[7];
+    mavcompid = bytes[8]; 
     mav_msgid = (bytes[11] << 16) | (bytes[10] << 8) | bytes[9]; 
 
-    //Log.print(TimeString(millis()/1000)); Log.print(": ");
-
-    Log.print("seq="); Log.print(mav_seq); Log.print("\t"); 
-    Log.print("len="); Log.print(mav_len); Log.print("\t"); 
-    Log.print("/");
+    log.print("  seq="); log.print(mav_seq); log.print("\t"); 
+    log.print("paylength="); log.print(mav_len); log.print("\t"); 
+    log.print("header:");
     for (int i = (j+2); i < (j+12); i++) {  // Print the header
-     Printbyte(bytes[i], 0, '|'); 
+     printbyte(bytes[i], 0, ' '); 
     }
 
-    Log.print("  ");
-    Log.print("#");
-    Log.print(mav_msgid);
-    if (mav_msgid < 100) Log.print(" ");
-    if (mav_msgid < 10)  Log.print(" ");
-    Log.print("\t");
+    log.print("  ");
+    log.print("#");
+    log.print(mav_msgid);
+    if (mav_msgid < 100) log.print(" ");
+    if (mav_msgid < 10)  log.print(" ");
+    log.print("\tPayload:");
 
- //   tl = (mav_len+27);                // Total length: 10 bytes header + Payload + 2B crcout +15 bytes signature
-    tl = (mav_len+22);                  // This works, the above does not!
-    for (int i = (j+12); i < (tl+j); i++) {   
-       if (i == (mav_len + 12)) {
-        Log.print("/");
-      }
-      if (i == (mav_len + 12 + 2+j)) {
-        Log.print("/");
-      }
-      Printbyte(bytes[i], 0, '|'); 
+    //payload
+    uint8_t k = j+16;
+    for (int i = k; i < (k+mav_len); i++) {   
+      printbyte(bytes[i], 0, ' '); 
     }
-    Log.println();
+    log.println();
   }
 
-   Log.print("Raw: ");
+   log.print("Raw: ");
    for (int i = 0; i < 40; i++) {  //  unformatted
-      Printbyte(bytes[i], 0, '|'); 
+      printbyte(bytes[i], 0, ' '); 
     }
-   Log.println();
-  
+   log.println();
 }
 //=================================================================================================  
 float RadToDeg(float _Rad) {
@@ -889,15 +886,15 @@ void PrintPeriod(bool LF) {
   uint32_t period = now_millis - prev_millis;
   if (period < 10) {
     period = now_micros - prev_micros;
-    Log.printf(" Period uS=%d", period);
+    log.printf(" Period uS=%d", period);
   } else {
-    Log.printf(" Period mS=%d", period);
+    log.printf(" Period mS=%d", period);
   }
 
   if (LF) {
-    Log.print("\t\n");
+    log.print("\t\n");
   } else {
-   Log.print("\t");
+   log.print("\t");
   }
     
   prev_millis=now_millis;
@@ -912,10 +909,10 @@ void PrintLoopPeriod() {
   uint32_t period = now_millis - prev_lp_millis;
   if (period < 10) {
     period = now_micros - prev_lp_micros;
-    Log.printf("Loop Period uS=%d\n", period);
+    log.printf("Loop Period uS=%d\n", period);
   } else {
-    Log.printf("Loop Period mS=%d\n", period);
-    if (period > 5000) Log.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+    log.printf("Loop Period mS=%d\n", period);
+    if (period > 5000) log.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
   }
     
   prev_lp_millis=now_millis;
@@ -931,15 +928,15 @@ void PrintLoopPeriod() {
 #if ((defined ESP32) || (defined ESP8266)) && (defined sdBuiltin)
 
   void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
-    Log.printf("Listing directory: %s\n", dirname);
+    log.printf("Listing directory: %s\n", dirname);
 
     File root = fs.open(dirname);
     if(!root){
-        Log.println("Failed to open directory");
+        log.println("Failed to open directory");
         return;
     }
     if(!root.isDirectory()){
-        Log.println("Not a directory");
+        log.println("Not a directory");
         return;
     }
     
@@ -948,8 +945,8 @@ void PrintLoopPeriod() {
     int i = 0;  
     while(file){
       if(file.isDirectory()){    
-        Log.print("  DIR : ");
-        Log.println(file.name());
+        log.print("  DIR : ");
+        log.println(file.name());
         if(levels){
           listDir(fs, file.name(), levels -1);   //  Recursive :)
           }
@@ -959,10 +956,10 @@ void PrintLoopPeriod() {
       
           fnPath[i] = myStr;
         
-          Log.print("  FILE: "); Log.print(i); Log.print(" ");
-          Log.print(file.name());
-          Log.print("  SIZE: ");
-          Log.println(file.size());
+          log.print("  FILE: "); log.print(i); log.print(" ");
+          log.print(file.name());
+          log.print("  SIZE: ");
+          log.println(file.size());
           i++;    
         }
       }
@@ -972,27 +969,27 @@ void PrintLoopPeriod() {
   }
 
   void writeFile(fs::FS &fs, const char * path, const char * message){
-    Log.printf("Initialising file: %s\n", path);
+    log.printf("Initialising file: %s\n", path);
 
     File file = fs.open(path, FILE_WRITE);
     if(!file){
-        Log.println("Failed to open file for writing");
+        log.println("Failed to open file for writing");
         return;
     }
     if(file.print(message)){
-        Log.println("File initialised");
+        log.println("File initialised");
     } else {
-        Log.println("Write failed");
+        log.println("Write failed");
     }
     file.close();
   }
 
   void deleteFile(fs::FS &fs, const char * path){
-    Log.printf("Deleting file: %s\n", path);
+    log.printf("Deleting file: %s\n", path);
     if(fs.remove(path)){
-        Log.println("File deleted");
+        log.println("File deleted");
     } else {
-        Log.println("Delete failed");
+        log.println("Delete failed");
     }
   }
 
@@ -1093,7 +1090,7 @@ void PrintLoopPeriod() {
       sPath = "/Mav2PT "  + DateTimeString(dt_tm) + ".splog"; 
       LogScreenPrintln("Writing SPlog");  
     }
-  //  Log.print("Path: "); Log.println(sPath); 
+  //  log.print("Path: "); log.println(sPath); 
 
     strcpy(cPath, sPath.c_str());
     writeFile(SD, cPath , "Mavlink to FrSky Passthru by zs6buj");
@@ -1119,18 +1116,18 @@ void PrintLoopPeriod() {
       if (sdStatus == 3) {     //  if open for write
           File file = SD.open(cPath, FILE_APPEND);
           if(!file){
-             Log.println("Failed to open file for appending");
+             log.println("Failed to open file for appending");
              sdStatus = 9;
              return;
             }
             
           if(file.write(sd_buf, sd_buf_sz)){   // write contents of buffer to SD
             } else {
-            Log.println("Append failed");
+            log.println("Append failed");
            }          
           if(file.print(SD_Byte)){
           } else {
-            Log.println("SD Write failed");
+            log.println("SD Write failed");
           }
           
           sd_idx = 0;
@@ -1138,10 +1135,10 @@ void PrintLoopPeriod() {
         
           #ifdef  Debug_SD
             for (int i = 0 ; i < sd_buf_sz ; i++) {
-              Printbyte(sd_buf[i], false, '>');
-              if ((i>0) && (i%40 == 0)) Log.println();
+              printbyte(sd_buf[i], false, '>');
+              if ((i>0) && (i%40 == 0)) log.println();
             }
-           Log.println("|");
+           log.println("|");
           #endif  
           return;      
         }
@@ -1350,13 +1347,13 @@ uint16_t prep_number(int32_t number, uint8_t digits, uint8_t power)
     } else if ((digits == 2) && (power == 2)) { // number encoded on 9 bits: 7 bits for digits + 2 for 10^power
         if (abs_number < 100) {
             res = abs_number<<2;
-         //   Log.print("abs_number<100  ="); Log.print(abs_number); Log.print(" res="); Log.print(res);
+         //   log.print("abs_number<100  ="); log.print(abs_number); log.print(" res="); log.print(res);
         } else if (abs_number < 1000) {
             res = ((uint8_t)roundf(abs_number * 0.1f)<<2)|0x1;
-         //   Log.print("abs_number<1000  ="); Log.print(abs_number); Log.print(" res="); Log.print(res);
+         //   log.print("abs_number<1000  ="); log.print(abs_number); log.print(" res="); log.print(res);
         } else if (abs_number < 10000) {
             res = ((uint8_t)roundf(abs_number * 0.01f)<<2)|0x2;
-          //  Log.print("abs_number<10000  ="); Log.print(abs_number); Log.print(" res="); Log.print(res);
+          //  log.print("abs_number<10000  ="); log.print(abs_number); log.print(" res="); log.print(res);
         } else if (abs_number < 127000) {
             res = ((uint8_t)roundf(abs_number * 0.001f)<<2)|0x3;
         } else { // transmit max possible value (0x7F x 10^3 = 127000)
@@ -1425,84 +1422,84 @@ uint32_t start;
 //================================================================================================= 
 #if (defined ESP32)
 void WiFiEventHandler(WiFiEvent_t event)  {
-    Log.printf("[WiFi-event] event: %d ", event);
+    log.printf("[WiFi-event] event: %d ", event);
 
     switch (event) {
         case SYSTEM_EVENT_WIFI_READY: 
-            Log.println("WiFi interface ready");
+            log.println("WiFi interface ready");
             break;
         case SYSTEM_EVENT_SCAN_DONE:
-            Log.println("Completed scan for access points");
+            log.println("Completed scan for access points");
             break;
         case SYSTEM_EVENT_STA_START:
-            Log.println("WiFi client started");
+            log.println("WiFi client started");
             break;
         case SYSTEM_EVENT_STA_STOP:
-            Log.println("WiFi client stopped");
+            log.println("WiFi client stopped");
             break;
         case SYSTEM_EVENT_STA_CONNECTED:
-            Log.println("Connected to access point");
+            log.println("Connected to access point");
             break;
         case SYSTEM_EVENT_STA_DISCONNECTED:
-            Log.println("Disconnected from WiFi access point");
+            log.println("Disconnected from WiFi access point");
             break;
         case SYSTEM_EVENT_STA_AUTHMODE_CHANGE:
-            Log.println("Authentication mode of access point has changed");
+            log.println("Authentication mode of access point has changed");
             break;
         case SYSTEM_EVENT_STA_GOT_IP:
-            Log.print("Obtained IP address: ");
-            Log.println(WiFi.localIP());
+            log.print("Obtained IP address: ");
+            log.println(WiFi.localIP());
             break;
         case SYSTEM_EVENT_STA_LOST_IP:
-            Log.println("Lost IP address and IP address is reset to 0");
+            log.println("Lost IP address and IP address is reset to 0");
             break;
         case SYSTEM_EVENT_STA_WPS_ER_SUCCESS:
-            Log.println("WiFi Protected Setup (WPS): succeeded in enrollee mode");
+            log.println("WiFi Protected Setup (WPS): succeeded in enrollee mode");
             break;
         case SYSTEM_EVENT_STA_WPS_ER_FAILED:
-            Log.println("WiFi Protected Setup (WPS): failed in enrollee mode");
+            log.println("WiFi Protected Setup (WPS): failed in enrollee mode");
             break;
         case SYSTEM_EVENT_STA_WPS_ER_TIMEOUT:
-            Log.println("WiFi Protected Setup (WPS): timeout in enrollee mode");
+            log.println("WiFi Protected Setup (WPS): timeout in enrollee mode");
             break;
         case SYSTEM_EVENT_STA_WPS_ER_PIN:
-            Log.println("WiFi Protected Setup (WPS): pin code in enrollee mode");
+            log.println("WiFi Protected Setup (WPS): pin code in enrollee mode");
             break;
         case SYSTEM_EVENT_AP_START:
-            Log.println("WiFi access point started");
+            log.println("WiFi access point started");
             break;
         case SYSTEM_EVENT_AP_STOP:
-            Log.println("WiFi access point  stopped");
+            log.println("WiFi access point  stopped");
             break;
         case SYSTEM_EVENT_AP_STACONNECTED:
-            Log.println("Client connected");
+            log.println("Client connected");
             break;
         case SYSTEM_EVENT_AP_STADISCONNECTED:
-            Log.println("Client disconnected");
+            log.println("Client disconnected");
             break;
         case SYSTEM_EVENT_AP_STAIPASSIGNED:
-            Log.println("Assigned IP address to client");
+            log.println("Assigned IP address to client");
             break;
         case SYSTEM_EVENT_AP_PROBEREQRECVED:
-            Log.println("Received probe request");
+            log.println("Received probe request");
             break;
         case SYSTEM_EVENT_GOT_IP6:
-            Log.println("IPv6 is preferred");
+            log.println("IPv6 is preferred");
             break;
         case SYSTEM_EVENT_ETH_START:
-            Log.println("Ethernet started");
+            log.println("Ethernet started");
             break;
         case SYSTEM_EVENT_ETH_STOP:
-            Log.println("Ethernet stopped");
+            log.println("Ethernet stopped");
             break;
         case SYSTEM_EVENT_ETH_CONNECTED:
-            Log.println("Ethernet connected");
+            log.println("Ethernet connected");
             break;
         case SYSTEM_EVENT_ETH_DISCONNECTED:
-            Log.println("Ethernet disconnected");
+            log.println("Ethernet disconnected");
             break;
         case SYSTEM_EVENT_ETH_GOT_IP:
-            Log.println("Obtained IP address");
+            log.println("Obtained IP address");
             break;
         default: break;
     }
@@ -1545,15 +1542,15 @@ void WiFiEventHandler(WiFiEvent_t event)  {
       uint32_t period = now_millis - prev_pt_millis;
       if (period < 10) {
         period = now_micros - prev_pt_micros;
-        Log.printf(" FrPeriod uS=%d", period);
+        log.printf(" FrPeriod uS=%d", period);
       } else {
-        Log.printf(" FrPeriod mS=%d", period);
+        log.printf(" FrPeriod mS=%d", period);
       }
 
       if (LF) {
-        Log.print("\t\n");
+        log.print("\t\n");
       } else {
-       Log.print("\t");
+       log.print("\t");
       }
     
       prev_pt_millis=now_millis;
@@ -1617,10 +1614,10 @@ void WiFiEventHandler(WiFiEvent_t event)  {
         esp_bt_mem_release(ESP_BT_MODE_BTDM);
         btActive = false;
         btDisabled = true;
-        Log.println("Bluetooth disabled to free up SRAM for web support. PROCEED TO REBOOT for BT to be restored"); 
+        log.println("Bluetooth disabled to free up SRAM for web support. PROCEED TO REBOOT for BT to be restored"); 
         LogScreenPrintln("Bluetooth disabled");               
         #if ((defined ESP32) || (defined ESP8266)) && (defined Debug_SRAM)
-          Log.printf("==============>Free Heap after bluetooth disabled = %d\n", ESP.getFreeHeap());
+          log.printf("==============>Free Heap after bluetooth disabled = %d\n", ESP.getFreeHeap());
         #endif
       }
     #endif
@@ -1670,7 +1667,7 @@ void WiFiEventHandler(WiFiEvent_t event)  {
         DisplayFlightInfo();             
       }
       
-      //Log.printf("busy=%d  new=%d log=%d  bounce=%d  info=%d\n", infoPressBusy, infoNewPress, show_log, info_debounce_millis, info_millis); 
+      //log.printf("busy=%d  new=%d log=%d  bounce=%d  info=%d\n", infoPressBusy, infoNewPress, show_log, info_debounce_millis, info_millis); 
       
      #if ((defined ESP32) || (defined ESP8266))         
       if ( (Tup != 99) && (Tdn != 99) ) {         // if ESP touch pin-pair enumerated
@@ -1693,7 +1690,7 @@ void WiFiEventHandler(WiFiEvent_t event)  {
           dnButton = !digitalRead(Pdn);               
         #endif       
 
-        //Log.printf("upButton:%u  dnButton:%u\n", upButton, dnButton);
+        //log.printf("upButton:%u  dnButton:%u\n", upButton, dnButton);
         if (upButton) {                 
           Scroll_Display(up);
         }      
@@ -1786,7 +1783,7 @@ void WiFiEventHandler(WiFiEvent_t event)  {
       }
       uint16_t lth = strlen(S.c_str());           // store the new line a char at a time
       if (lth > scr_w_ch) {    
-        Log.printf("Display width of %d exceeded for |%s|\n", scr_w_ch, S.c_str());  // scr_w_ch = max_col-1
+        log.printf("Display width of %d exceeded for |%s|\n", scr_w_ch, S.c_str());  // scr_w_ch = max_col-1
         lth = scr_w_ch-1;  // prevent array overflow
       }
 
@@ -1807,7 +1804,7 @@ void WiFiEventHandler(WiFiEvent_t event)  {
       col = 0;
       row++;
       if (row > max_row-1) {
-        Log.println("Display rows exceeded!");
+        log.println("Display rows exceeded!");
         row = max_row-1;  // prevent array overflow
       }
       last_log_millis = millis();             // and enable toggle button again
@@ -1837,7 +1834,7 @@ void WiFiEventHandler(WiFiEvent_t event)  {
        
       uint8_t lth = strlen(S.c_str());          // store the line a char at a time
       if (lth > scr_w_ch) {
-        Log.printf("Display width of %d exceeded for |%s|\n", scr_w_ch, S.c_str());  // scr_w_ch = max_col-1
+        log.printf("Display width of %d exceeded for |%s|\n", scr_w_ch, S.c_str());  // scr_w_ch = max_col-1
         lth = scr_w_ch-1;  // prevent array overflow
       }  
 

@@ -5,8 +5,8 @@
 // 
 
 #define MAJOR_VERSION      2
-#define MINOR_VERSION      67
-#define PATCH_LEVEL        17
+#define MINOR_VERSION      68
+#define PATCH_LEVEL        04
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -16,26 +16,19 @@ Complete change log and debugging options are at the bottom of this tab
 
 GitHub Tag
 ----------                                            
-  
-V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS 
-V2.67.08  2021-12-03   Fix OTA in AP mode with embedded jquery (acknowledgement M.Mastenbroek)
-v2.67.09  2021-12-10   No web input fields for BT if BT not compiled in. (PR by Vabe7) 
-v2.67.10  2021-12-13   Retro fix APM bat capacity request. 
-v2.67.11  2022-01-13   Add F.Port to SBUS functionality 
-                       Add SoftwareSerial option for mavSerial on ESP32 
-        D 2022-01-14   Fix converting a string constant to ‘char* with (char*) cast                                     
-                       First guess at SBUS pins on ESP32 variants 
-v2.67.12  2022-01-31   Clean up ESP8266 compile (sbus options) 
-v2.67.13  2022-02-01   Enable FC serial passthrough (on Teensy 3.x only)  
-V2.67.14  2022-04-06   define Reset_EEPROM resurected     
-v2.67.15  2022-05-05   Fixed nasty transposition of udp local and remote port numbers   
 v2.67.16  2022-05-12   Clear sb[idx].inuse at end of popNexFrame()      
           2022-05-24   Improve FC and GCS uart read 
           2022-05-25   Refresh web interface.  
 v2.67.17  2022-05-31   Revert battery current UOM fro cA back to dA (v2.62.8) - ninja-zx11 
        bc  2022-06-02  Also OLED disply, pt_bat1_amps * 0.1F -> 
        d   2022-06-02  Also ILI9341_Display, and mAh!
-v2.67.18  2022-06-04   Fix OLED display amps, 0x5003 uom is dA, but divided again                                                                                                                          
+v2.67.18  2022-06-04   Fix OLED display amps display, 0x5003 uom is dA, but divided again   
+v2.68.00  2022-06-07   Add support for command_long from GCS 
+v2.68.01  2022-06-10   Correct 5009 waypoints, 500A rpm, 500B terrain, 50f1 servo_raw, 50f2 hud, 50f3 wind
+          2022-06-28   Update printMavBuffer().
+v2.68.02  2022-07 25   Improve udp remote client fc/gcs reporting 
+v2.68.03  2022-10-22   Revise current calculation from Mav to pt yet again  
+v2.68.04  2022-11-22   PR by Hasi123. apo_system_status offset in mavlink_msg_heartbeat_pack()                                                                                                      
 */
 
 //=================================================================================================                            
@@ -44,11 +37,11 @@ v2.67.18  2022-06-04   Fix OLED display amps, 0x5003 uom is dA, but divided agai
 
 // Board is derived from board selected in IDE, variant is selected here
 
-//#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
+#define ESP32_Variant     1    //  ESP32 Dev Board - Use Partition Scheme: "Minimal SPIFFS(1.9MB APP...)"
 //#define ESP32_Variant     2    //  Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
 //#define ESP32_Variant     3    //  Dragonlink V3 slim with internal ESP32 - contributed by Noircogi - Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     4    //  Heltec Wifi Kit 32 - Use Partition Scheme: "Minimal SPIFFS(Large APPS with OTA)" - contributed by Noircogi select Heltec wifi kit
-#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
+//#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     7    //  ESP32 Dev Board with separate ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
 
@@ -65,9 +58,9 @@ v2.67.18  2022-06-04   Fix OLED display amps, 0x5003 uom is dA, but divided agai
 //=================================================================================================
 
 //              Most of the settings below are saved to EEPROM the first time mav2pt runs
-//              Use the web interface to change them, or Reset_EEPROM below
+//              Use the web interface to change them, or RESET_NVS below
 
-//#define Reset_EEPROM   // Reset EEPROM settings to config.h. Do this if you have changed default settings below, or
+//#define RESET_NVS   // Reset NVM settings to config.h. Do this if you have changed default settings below, or
                          // suspect EEPROM settings are corrupt -  USE SPARINGLY. Do not leave this macro active.
                          // Alternatively, during normal operation, hold the designated resetEepromPin high (3.3v)
                          // for more than 10 seconds. For ESP0866, hold the resetEepromPin low (gnd).
@@ -189,10 +182,10 @@ v2.67.18  2022-06-04   Fix OLED display amps, 0x5003 uom is dA, but divided agai
 #define Start_WiFi                              // Start WiFi at startup, override startWiFi pin
 
 #define HostName             "MavToPass"        // This translator's host name
-#define APssid               "Crossfire_AP"             // The AP SSID that we advertise         ====>
+#define APssid               "AP_SSID"          // The AP SSID that we advertise         ====>
 #define APpw                 "password"         // Change me! Must be >= 8 chars
 #define APchannel            9                  // The wifi channel to use for our AP
-#define STAssid              "Crossfire_AP"            // Target AP to connect to (in STA mode) <====
+#define STAssid              "STA_SSID"         // Target AP to connect to (in STA mode) <====
 #define STApw                "password"         // Target AP password (in STA mode). Must be >= 8 chars      
 
 // Choose one default mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
@@ -371,10 +364,10 @@ bool daylightSaving = false;
     #define MavStatusLed   02        // Onboard LED
     #define InvertMavLed  false      
     #define BufStatusLed   99        // Mavlink serial tx    99=none 
-    #define fc_rxPin       27        // Mavlink serial rx
-    #define fc_txPin       26        // Mavlink serial tx
-    #define fr_rxPin       16        // FPort- Not used in 1-wire mode DON'T use 12!
-    #define fr_txPin        4        // FPorttx - Use me in single wire mode
+    #define fc_rxPin       16        // 27 Mavlink serial rx
+    #define fc_txPin       17        // 26 Mavlink serial tx
+    #define fr_rxPin       13        // FPort- Not used in 1-wire mode DON'T use 12!
+    #define fr_txPin       12        // FPorttx - Use me in single wire mode
     #define sbus_rxPin     99        // not used - don't care
     #define sbus_txPin     14        // ?try 17 Optional SBUS out pin     
     #define startWiFiPin    5        // Trigger WiFi startup  
@@ -1199,8 +1192,8 @@ bool daylightSaving = false;
       #endif      
     #endif
 
-    IPAddress AP_default_IP(192, 168, 4, 1); 
-    IPAddress AP_gateway(192, 168, 4, 1);
+    IPAddress AP_default_IP(192, 168, 5, 1); // this IP range changed to avoid identical subnet range offered by FC side AP
+    IPAddress AP_gateway(192, 168, 5, 1);
     IPAddress AP_mask(255, 255, 255, 0);
    
     //IPAddress AP_default_IP(10, 10, 1, 1);
@@ -1211,7 +1204,7 @@ bool daylightSaving = false;
    
     #define max_clients    6
     uint8_t active_client_idx = 0;  // for TCP 
-    uint8_t active_object_idx = 0;  // for UDP
+    uint8_t active_udp_obj_idx = 0;  // for UDP
 
     WiFiClient *tcp_client[max_clients] = {NULL}; // pointers to TCP client objects 
     
@@ -1239,7 +1232,7 @@ bool daylightSaving = false;
   #include <driver/uart.h>  // In Arduino ESP32 install repo FOR 
   //C:\Users\<YourName>\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\tools\sdk\include\driver
 
-  #define Log                 Serial         // USB UART0
+  #define log                 Serial         // USB UART0
 
   #if defined ESP32_Mav_SoftwareSerial
     #include <SoftwareSerial.h>
@@ -1312,10 +1305,10 @@ bool daylightSaving = false;
 
 //#define Debug_Read_UDP_GCS  
 
-//#define Debug_Send_UDP_GCS
+//#define Debug_sendUDP_GCS
 
 //#define Debug_Read_UDP_FC  
-//#define Debug_Send_UDP_FC  
+//#define Debug_sendUDP_FC  
 
 //#define Mav_Debug_Servo
 //#define Frs_Debug_Servo
@@ -1365,7 +1358,9 @@ bool daylightSaving = false;
 //#define Debug_SD   
 //#define Debug_WiFi
 //#define Debug_Loop_Period
-//#define Mav_Debug_Command_Ack
+
+//#define Mav_Debug_Commands
+
 //#define Debug_SRAM
 
 //#define Debug_Web_Settings
@@ -1383,14 +1378,16 @@ bool daylightSaving = false;
 //#define Support_SBUS_Out 
 //#define Debug_Read_TCP
 //#define Debug_Read_UDP
-//#define Debug_Send_TCP
-//#define Debug_Send_UDP
+//#define Debug_sendTCP
+//#define Debug_sendUDP
 //#define Debug_Inject_Delay
 //#define MavLite_Debug_Scheduler
 //#define Debug_Mavlite 
 //#define Debug_Mavlite_Chunking
 //#define Debug_Mavlite_SPort
+
 //#define Mav_List_Params       // Use this to test uplink to Flight Controller 
+
 //#define Debug_FrPort_Stream 
 //#define Debug_FrPort_Stream_Out
 //#define Debug_FrPort_Safe_Read
@@ -1650,5 +1647,17 @@ v2.67.04  2021-08-19   Add NVM reset pins for ESP8266
                        Tinfo and Pinfo pins obsolete, removed code
 v2.67.05  2021-09-11   Tidy up Mavlink BT to GCS    
 V2.67.06  2021-11-25   Reset NVM settings to config settings if fw version change detected
-                       On NVM reset call RawSettingsToStruct() and reboot                                                                                                                                                                                                                                                                                                                         
+                       On NVM reset call RawSettingsToStruct() and reboot  
+V2.67.07  2021-11-30   Special configuration, wifi from FC, serial to GCS 
+V2.67.08  2021-12-03   Fix OTA in AP mode with embedded jquery (acknowledgement M.Mastenbroek)
+v2.67.09  2021-12-10   No web input fields for BT if BT not compiled in. (PR by Vabe7) 
+v2.67.10  2021-12-13   Retro fix APM bat capacity request. 
+v2.67.11  2022-01-13   Add F.Port to SBUS functionality 
+                       Add SoftwareSerial option for mavSerial on ESP32 
+        D 2022-01-14   Fix converting a string constant to ‘char* with (char*) cast                                     
+                       First guess at SBUS pins on ESP32 variants 
+v2.67.12  2022-01-31   Clean up ESP8266 compile (sbus options) 
+v2.67.13  2022-02-01   Enable FC serial passthrough (on Teensy 3.x only)  
+V2.67.14  2022-04-06   define RESET_NVS resurected     
+v2.67.15  2022-05-05   Fixed nasty transposition of udp local and remote port numbers                                                                                                                                                                                                                                                                                                                                                 
 */

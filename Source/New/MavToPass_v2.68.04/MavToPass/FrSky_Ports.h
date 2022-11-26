@@ -27,13 +27,13 @@
   int8_t    THR_To_63(uint16_t);
   void      nbdelay(uint32_t);
   void      LogScreenPrintln(String);
-  void      Printbyte(byte, bool, char);
+  void      printbyte(byte, bool, char);
   void      PrintMavLiteUplink();
   void      PrintFrPeriod(bool);
   void      PrintLoopPeriod();
   uint8_t   PX4FlightModeNum(uint8_t, uint8_t);
-  void      Mavlink_Param_Request_Read(int16_t, char *);
-  void      Mavlink_Param_Set();
+  void      mavParamRequestRead(int16_t, char *);
+  void      mavParamSet();
   void      Send_Mavlink_Command_Long();
   void      SP_Byte_To_SD(byte);
   String    MavSeverity(uint8_t);
@@ -307,17 +307,17 @@
         static int8_t cdown = 5;     
         while ( (pol == no_traffic) && (cdown) ){
           if (ftp) {
-            Log.printf("FrSky Port: No telem on pin:%d. Retrying ", sense_pin);
+            log.printf("FrSky Port: No telem on pin:%d. Retrying ", sense_pin);
             String sPin=String(sense_pin);   // integer to string
             LogScreenPrintln("No telem on rxpin:"+ sPin);            
             ftp = false;
           }
-          Log.print(cdown); Log.print(" ");
+          log.print(cdown); log.print(" ");
           pol = (pol_t)getPolarity(sense_pin);         
           delay(50);      
           if (cdown-- == 1 ) {
-            Log.println();
-            Log.println("Auto sensing abandoned. Defaulting to S.Port");
+            log.println();
+            log.println("Auto sensing abandoned. Defaulting to S.Port");
             LogScreenPrintln("Default to SPort!");
             pol = idle_low;  
             set.frport = s_port;  
@@ -325,14 +325,14 @@
           }
         }  // end of while()
         
-        if (!ftp) Log.println();
+        if (!ftp) log.println();
       
         if (pol == idle_low) {
           frInvert = true;
-          Log.printf("Sensed serial port pin %d is IDLE_LOW, inverting polarity\n", sense_pin);
+          log.printf("Sensed serial port pin %d is IDLE_LOW, inverting polarity\n", sense_pin);
         } else {
           frInvert = false;
-          Log.printf("Sensed serial port pin %d is IDLE_HIGH, regular rx polarity\n", sense_pin);        
+          log.printf("Sensed serial port pin %d is IDLE_HIGH, regular rx polarity\n", sense_pin);        
         }
       
         if (set.frport == f_auto) {
@@ -343,19 +343,19 @@
     if (set.frport == s_port) {
         frInvert = true;
         frBaud = 57600;  
-        Log.printf("S.Port at 57.6kb/s selected on rxpin:%d is IDLE_LOW, inverting rx polarity\n", fr_rxPin);           
+        log.printf("S.Port at 57.6kb/s selected on rxpin:%d is IDLE_LOW, inverting rx polarity\n", fr_rxPin);           
     } 
        
     if (set.frport == f_port1) {  
         frInvert = false;
         frBaud = 115200; 
-        Log.printf("F.Port1 at 115.2kb/s selected on rxpin:%d is IDLE_HIGH, regular rx polarity\n", fr_rxPin);                 
+        log.printf("F.Port1 at 115.2kb/s selected on rxpin:%d is IDLE_HIGH, regular rx polarity\n", fr_rxPin);                 
     }  
     
     if (set.frport == f_port2) {  
         frInvert = false;
         frBaud = 115200; 
-        Log.printf("F.Port2 at 115.2kb/s selected on rxpin:%d is IDLE_HIGH, regular rx polarity\n", fr_rxPin);                
+        log.printf("F.Port2 at 115.2kb/s selected on rxpin:%d is IDLE_HIGH, regular rx polarity\n", fr_rxPin);                
     }      
     
     // end of polarity and baud setup            
@@ -370,26 +370,26 @@
 
       #if ( (defined ESP8266) || ( (defined ESP32) && (defined ESP32_Frs_SoftwareSerial)) )
           if (set.trmode == ground) {
-            Log.printf("FrSky is 1-wire simplex on tx pin:%d\n", frTx);
+            log.printf("FrSky is 1-wire simplex on tx pin:%d\n", frTx);
           } else { 
-            Log.printf("FrSky on pins rx:%d and tx:%d\n", frRx, frTx);
+            log.printf("FrSky on pins rx:%d and tx:%d\n", frRx, frTx);
           }  
 
           delay(100);
           frSerial.begin(frBaud, SWSERIAL_8N1, frRx, frTx, frInvert);     // SoftwareSerial
           delay(100);
-          Log.println("Using SoftwareSerial for F.Port");
+          log.println("Using SoftwareSerial for F.Port");
 
       #else  // ESP HardwareSerial
           delay(100);
           frSerial.begin(frBaud, SERIAL_8N1, frRx, frTx, frInvert); 
           delay(100);         
           if ((set.trmode == air) || (set.trmode == relay) || (set.Support_MavLite)) {
-            Log.printf("FrSky half-duplex on pins rx:%d and tx:%d\n", frRx, frTx);  
-            Log.println("For 1-wire applications a 2-wire to 1-wire converter or diode is required");
+            log.printf("FrSky half-duplex on pins rx:%d and tx:%d\n", frRx, frTx);  
+            log.println("For 1-wire applications a 2-wire to 1-wire converter or diode is required");
           } else          
           if (set.trmode == ground)  {                        
-            Log.printf("FrSky simplex on tx pin = %d\n", frTx);
+            log.printf("FrSky simplex on tx pin = %d\n", frTx);
           }    
       #endif    
        
@@ -406,11 +406,11 @@
       frSerial.begin(frBaud, SERIAL_8N1); 
       delay(100);         
       if ((set.trmode == air) || (set.trmode == relay) || (set.Support_MavLite)) {
-        Log.printf("FrSky half-duplex on pins rx:%d and tx:%d\n", frRx, frTx);  
-        Log.println("For 1-wire applications a 2-wire to 1-wire converter or diode is required");
+        log.printf("FrSky half-duplex on pins rx:%d and tx:%d\n", frRx, frTx);  
+        log.println("For 1-wire applications a 2-wire to 1-wire converter or diode is required");
       } else          
       if (set.trmode == ground)  {                        
-        Log.printf("FrSky simplex on tx pin = %d\n", frTx);
+        log.printf("FrSky simplex on tx pin = %d\n", frTx);
       } 
      if (frInvert) {
        FrSkyPort::set_gpio_in_inv(fr_rxPin); 
@@ -432,9 +432,9 @@
          }
        #if (defined Teensy_One_Wire)  // default
          UART0_C1 = 0xA0;       // Switch Serial1 to single wire (half-duplex) mode  
-         Log.printf("FrSky 1-wire half-duplex on Teensy3.x pin %d \n", fr_txPin);          
+         log.printf("FrSky 1-wire half-duplex on Teensy3.x pin %d \n", fr_txPin);          
        #else
-         Log.printf(" and 2-wire full-duplex on Teensy3.x pins rx=%d  tx=%x\n", fr_rxPin, fr_txPin);  
+         log.printf(" and 2-wire full-duplex on Teensy3.x pins rx=%d  tx=%x\n", fr_rxPin, fr_txPin);  
        #endif
         /*
         UART0_C3 |= 0x20;    // Switch F.Port into send mode
@@ -449,9 +449,9 @@
        }
        #if (defined Teensy_One_Wire)
          UART2_C1 = 0xA0;       // Switch Serial1 to single wire mode
-         Log.printf(" and 1-wire half-duplex on Teensy3.x pin %d \n", fr_txPin);         
+         log.printf(" and 1-wire half-duplex on Teensy3.x pin %d \n", fr_txPin);         
        #else
-         Log.printf(" and 2-wire full-duplex on Teensy3.x pins rx=%d  tx=%x\n", fr_rxPin, fr_txPin);  
+         log.printf(" and 2-wire full-duplex on Teensy3.x pins rx=%d  tx=%x\n", fr_rxPin, fr_txPin);  
        #endif
           
 
@@ -467,13 +467,13 @@
         if (set.frport== f_auto) {     
           frport_id = Read_And_GetID_FrPort();   // loop thru until not f_none, avoids wait-on-read block    
           if (frport_id == s_port) {
-            Log.println("SPort detected");         
+            log.println("SPort detected");         
           } else
           if (frport_id == f_port1) {        
-            Log.println("FPort1 detected");   
+            log.println("FPort1 detected");   
           } else
           if (frport_id == f_port2) {        
-            Log.println("FPort2 detected");   
+            log.println("FPort2 detected");   
           }
         } else {
           frport_id = set.frport;
@@ -522,7 +522,7 @@
       lth=frSerial.available();  
       if (lth < 10) {
         if (lth > 0) {
-          //Log.printf("lth=%d\n", lth); 
+          //log.printf("lth=%d\n", lth); 
         }
         return f_none;       // prevent 'wait-on-read' blocking
       }
@@ -536,7 +536,7 @@
       static int8_t   fp2 = 0;  
       static uint8_t   prev_b = 0; 
       
-      //Log.printf("b:%X  prevb:%X  sp:%u  fp1:%u  fp2:%u\n", b, prev_b, sp, fp1, fp2);
+      //log.printf("b:%X  prevb:%X  sp:%u  fp1:%u  fp2:%u\n", b, prev_b, sp, fp1, fp2);
       if ((prev_b == 0x7E) && ( (b == 0x08) || (b == 0x19))) { 
         fp1++;     
         sp = 0;
@@ -551,7 +551,7 @@
       
       if ((prev_b == 0x7E) && (b == 0x1B)) {
         sp++;   
-       //Log.printf("b:%X  prevb:%X  sp:%u xxxxxxxxxxxxxxxxxxxxxxxxx\n", b, prev_b, sp);   
+       //log.printf("b:%X  prevb:%X  sp:%u xxxxxxxxxxxxxxxxxxxxxxxxx\n", b, prev_b, sp);   
         if (sp > 10) {
           sp = 0;
           fp1 = 0;
@@ -613,7 +613,7 @@
 
         byt =  FrSkyPort::ReadByte();        // no bytestuff
         if (fr_idx > fr_max -1) {
-         // Log.println("S.Port from X Receiver read buff overflow ignored");
+         // log.println("S.Port from X Receiver read buff overflow ignored");
           fr_idx--;
         }
 
@@ -652,7 +652,7 @@
       lth=frSerial.available();  
       if (lth < 10) {
         if (lth > 0) {
-          //Log.printf("lth=%d\n", lth); 
+          //log.printf("lth=%d\n", lth); 
         }
         return;       // prevent 'wait-on-read' blocking
       }
@@ -662,7 +662,7 @@
         if (millis() - FrSkyPort::packetloss_millis > period) {
           FrSkyPort::packetloss_millis = millis();
           float packetloss = float(float(FrSkyPort::badFrames * 100) / float(FrSkyPort::goodFrames + FrSkyPort::badFrames));
-          Log.printf("goodFrames:%d   badFrames:%d   frame loss:%.3f%%\n", FrSkyPort::goodFrames, FrSkyPort::badFrames, packetloss);
+          log.printf("goodFrames:%d   badFrames:%d   frame loss:%.3f%%\n", FrSkyPort::goodFrames, FrSkyPort::badFrames, packetloss);
         }
       #endif
   
@@ -737,11 +737,11 @@
               break;  
                     
             default: 
-            //   Log.printf("Unknown frame type = %X\n", fr_type);  
+            //   log.printf("Unknown frame type = %X\n", fr_type);  
               break;       
           }       // end of switch   
         } else {  // end of length ok
-          //Log.printf("Bad FPort1 frame length = %X\n", fr_lth);  
+          //log.printf("Bad FPort1 frame length = %X\n", fr_lth);  
         }     
       }          // end of FPort1
       
@@ -756,7 +756,7 @@
             fpChange = false;
             return;
           }                             
-          //Printbyte(chr, false, '<'); 
+          //printbyte(chr, false, '<'); 
           ctl = (((prev_chr == 0x0D) || (prev_chr == 0x18)|| (prev_chr == 0x23)) && (chr == 0xFF)); 
           ota = (((prev_chr == 0x0D) || (prev_chr == 0x18)|| (prev_chr == 0x23)) && (chr == 0xF1)); 
           dlink = ((prev_chr == 0x08)  && (chr == 0x1B));     // note: we ignore other PHYIDs    
@@ -811,12 +811,12 @@
             case 0xf2:      // OTA end frame
               break;       
             default: 
-              Log.printf("Unknown frame type = %X\n", fr_type);  
+              log.printf("Unknown frame type = %X\n", fr_type);  
               break;           
           }       // end of switch   
         } else {  // end of length ok
           badFrames++; // due to failed length test
-          Log.printf("Bad FPort2 frame length = %X\n", fr_lth);  
+          log.printf("Bad FPort2 frame length = %X\n", fr_lth);  
         }          
       }          // end of FPort2
 
@@ -828,11 +828,11 @@
     //===================================================================   
  
     bool FrSkyPort::ParseFrame(uint8_t *buf, uint16_t lth) {
-      //Log.printf("buf[0]:%X  buf[1]:%X  buf[2]:%X\n", buf[0], buf[1], buf[2]);
+      //log.printf("buf[0]:%X  buf[1]:%X  buf[2]:%X\n", buf[0], buf[1], buf[2]);
       uint8_t i = 0;    
       for (i = 3 ; i < lth+2 ; i++) {         // payload after start byte[0], lth[1] and type[2], 
         chr = FrSkyPort::SafeRead();          // f_port2 ignores start byte[0]
-      // Log.printf("i:%d  chr:%X\n", i, chr);
+      // log.printf("i:%d  chr:%X\n", i, chr);
         *(buf+i) = chr;
       }
       
@@ -855,13 +855,13 @@
       
       if (mycrcGood) {
         FrSkyPort::goodFrames++;
-        //Log.print("Good CRC: ");  FrSkyPort::PrintBuffer(buf, lth+3);  // include the crc        
+        //log.print("Good CRC: ");  FrSkyPort::PrintBuffer(buf, lth+3);  // include the crc        
       } else {
         badFrames++; // due to crc
-        //Log.print("Bad CRC: ");  FrSkyPort::PrintBuffer(buf, lth+3);  // include the crc
+        //log.print("Bad CRC: ");  FrSkyPort::PrintBuffer(buf, lth+3);  // include the crc
       }
       #if defined Debug_CRC
-        Log.printf("mycrcGood=%d\n\n", mycrcGood);  
+        log.printf("mycrcGood=%d\n\n", mycrcGood);  
       #endif  
       return mycrcGood;   
    
@@ -876,14 +876,14 @@
         *uartC3 |= 0x20;                 // Switch FrPort into send mode
         modeNow=mode;
         #if defined Debug_FrPort_Switching
-          Log.print("tx");
+          log.print("tx");
         #endif
       }
       else if(mode == rx && modeNow != rx) {   
         *uartC3 ^= 0x20;                 // Switch FrPort into receive mode
         modeNow=mode;
         #if defined Debug_FrPort_Switching
-          Log.print("rx");
+          log.print("rx");
         #endif
       }
     #endif
@@ -896,7 +896,7 @@
           frSerial.enableTx(true);  // Switch F.Port into send mode
           #endif
           #if defined Debug_FrPort_Switching
-            Log.print("tx");
+            log.print("tx");
           #endif
         }   else 
         if(mode == rx && modeNow != rx) {   
@@ -905,7 +905,7 @@
           frSerial.enableTx(false);  // disable interrupts on tx pin     
           #endif
           #if defined Debug_FrPort_Switching
-            Log.print("rx");
+            log.print("rx");
           #endif
         } 
     #endif
@@ -923,7 +923,7 @@
           FrSkyPort::CheckForTimeouts();
           lth=frSerial.available();
         }
-     //    Log.printf("\nlen=%3d\n",len); 
+     //    log.printf("\nlen=%3d\n",len); 
       } 
       
       // Data is available
@@ -934,7 +934,7 @@
       lth--;
       
       #if (defined Debug_FrPort_Stream)  
-        Printbyte(b, false, '<');
+        printbyte(b, false, '<');
       #endif 
 
       #if defined OnTheFly_FrPort_Change_Allowed  // like change from Fport1 to Fport 2
@@ -943,7 +943,7 @@
           if ( (frport_id_now != f_none) && (frport_id != f_none) && (frport_id != frport_id_now) ){
             String s1 = frportName(frport_id);
             String s2 = frportName(frport_id_now);        
-            Log.printf("FrPort type changed from %s to %s\n", s1, s2);
+            log.printf("FrPort type changed from %s to %s\n", s1, s2);
             snprintf(snprintf_buf, snp_max, "Changed to %s", s2);
             LogScreenPrintln(snprintf_buf);
             
@@ -981,7 +981,7 @@
         b ^= 0x20;
       }
       #if (defined Debug_FrPort_Safe_Read)  
-        Printbyte(b, false, '<');
+        printbyte(b, false, '<');
       #endif 
       delay(0); // yield to rtos for wifi & bt to get a sniff 
       return b;
@@ -1038,9 +1038,9 @@
         
       #if (defined Debug_FrPort_Stream) || (defined Debug_FrPort_Stream_Out) 
       if (b == 0x7E) {
-        Log.println();
+        log.println();
       }
-        Printbyte(b, false, '>');
+        printbyte(b, false, '>');
       #endif         
     }
     //===================================================================
@@ -1050,7 +1050,7 @@
        crcin += crcin >> 8;   // add in high byte overflow if any
        crcin &= 0xff;  // mask all but low byte, constrain to 8 bits
        #if defined Debug_CRC       
-         Log.printf("AddIn %3d %2X\tcrcin_now=%3d %2X\n", b, b, crcin, crcin);
+         log.printf("AddIn %3d %2X\tcrcin_now=%3d %2X\n", b, b, crcin, crcin);
        #endif  
     }  
     //===================================================================
@@ -1060,7 +1060,7 @@
        crcout += crcout >> 8;   // add in high byte overflow if any
        crcout &= 0xff;  // mask all but low byte, constrain to 8 bits
        #if defined Debug_CRC       
-         Log.printf("AddIn %3d %2X\tcrcout_now=%3d %2X\n", b, b, crcout, crcout);
+         log.printf("AddIn %3d %2X\tcrcout_now=%3d %2X\n", b, b, crcout, crcout);
        #endif  
     }   
     
@@ -1072,7 +1072,7 @@
        *mycrc &= 0xff;          // mask all but low byte, constrain to 8 bits
 
       #if defined Debug_CRC
-         Log.printf("CRC Step: b=%3X %3d\  crc=%3X %3d\n", b, b, *mycrc, *mycrc);
+         log.printf("CRC Step: b=%3X %3d\  crc=%3X %3d\n", b, b, *mycrc, *mycrc);
        #endif
     }
     //=========================================================================
@@ -1080,7 +1080,7 @@
     void FrSkyPort::crcEnd(int16_t *mycrc)  {
       *mycrc = 0xFF - *mycrc;                  // final 2s complement
       #if defined Debug_CRC
-        Log.printf("crcEnd=%3X %3d\n", *mycrc, *mycrc );
+        log.printf("crcEnd=%3X %3d\n", *mycrc, *mycrc );
       #endif  
     } 
     //=======================================================================   
@@ -1100,7 +1100,7 @@
       uint8_t mycrc = FrSkyPort::crcGet(buf, lth);   
       uint8_t fpcrc = *(buf+lth);
       #if defined Debug_CRC    
-        Log.printf("mycrc=%3X %3d  fpcrc=%3X\ %3d\n", mycrc, mycrc, fpcrc, fpcrc );
+        log.printf("mycrc=%3X %3d  fpcrc=%3X\ %3d\n", mycrc, mycrc, fpcrc, fpcrc );
       #endif
     return (mycrc == fpcrc);
 
@@ -1120,7 +1120,7 @@
      if (lth == 0x23) {
        num_of_channels = 24;
      } 
-     Log.printf("lth=%d  num_of_channels=%d\n", lth, num_of_channels);
+     log.printf("lth=%d  num_of_channels=%d\n", lth, num_of_channels);
      *ch  = ((*buf|*(buf+1)<< 8) & 0x07FF);
      *(ch+1)  = ((*(buf+1)>>3|*(buf+2)<<5) & 0x07FF);
      *(ch+2)  = ((*(buf+2)>>6|*(buf+3)<<2|*(buf+4)<<10) & 0x07FF);
@@ -1254,7 +1254,7 @@
        sb_oldest = sb_oldest_tier1;
       }
   
-      //Log.println(sb_unsent);           // limited detriment :)  
+      //log.println(sb_unsent);           // limited detriment :)  
 
       if (sb_oldest == 0)  return 0xffff;  // flag the scheduler table as empty
       
@@ -1276,15 +1276,14 @@
         #endif
 
         if (sb[idx].msg_id < msgid_filter) {
-          Log.print(sb_unsent); 
-          Log.printf("\tPop  row= %3d", idx );
-          Log.print("  msg_id=0x");  Log.print(sb[idx].msg_id, HEX);
-          if (sb[idx].msg_id < 0x1000) Log.print(" ");
-          Log.printf("  sub_id= %2d", sb[idx].sub_id); 
+          log.print(sb_unsent); 
+          log.printf("\tPop  row= %3d", idx );
+          log.print("  msg_id=0x");  log.print(sb[idx].msg_id, HEX);
+          if (sb[idx].msg_id < 0x1000) log.print(" ");
+          log.printf("  sub_id= %2d", sb[idx].sub_id); 
       
-          pb_rx=false;
           FrSkyPort::PrintPayload(FrSkyPort::msg_class_now(sb[idx].msg_id), downlink);
-          Log.printf("  age=%3d mS \n" , sb_oldest_tier1 );        
+          log.printf("  age=%3d mS \n" , sb_oldest_tier1 );        
         }
       #endif
       sb[idx].inuse = 0;      // 0=free to use, 1=occupied - for passthru and mavlite
@@ -1320,16 +1319,16 @@
       
       #ifdef Debug_SITL_Input      
         if (sp_msg_id == 0x5004) {
-          Log.print("\nXXXXXXXXXXXXXXXXXXXXXX ");
+          log.print("\nXXXXXXXXXXXXXXXXXXXXXX ");
         }
-        Log.printf("POP AND SEND 0x%X idx=%u\n", sp_msg_id, idx);
+        log.printf("POP AND SEND 0x%X idx=%u\n", sp_msg_id, idx);
       #endif  
       
       //========================    RSSI special treatment
       if (sp_msg_id == 0xF101) {                   
         #if (defined Frs_Debug_Rssi)
           PrintFrPeriod(0);    
-          Log.println(" 0xF101 sent");
+          log.println(" 0xF101 sent");
         #endif   
         if (set.trmode != relay) { 
           if ( (frport_id == s_port) || (frport_id == f_port1) )  {
@@ -1352,21 +1351,21 @@
       //^^^^^^^^^^^^^^^^^^^^^^   RSSI special treatment
       
       #if defined Frs_Debug_Scheduler
-        Log.printf("Injecting frame idx=%d msg_id=0x%X  ", idx, sp_msg_id);
+        log.printf("Injecting frame idx=%d msg_id=0x%X  ", idx, sp_msg_id);
         FrSkyPort::PrintPayload(FrSkyPort::msg_class_now(sp_msg_id), downlink); 
-        Log.println();
+        log.println();
       #elif defined Debug_Mavlite_Scheduler
       if (sp_msg_id < 0x100) {  
-        Log.printf("Injecting frame idx=%d msg_id=0x%X  ", idx, sp_msg_id);
+        log.printf("Injecting frame idx=%d msg_id=0x%X  ", idx, sp_msg_id);
         FrSkyPort::PrintPayload(FrSkyPort::msg_class_now(sp_msg_id), downlink); 
-        Log.println();
+        log.println();
       }  
       #endif
 
       uint8_t *bytes;
       
       #if defined Debug_Inject_Delay
-        Log.printf("Inject_delay %duS\n", (micros() - inject_delay));
+        log.printf("Inject_delay %duS\n", (micros() - inject_delay));
       #endif
 
       if (set.trmode == ground) {             // In ground mode we are master and send a diy poll
@@ -1421,9 +1420,9 @@
         FrSkyPort::SafeWrite(bytes[5], true);
         
         #if defined Debug_Mavlite
-          Log.print("POP: Send Mavlite Frame : ");
+          log.print("POP: Send Mavlite Frame : ");
           FrSkyPort::PrintPayload(msg_class, downlink);  
-          Log.printf("  CRC=%2X\n", (0xFF-crcout));       
+          log.printf("  CRC=%2X\n", (0xFF-crcout));       
         #endif     
       } 
 
@@ -1448,7 +1447,7 @@
           if (wifiSuGood) { 
             bool endOK = frs_udp_object.endPacket();
             endOK = endOK;  // silence irritating compiler warning
-            // if (!endOK) Log.printf("FrSky UDP msgSent=%d   endOK=%d\n", msgSent, endOK);
+            // if (!endOK) log.printf("FrSky UDP msgSent=%d   endOK=%d\n", msgSent, endOK);
           }
         }
       #endif  
@@ -1470,7 +1469,7 @@
  
         switch (mt_msg_id) {                // Decode uplink mavlite messages according to msg-id
           
-          case 20:                          //  #20 or 0x14   Mavlink_Param_Request_Read - 
+          case 20:                          //  #20 or 0x14   mavParamRequestRead - 
             {
               for (int i = 0; i <16; i++) {
                 ap22_param_id[i] = mt_payload[i];
@@ -1481,15 +1480,15 @@
               #endif  
 
               #if defined Debug_Mavlite
-                Log.printf("UPLINK: MavLite #20 Param_Request_Read :%s: ", ap22_param_id);  
+                log.printf("UPLINK: MavLite #20 Param_Request_Read :%s: ", ap22_param_id);  
                 PrintMavLiteUplink();
               #endif  
 
-              Mavlink_Param_Request_Read(-1, ap22_param_id); // Request Param Read using param_id, not index  
+              mavParamRequestRead(-1, ap22_param_id); // Request Param Read using param_id, not index  
 
               // store in table of param requests awaiting reply
               mt20_row = FrSkyPort::FirstEmptyMt20Row();
-              //   Log.printf("mt20_row=%d\n", mt20_row);
+              //   log.printf("mt20_row=%d\n", mt20_row);
               if (mt20_row == 0xffff) return false;  // mt20 table overflowed, ignore this message :(
               strncpy(mt20[mt20_row].param_id, ap22_param_id, 16);
               mt20[mt20_row].millis = millis(); 
@@ -1497,10 +1496,10 @@
               
               return true;           
             }
-          case 22:                          // Echo #22 dowwmliink message - Uplink   
+          case 22:                          // Echo #22 downlink message - Uplink   
             {
              #if defined Debug_Mavlite
-              Log.print("UPLINK: Echo of Mavlite #22 : ");
+              log.print("UPLINK: Echo of Mavlite #22 : ");
               PrintMavLiteUplink();
             #endif                      
             }
@@ -1517,18 +1516,18 @@
                 ap23_param_id[i] = mt_payload[i+4];
               }
 
-              Mavlink_Param_Set();
+              mavParamSet();
               
               #if defined Debug_Mavlite
-                 Log.printf("UPLINK: MavLite #23 Param_Set. Parameter-id= %s  Value = %.5f\n", ap23_param_id, ap23_param_value);  
+                 log.printf("UPLINK: MavLite #23 Param_Set. Parameter-id= %s  Value = %.5f\n", ap23_param_id, ap23_param_value);  
               #endif  
               return true; 
             }            
 
           case 76:                          // #76 or 0x4c  COMMAND_LONG
             {
-              ap76_command = (mt_payload[1] << 8) + mt_payload[0];          
-              ap76_confirm = mt_payload[2];
+              apo76_command = (mt_payload[1] << 8) + mt_payload[0];          
+              apo76_confirmation = mt_payload[2];
               uint8_t par_cnt = (mt_payload[3] & 0xE0) >> 5;
               uint8_t conf_cnt = mt_payload[3] & 7;   // unused
               float val = 0;
@@ -1539,24 +1538,24 @@
                 b[1] = mt_payload[j+1];
                 b[2] = mt_payload[j+2];
                 b[3] = mt_payload[j+3];
-                ap76_param[i-1] = val;
+                apo76_param[i-1] = val;
               }
 
               Send_Mavlink_Command_Long();  // #76
 
               #if defined Debug_Mavlite
-               Log.printf("UPLINK: MavLite #76 Command_Long: Command=%d  confirm=%d param_count=%d ", ap76_command, ap76_confirm, par_cnt);  
+               log.printf("UPLINK: MavLite #76 Command_Long: Command=%d  confirm=%d param_count=%d ", apo76_command, apo76_confirmation, par_cnt);  
                for ( int i = 0; i < par_cnt ; i++) {
-                  Log.printf("param%d=%.5f", i+1,  ap76_param[i]); 
+                  log.printf("param%d=%.5f", i+1,  apo76_param[i]); 
                }
-               Log.println();
+               log.println();
               #endif  
 
               return true;      
             }                  
           default:
             #if defined Debug_Mavlite
-              Log.printf("Mavlite Uplink: Unknown Message ID #%d ignored  ", mt_msg_id);
+              log.printf("Mavlite Uplink: Unknown Message ID #%d ignored  ", mt_msg_id);
               PrintMavLiteUplink();
             #endif
             return false;   
@@ -1574,7 +1573,7 @@
       if (mt_seq == 0) {            // first chunk 
         for (int i = 6 ; i <= 8 ; i++, mt_idx++) {
           #if defined Debug_Mavlite_Chunking
-            Log.printf("\ti=%d  mt_idx=%d frbuf[i]=%2X \n",i, mt_idx, frbuf[i]);
+            log.printf("\ti=%d  mt_idx=%d frbuf[i]=%2X \n",i, mt_idx, frbuf[i]);
           #endif  
           mt_payload[mt_idx] = frbuf[i];
           if (mt_idx >= mt_paylth) {
@@ -1585,7 +1584,7 @@
       } else {           // rest of the chunks
         for (int i = 4 ; i <= 8 ; i++, mt_idx++) {
           #if defined Debug_Mavlite_Chunking
-            Log.printf("\ti=%d  mt_idx=%d frbuf[i]=%2X \n",i, mt_idx, frbuf[i]);
+            log.printf("\ti=%d  mt_idx=%d frbuf[i]=%2X \n",i, mt_idx, frbuf[i]);
           #endif  
           mt_payload[mt_idx] = frbuf[i];
           if (mt_idx >= mt_paylth) {
@@ -1613,17 +1612,17 @@
     uint16_t FrSkyPort::FirstEmptyMt20Row() {
       uint16_t i = 0;
       while (mt20[i].inuse == 1) {   // find empty mt20 uplink row
-      //  Log.printf("i=%d  mt20[i].inuse=%d\n", i, mt20[i].inuse);
+      //  log.printf("i=%d  mt20[i].inuse=%d\n", i, mt20[i].inuse);
 
         if (millis() - mt20[i].millis > 5000) { // expire the row if no reply from FC in 5 seconds ? bad param_id
           mt20[i].inuse = 0;
-          Log.printf("param_id %s not received back from FC. Timed out.\n", mt20[i].param_id);
+          log.printf("param_id %s not received back from FC. Timed out.\n", mt20[i].param_id);
         }
         i++; 
         if ( i >= mt20_rows-1) {
           mt20_buf_full_gear++;
           if ( (mt20_buf_full_gear == 0) || (mt20_buf_full_gear%1000 == 0)) {
-            Log.println("mt20 uplink buffer full");  // Report every so often
+            log.println("mt20 uplink buffer full");  // Report every so often
           }
           return 0xffff;
         }
@@ -1715,7 +1714,7 @@
           FrSkyPort::Push_Rssi_F101(msg_id);      
           break;       
         default:
-          Log.print("Warning, msg_id "); Log.print(msg_id, HEX); Log.println(" unknown");
+          log.print("Warning, msg_id "); log.print(msg_id, HEX); log.println(" unknown");
           break;       
       }            
     }
@@ -1726,7 +1725,7 @@
         sb_row++; 
         if (sb_row >= sb_rows-1) {
           if ( (sb_buf_full_gear == 0) || (sb_buf_full_gear%40000 == 0)) {
-            Log.println("FrPort scheduler buffer full. Check FrPort Downlink to Taranis/Horus");  // Report every so often
+            log.println("FrPort scheduler buffer full. Check FrPort Downlink to Taranis/Horus");  // Report every so often
           }
           sb_buf_full_gear++;
           return;     
@@ -1749,14 +1748,14 @@
       
       #if defined Debug_SITL_Input
         if (msg_id == 0x5004) {
-          Log.print("ZZZZZZZZZZZZZZZZZZZ"); 
+          log.print("ZZZZZZZZZZZZZZZZZZZ"); 
         }   
                
-        Log.print(sb_unsent); 
-        Log.printf("\tPush row= %3d", sb_row );
-        Log.print("  msg_id=0x"); Log.print(msg_id, HEX);
-        if (msg_id < 0x1000) Log.print(" ");
-        Log.println(); 
+        log.print(sb_unsent); 
+        log.printf("\tPush row= %3d", sb_row );
+        log.print("  msg_id=0x"); log.print(msg_id, HEX);
+        if (msg_id < 0x1000) log.print(" ");
+        log.println(); 
       #endif           
         
       #if (defined Frs_Debug_Scheduler) || (defined MavLite_Debug_Scheduler) 
@@ -1769,14 +1768,13 @@
         #endif
     
         if (msg_id < msgid_filter) {
-          Log.print(sb_unsent); 
-          Log.printf("\tPush row= %3d", sb_row );
-          Log.print("  msg_id=0x"); Log.print(msg_id, HEX);
-          if (msg_id < 0x1000) Log.print(" ");
-          Log.printf("  sub_id= %2d", sub_id);
-          pb_rx=false;
+          log.print(sb_unsent); 
+          log.printf("\tPush row= %3d", sb_row );
+          log.print("  msg_id=0x"); log.print(msg_id, HEX);
+          if (msg_id < 0x1000) log.print(" ");
+          log.printf("  sub_id= %2d", sub_id);
           FrSkyPort::PrintPayload(FrSkyPort::msg_class_now(msg_id), downlink);
-          Log.println();      
+          log.println();      
         }
       #endif
     }
@@ -1802,18 +1800,18 @@
       mt_totlth = 2 + mt_paylth;                         // msg_id + lth + payload
     
       #if (defined Debug_Mavlite)
-          Log.printf("Push: MavLiteParamValue16 msg_id=0x%X lth=%d param_value=%.3f param_id=%s \n"
+          log.printf("Push: MavLiteParamValue16 msg_id=0x%X lth=%d param_value=%.3f param_id=%s \n"
             , mt_msg_id, mt_paylth, ap22_param_value, ap22_param_id );           
-          Log.print("Expanded Msg=");
+          log.print("Expanded Msg=");
           for (int i = 0 ; i < mt_totlth ; i++) {
-            if ( (i == 3) || ( (i > 3) && (!((i+2)%5)) ) ) Log.print("|");
-            Printbyte(mt_payload[i], false, '>');
+            if ( (i == 3) || ( (i > 3) && (!((i+2)%5)) ) ) log.print("|");
+            printbyte(mt_payload[i], false, '>');
           }  
-          Log.print("|\t|");
+          log.print("|\t|");
           for (int i = 0 ; i < mt_totlth ; i++) {
-            if ((mt_payload[i] >31) && (mt_payload[i]<127)) Log.write(mt_payload[i]);
+            if ((mt_payload[i] >31) && (mt_payload[i]<127)) log.write(mt_payload[i]);
           }
-          Log.println("|");
+          log.println("|");
         #endif
       
       FrSkyPort::ChunkMavLitePayload(msg_id, mt_paylth);
@@ -1834,14 +1832,14 @@
       mt_totlth = 2 + mt_paylth;                         // msg_id + lth + payload
           
       #if (defined Debug_Mavlite)
-          Log.printf("PUSH: Command_Ack_04d msg_id=0x%X lth=%d result=%d  ", mt_msg_id, mt_paylth, ap77_result);           
-          Log.print("Expanded Msg=");
+          log.printf("PUSH: Command_Ack_04d msg_id=0x%X lth=%d result=%d  ", mt_msg_id, mt_paylth, ap77_result);           
+          log.print("Expanded Msg=");
           for (int i = 0 ; i < mt_totlth ; i++) {
-            if ( (i == 3) || ( (i > 3) && (!((i+2)%5)) ) ) Log.print("|");
-            Printbyte(mt_payload[i], false, '>');
+            if ( (i == 3) || ( (i > 3) && (!((i+2)%5)) ) ) log.print("|");
+            printbyte(mt_payload[i], false, '>');
           }  
 
-          Log.println();
+          log.println();
         #endif
       
       FrSkyPort::ChunkMavLitePayload(msg_id, mt_paylth);
@@ -1856,7 +1854,7 @@
       mt_idx = 0;   
 
       while (mt_idx <= tlth) {    
-      //  Log.printf("mt_idx=%d  tlth=%d   mt_chunk=%d\n", mt_idx, tlth, mt_chunk     ); 
+      //  log.printf("mt_idx=%d  tlth=%d   mt_chunk=%d\n", mt_idx, tlth, mt_chunk     ); 
         if (mt_chunk == 0) {
 
           //======= message to frame (chunk)
@@ -1873,11 +1871,11 @@
             mtf_payload.raw[i] = mt_payload[mt_idx];  
             FrSkyPort::crcStepOut(mtf_payload.raw[i]); 
             #if defined Debug_Mavlite_Chunking
-              Log.printf("\ti=%d mt_idx=%d mtf_payload.raw[i]=0x%X\t|", i, mt_idx, mtf_payload.raw[i]); 
+              log.printf("\ti=%d mt_idx=%d mtf_payload.raw[i]=0x%X\t|", i, mt_idx, mtf_payload.raw[i]); 
               if ((mtf_payload.raw[i] > 31) && (mtf_payload.raw[i] < 127)) 
-                Log.write(mtf_payload.raw[i]);
-                else Log.print(" ");
-              Log.println("|");  
+                log.write(mtf_payload.raw[i]);
+                else log.print(" ");
+              log.println("|");  
             #endif
         
             mt_idx++;      
@@ -1892,7 +1890,7 @@
           
             if (mt_idx >= tlth) {  // break out of the for loop
               mtf_payload.raw[i] = crcout;     // no 1s complement? and append the crcout
-      //       Log.printf("mt_idx=%d  mt_payload.raw[mt_idx]=0x%X\n", mt_idx, mt_payload.raw[mt_idx] );
+      //       log.printf("mt_idx=%d  mt_payload.raw[mt_idx]=0x%X\n", mt_idx, mt_payload.raw[mt_idx] );
               mt_idx++;  // gets me out of the while loop
               break; // short chunk  - break out of for loop
             }
@@ -1900,11 +1898,11 @@
             mtf_payload.raw[i] = mt_payload[mt_idx];
             FrSkyPort::crcStepOut(mtf_payload.raw[i]); 
             #if defined Debug_Mavlite_Chunking
-              Log.printf("\ti=%d mt_idx=%d mtf_payload.raw[i]=0x%X\t|", i, mt_idx, mtf_payload.raw[i]); 
+              log.printf("\ti=%d mt_idx=%d mtf_payload.raw[i]=0x%X\t|", i, mt_idx, mtf_payload.raw[i]); 
                 if ((mtf_payload.raw[i] > 31) && (mtf_payload.raw[i] < 127)) 
-                Log.write(mtf_payload.raw[i]);
-                else Log.print(" ");
-              Log.println("|");
+                log.write(mtf_payload.raw[i]);
+                else log.print(" ");
+              log.println("|");
             #endif
              
             mtf_payload.raw[i] = mt_payload[mt_idx];   
@@ -1916,10 +1914,9 @@
         FrSkyPort::PushToEmptyRow(msg_id, 0);  
 
         #if defined Frs_Debug_All || defined Debug_Mavlite
-          Log.printf("PUSH: MavLite to GCS #%d 0x%x:  chunk=%d  ", msg_id, msg_id, mtf_payload.seq);
-          pb_rx = false;
+          log.printf("PUSH: MavLite to GCS #%d 0x%x:  chunk=%d  ", msg_id, msg_id, mtf_payload.seq);
           FrSkyPort::PrintPayload(mavlite, downlink); 
-          Log.println();
+          log.println();
         #endif
       
         mt_chunk++;
@@ -1952,13 +1949,13 @@
           
       #if defined Frs_Debug_All || defined Frs_Debug_LatLon
         PrintFrPeriod(0); 
-        Log.print("Passthru out LatLon 0x800: ");
-        Log.print(" ap33_lat="); Log.print((float)ap33_lat / 1E7, 7); 
-        Log.print(" pt_lat="); Log.print(pt_lat);  
-        Log.print(" pt_payload="); Log.print(pt_payload); Log.print(" ");
+        log.print("Passthru out LatLon 0x800: ");
+        log.print(" ap33_lat="); log.print((float)ap33_lat / 1E7, 7); 
+        log.print(" pt_lat="); log.print(pt_lat);  
+        log.print(" pt_payload="); log.print(pt_payload); log.print(" ");
        FrSkyPort::PrintPayload(passthru, downlink);
         int32_t r_lat = (bit32Extract(pt_payload,0,30) * 100 / 6);
-        Log.print(" lat unpacked="); Log.println(r_lat );    
+        log.print(" lat unpacked="); log.println(r_lat );    
       #endif
 
      FrSkyPort::PushToEmptyRow(msg_id, 0);        
@@ -1990,13 +1987,13 @@
           
       #if defined Frs_Debug_All || defined Frs_Debug_LatLon
        PrintFrPeriod(0); 
-        Log.print("Passthru out LatLon 0x800: ");  
-        Log.print(" ap33_lon="); Log.print((float)ap33_lon / 1E7, 7);     
-        Log.print(" pt_lon="); Log.print(pt_lon); 
-        Log.print(" pt_payload="); Log.print(pt_payload); Log.print(" ");
+        log.print("Passthru out LatLon 0x800: ");  
+        log.print(" ap33_lon="); log.print((float)ap33_lon / 1E7, 7);     
+        log.print(" pt_lon="); log.print(pt_lon); 
+        log.print(" pt_payload="); log.print(pt_payload); log.print(" ");
         FrSkyPort::PrintPayload(passthru, downlink);
         int32_t r_lon = (bit32Extract(pt_payload,0,30) * 100 / 6);
-        Log.print(" lon unpacked="); Log.println(r_lon );  
+        log.print(" lon unpacked="); log.println(r_lon );  
       #endif
 
        FrSkyPort::PushToEmptyRow(msg_id, 1); 
@@ -2033,10 +2030,10 @@
 
       #if defined Frs_Debug_All || defined Frs_Debug_StatusText
         PrintFrPeriod(0); 
-        Log.print("Passthru out AP_Text 0x5000: ");  
-        Log.print(" pt_severity="); Log.print(pt_severity);
-        Log.print(" "); Log.print(MavSeverity(pt_severity)); 
-        Log.print(" Text= ");  Log.print(" |"); Log.print(pt_text); Log.println("| ");
+        log.print("Passthru out AP_Text 0x5000: ");  
+        log.print(" pt_severity="); log.print(pt_severity);
+        log.print(" "); log.print(MavSeverity(pt_severity)); 
+        log.print(" Text= ");  log.print(" |"); log.print(pt_text); log.println("| ");
       #endif
 
       pt_chunk_idx = 0;
@@ -2058,16 +2055,16 @@
     
         #if defined Frs_Debug_All || defined Frs_Debug_StatusText
           PrintFrPeriod(0); 
-          Log.print(" pt_chunk_num="); Log.print(pt_chunk_num); 
-          Log.print(" pt_txtlth="); Log.print(pt_txtlth); 
-          Log.print(" pt_chunk_idx="); Log.print(pt_chunk_idx); 
-          Log.print(" "); 
+          log.print(" pt_chunk_num="); log.print(pt_chunk_num); 
+          log.print(" pt_txtlth="); log.print(pt_txtlth); 
+          log.print(" pt_chunk_idx="); log.print(pt_chunk_idx); 
+          log.print(" "); 
           strncpy(pt_chunk_print,pt_chunk, 4);
           pt_chunk_print[4] = 0x00;
-          Log.print(" |"); Log.print(pt_chunk_print); Log.print("| ");
-          Log.print(" pt_payload="); Log.print(pt_payload); Log.print(" ");
+          log.print(" |"); log.print(pt_chunk_print); log.print("| ");
+          log.print(" pt_payload="); log.print(pt_payload); log.print(" ");
           FrSkyPort::PrintPayload(passthru, downlink);
-          Log.println();
+          log.println();
         #endif  
 
         if (pt_chunk_idx+4 > (pt_txtlth)) {
@@ -2079,18 +2076,18 @@
       
           #if defined Frs_Debug_All || defined Frs_Debug_StatusText
             PrintFrPeriod(0); 
-            Log.print(" pt_chunk_num="); Log.print(pt_chunk_num); 
-            Log.print(" pt_severity="); Log.print(pt_severity);
-            Log.print(" "); Log.print(MavSeverity(pt_severity)); 
+            log.print(" pt_chunk_num="); log.print(pt_chunk_num); 
+            log.print(" pt_severity="); log.print(pt_severity);
+            log.print(" "); log.print(MavSeverity(pt_severity)); 
             bool lsb = (pt_severity & 0x1);
             bool sb = (pt_severity & 0x2) >> 1;
             bool msb = (pt_severity & 0x4) >> 2;
-            Log.print(" ls bit="); Log.print(lsb); 
-            Log.print(" mid bit="); Log.print(sb); 
-            Log.print(" ms bit="); Log.print(msb); 
-            Log.print(" pt_payload="); Log.print(pt_payload); Log.print(" ");
+            log.print(" ls bit="); log.print(lsb); 
+            log.print(" mid bit="); log.print(sb); 
+            log.print(" ms bit="); log.print(msb); 
+            log.print(" pt_payload="); log.print(pt_payload); log.print(" ");
             FrSkyPort::PrintPayload(passthru, downlink);
-            Log.println(); Log.println();
+            log.println(); log.println();
          #endif 
          }
 
@@ -2159,21 +2156,21 @@
 
       #if defined Frs_Debug_All || defined Frs_Debug_APStatus
         PrintFrPeriod(0); 
-        Log.print("Passthru out AP_status 0x5001: ");   
-        Log.print(" pt_flight_mode="); Log.print(pt_flight_mode);
-        Log.print(" pt_simple="); Log.print(pt_simple);
-        Log.print(" pt_land_complete="); Log.print(pt_land_complete);
-        Log.print(" pt_armed="); Log.print(pt_armed);
-        Log.print(" pt_bat_fs="); Log.print(pt_bat_fs);
-        Log.print(" pt_ekf_fs="); Log.print(pt_ekf_fs);
-        Log.print(" pt_fs="); Log.print(pt_fs);
-        Log.print(" pt_fence_present="); Log.print(pt_fence_present);
-        Log.print(" pt_fence_breached="); Log.print(pt_fence_breached);
-        Log.print(" pt_imu_temp="); Log.print(pt_imu_temp);
-        Log.print(" pt_throt="); Log.print(pt_throt);
-        Log.print(" pt_payload="); Log.print(pt_payload); Log.print(" ");
+        log.print("Passthru out AP_status 0x5001: ");   
+        log.print(" pt_flight_mode="); log.print(pt_flight_mode);
+        log.print(" pt_simple="); log.print(pt_simple);
+        log.print(" pt_land_complete="); log.print(pt_land_complete);
+        log.print(" pt_armed="); log.print(pt_armed);
+        log.print(" pt_bat_fs="); log.print(pt_bat_fs);
+        log.print(" pt_ekf_fs="); log.print(pt_ekf_fs);
+        log.print(" pt_fs="); log.print(pt_fs);
+        log.print(" pt_fence_present="); log.print(pt_fence_present);
+        log.print(" pt_fence_breached="); log.print(pt_fence_breached);
+        log.print(" pt_imu_temp="); log.print(pt_imu_temp);
+        log.print(" pt_throt="); log.print(pt_throt);
+        log.print(" pt_payload="); log.print(pt_payload); log.print(" ");
         FrSkyPort::PrintPayload(passthru, downlink);
-        Log.println();
+        log.println();
       #endif
 
       FrSkyPort::PushToEmptyRow(msg_id, 0);       
@@ -2211,23 +2208,23 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
           
       #if defined Frs_Debug_All || defined Frs_Debug_GPS_status
         PrintFrPeriod(0); 
-        Log.print("Passthru out GPS Status 0x5002: ");   
-        Log.print(" pt_numsats="); Log.print(pt_numsats);
-        Log.print(" pt_gps_status="); Log.print(pt_gps_status);
-        Log.print(" pt_gps_adv_status="); Log.print(pt_gps_adv_status);
-        Log.print(" pt_amsl="); Log.print(pt_amsl);
-        Log.print(" pt_hdop="); Log.print(pt_hdop);
+        log.print("Passthru out GPS Status 0x5002: ");   
+        log.print(" pt_numsats="); log.print(pt_numsats);
+        log.print(" pt_gps_status="); log.print(pt_gps_status);
+        log.print(" pt_gps_adv_status="); log.print(pt_gps_adv_status);
+        log.print(" pt_amsl="); log.print(pt_amsl);
+        log.print(" pt_hdop="); log.print(pt_hdop);
       #endif
           
       pt_amsl = prep_number(pt_amsl,2,2);                        
       pt_hdop = prep_number(pt_hdop,2,1);
           
       #if defined Frs_Debug_All || defined Frs_Debug_GPS_status
-        Log.print(" After prep: pt_amsl="); Log.print(pt_amsl);
-        Log.print(" pt_hdop="); Log.print(pt_hdop); 
-        Log.print(" pt_payload="); Log.print(pt_payload); Log.print(" ");
+        log.print(" After prep: pt_amsl="); log.print(pt_amsl);
+        log.print(" pt_hdop="); log.print(pt_hdop); 
+        log.print(" pt_payload="); log.print(pt_payload); log.print(" ");
         FrSkyPort::PrintPayload(passthru, downlink);
-        Log.println(); 
+        log.println(); 
       #endif     
               
       bit32Pack(pt_hdop ,6, 8);
@@ -2249,20 +2246,20 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
   
       #if defined Frs_Debug_All || defined Debug_Batteries
         PrintFrPeriod(0); 
-        Log.print("Passthru out Bat1 0x5003: ");   
-        Log.print(" pt_bat1_volts="); Log.print((float)pt_bat1_volts / 10, 2);// print whole V float
-        Log.print(" pt_bat1_amps="); Log.print((float)pt_bat1_amps / 10, 1);  // print whole As float
-        Log.print(" pt_bat1_mAh="); Log.print(pt_bat1_mAh);
-        Log.print(" pt_payload="); Log.print(pt_payload); Log.print(" ");
+        log.print("Passthru out Bat1 0x5003: ");   
+        log.print(" pt_bat1_volts="); log.print((float)pt_bat1_volts * 0.1F, 2);// print whole V float
+        log.print(" pt_bat1_amps="); log.print((float)pt_bat1_amps * 0.1F, 1);  // print whole As float
+        log.print(" pt_bat1_mAh="); log.print(pt_bat1_mAh);
+        log.print(" pt_payload="); log.print(pt_payload); log.print(" ");
         FrSkyPort::PrintPayload(passthru, downlink);
-        Log.println();               
+        log.println();               
       #endif
     
       bit32Pack(pt_bat1_volts ,0, 9);
       uint16_t w_bat1_amps = prep_number(roundf(pt_bat1_amps),2,1);
       bit32Pack(w_bat1_amps,9, 8);
       bit32Pack(pt_bat1_mAh,17, 15);
-      //Log.printf("mantissa:%d  10exponent:%d mutiplier:%d \n", bit32Extract(pt_payload,10,7), bit32Extract(pt_payload,9,1), TenToPwr(bit32Extract(pt_payload,9,1)) );
+      //log.printf("mantissa:%d  10exponent:%d mutiplier:%d \n", bit32Extract(pt_payload,10,7), bit32Extract(pt_payload,9,1), TenToPwr(bit32Extract(pt_payload,9,1)) );
       FrSkyPort::PushToEmptyRow(msg_id, 0);  
                        
     }
@@ -2293,7 +2290,7 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
       dis = 6371000 * c;       // radius of the Earth is 6371km
 
       if ((homGood) || (ap242_homGood)) {
-        //Log.printf("hom.lat:%3.7f  hom.lon:%3.7f  hom.alt:%.0f  hom.hdg:%.0F\n", hom.lat, hom.lon, hom.alt, hom.hdg);
+        //log.printf("hom.lat:%3.7f  hom.lon:%3.7f  hom.alt:%.0f  hom.hdg:%.0F\n", hom.lat, hom.lon, hom.alt, hom.hdg);
         pt_home_dist = (int)dis;        
       }
       else {
@@ -2303,13 +2300,13 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
         
       #if defined Frs_Debug_All || defined Frs_Debug_Home
         PrintFrPeriod(0); 
-        Log.print("Passthru out Home 0x5004: ");
-        //Log.print("msg_id=");  Log.print(msg_id, HEX);       
-        Log.print("pt_home_dist=");  Log.print(pt_home_dist);
-        Log.print(" pt_home_alt=");  Log.print((float)(pt_home_alt/10), 1);
-        Log.print(" az=");  Log.print(az);
-        Log.print(" pt_home_angle="); Log.print(pt_home_angle);  
-        Log.print(" pt_home_arrow="); Log.print(pt_home_arrow);         // units of 3 deg       
+        log.print("Passthru out Home 0x5004: ");
+        //log.print("msg_id=");  log.print(msg_id, HEX);       
+        log.print("pt_home_dist=");  log.print(pt_home_dist);
+        log.print(" pt_home_alt=");  log.print((float)(pt_home_alt/10), 1);
+        log.print(" az=");  log.print(az);
+        log.print(" pt_home_angle="); log.print(pt_home_angle);  
+        log.print(" pt_home_arrow="); log.print(pt_home_arrow);         // units of 3 deg       
       #endif
       
       pt_home_dist = prep_number(roundf(pt_home_dist), 3, 2);
@@ -2323,9 +2320,9 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
       bit32Pack(pt_home_arrow,25, 7);
       
       #if defined Frs_Debug_All || defined Frs_Debug_Home
-        Log.print(" pt_payload="); Log.print(pt_payload); Log.print(" ");
+        log.print(" pt_payload="); log.print(pt_payload); log.print(" ");
         FrSkyPort::PrintPayload(passthru, downlink);
-        Log.println();       
+        log.println();       
       #endif
       
       FrSkyPort::PushToEmptyRow(msg_id, 0);  
@@ -2345,10 +2342,10 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
   
       #if defined Frs_Debug_All || defined Frs_Debug_VelYaw
         PrintFrPeriod(0); 
-        Log.print("Passthru out VelYaw 0x5005:");  
-        Log.print(" pt_vy=");  Log.print(pt_vy,2);       
-        Log.print(" pt_vx=");  Log.print(pt_vx,2);
-        Log.print(" pt_yaw="); Log.print(pt_yaw/10,0);
+        log.print("Passthru out VelYaw 0x5005:");  
+        log.print(" pt_vy=");  log.print(pt_vy,2);       
+        log.print(" pt_vx=");  log.print(pt_vx,2);
+        log.print(" pt_yaw="); log.print(pt_yaw/10,0);
      
       #endif
       if (pt_vy<0)
@@ -2364,13 +2361,13 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
       bit32Pack(pt_yaw ,17, 11);  
 
      #if defined Frs_Debug_All || defined Frs_Debug_VelYaw
-       Log.print(" After prep:"); \
-       Log.print(" pt_vy=");  Log.print((int)pt_vy);          
-       Log.print(" pt_vx=");  Log.print((int)pt_vx);  
-       Log.print(" pt_yaw="); Log.print((int)pt_yaw);  
-       Log.print(" pt_payload="); Log.print(pt_payload); Log.print(" ");
+       log.print(" After prep:"); \
+       log.print(" pt_vy=");  log.print((int)pt_vy);          
+       log.print(" pt_vx=");  log.print((int)pt_vx);  
+       log.print(" pt_yaw="); log.print((int)pt_yaw);  
+       log.print(" pt_payload="); log.print(pt_payload); log.print(" ");
        FrSkyPort::PrintPayload(passthru, downlink);
-       Log.println();                 
+       log.println();                 
      #endif
 
      FrSkyPort::PushToEmptyRow(msg_id, 0);  
@@ -2389,11 +2386,11 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
       bit32Pack(prep_number(pt_range,3,1), 21, 11);
       #if defined Frs_Debug_All || defined Frs_Debug_AttiRange
         PrintFrPeriod(0); 
-        Log.print("Passthru out Attitude 0x5006: ");         
-        Log.print("pt_roll=");  Log.print(pt_roll);
-        Log.print(" pt_pitch=");  Log.print(pt_pitch);
-        Log.print(" pt_range="); Log.print(pt_range);
-        Log.print(" Payload="); Log.println(pt_payload);  
+        log.print("Passthru out Attitude 0x5006: ");         
+        log.print("pt_roll=");  log.print(pt_roll);
+        log.print(" pt_pitch=");  log.print(pt_pitch);
+        log.print(" pt_range="); log.print(pt_range);
+        log.print(" Payload="); log.println(pt_payload);  
       #endif
 
       FrSkyPort::PushToEmptyRow(msg_id, 0);   
@@ -2414,12 +2411,12 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
 
           #if defined Frs_Debug_All || defined Frs_Debug_Params
             PrintFrPeriod(0);  
-            Log.print("Passthru out Params 0x5007: ");   
-            Log.print(" pt_param_id="); Log.print(pt_param_id);
-            Log.print(" pt_frame_type="); Log.print(pt_frame_type);  
-            Log.print(" pt_payload="); Log.print(pt_payload);  Log.print(" "); 
+            log.print("Passthru out Params 0x5007: ");   
+            log.print(" pt_param_id="); log.print(pt_param_id);
+            log.print(" pt_frame_type="); log.print(pt_frame_type);  
+            log.print(" pt_payload="); log.print(pt_payload);  log.print(" "); 
             FrSkyPort::PrintPayload(passthru, downlink);
-            Log.println();                
+            log.println();                
           #endif
       
           FrSkyPort::PushToEmptyRow(msg_id, sub_id);
@@ -2439,12 +2436,12 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
 
           #if defined Frs_Debug_All || defined Frs_Debug_Params || defined Debug_Batteries
             PrintFrPeriod(0);       
-            Log.print("Passthru out Params 0x5007: ");   
-            Log.print(" pt_param_id="); Log.print(pt_param_id);
-            Log.print(" pt_bat1_capacity="); Log.print(pt_bat1_capacity);  
-            Log.print(" pt_payload="); Log.print(pt_payload);  Log.print(" "); 
+            log.print("Passthru out Params 0x5007: ");   
+            log.print(" pt_param_id="); log.print(pt_param_id);
+            log.print(" pt_bat1_capacity="); log.print(pt_bat1_capacity);  
+            log.print(" pt_payload="); log.print(pt_payload);  log.print(" "); 
             FrSkyPort::PrintPayload(passthru, downlink);
-            Log.println();                   
+            log.println();                   
           #endif
 
           FrSkyPort::PushToEmptyRow(msg_id, sub_id); 
@@ -2464,12 +2461,12 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
       
           #if defined Frs_Debug_All || defined Frs_Debug_Params || defined Debug_Batteries
             PrintFrPeriod(0);  
-            Log.print("Passthru out Params 0x5007: ");   
-            Log.print(" pt_param_id="); Log.print(pt_param_id);
-            Log.print(" pt_bat2_capacity="); Log.print(pt_bat2_capacity); 
-            Log.print(" pt_payload="); Log.print(pt_payload);  Log.print(" "); 
+            log.print("Passthru out Params 0x5007: ");   
+            log.print(" pt_param_id="); log.print(pt_param_id);
+            log.print(" pt_bat2_capacity="); log.print(pt_bat2_capacity); 
+            log.print(" pt_payload="); log.print(pt_payload);  log.print(" "); 
             FrSkyPort::PrintPayload(passthru, downlink);
-            Log.println();           
+            log.println();           
           #endif
       
           FrSkyPort::PushToEmptyRow(msg_id, sub_id);
@@ -2487,9 +2484,9 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
       
           #if defined Frs_Debug_All || defined Frs_Debug_Params || defined Debug_Batteries
             PrintFrPeriod(0); 
-            Log.print("Passthru out Params 0x5007: ");   
-            Log.print(" pt_param_id="); Log.print(pt_param_id);
-            Log.print(" pt_mission_count="); Log.println(pt_mission_count);           
+            log.print("Passthru out Params 0x5007: ");   
+            log.print(" pt_param_id="); log.print(pt_param_id);
+            log.print(" pt_mission_count="); log.println(pt_mission_count);           
           #endif
  
           pt_paramsSent = true;          // get this done early on and then regularly thereafter
@@ -2510,13 +2507,13 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
   
       #if defined Frs_Debug_All || defined Debug_Batteries
         PrintFrPeriod(0);  
-        Log.print("Passthru out Bat2 0x5008: ");   
-        Log.print(" pt_bat2_volts="); Log.print(pt_bat2_volts);
-        Log.print(" pt_bat2_amps="); Log.print(pt_bat2_amps);
-        Log.print(" pt_bat2_mAh="); Log.print(pt_bat2_mAh);
-        Log.print(" pt_payload="); Log.print(pt_payload);  Log.print(" "); 
+        log.print("Passthru out Bat2 0x5008: ");   
+        log.print(" pt_bat2_volts="); log.print(pt_bat2_volts);
+        log.print(" pt_bat2_amps="); log.print(pt_bat2_amps);
+        log.print(" pt_bat2_mAh="); log.print(pt_bat2_mAh);
+        log.print(" pt_payload="); log.print(pt_payload);  log.print(" "); 
         FrSkyPort::PrintPayload(passthru, downlink);
-        Log.println();                  
+        log.println();                  
       #endif        
           
       bit32Pack(pt_bat2_volts ,0, 9);
@@ -2533,19 +2530,16 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
     void FrSkyPort::Push_WayPoint_5009(uint16_t msg_id) {
       pt_payload = 0;
   
-      pt_ms_seq = ap_ms_seq;                                      // Current WP seq number, wp[0] = wp1, from regular #42
-  
+      pt_ms_seq = ap_ms_seq;                                          // Current WP seq number, wp[0] = wp1, from regular #42
       pt_ms_dist = ap_wp_dist;                                        // Distance to next WP  
-
       pt_ms_xtrack = ap_xtrack_error;                                 // Cross track error in metres from #62
       pt_ms_target_bearing = ap_target_bearing;                       // Direction of next WP
-      pt_ms_cog = ap24_cog * 0.01;                                      // COG in degrees from #24
+      pt_ms_cog = ap24_cog * 0.01;                                    // COG in degrees from #24
       int32_t angle = (int32_t)wrap_360(pt_ms_target_bearing - pt_ms_cog);
-      int32_t arrowStep = 360 / 8; 
+      int32_t arrowStep = 360 / 8;   //  45 deg * 8
       pt_ms_offset = ((angle + (arrowStep/2)) / arrowStep) % 8;       // Next WP bearing offset from COG
 
-      /*
-   
+      /*  
     0 - up
     1 - up-right
     2 - right
@@ -2553,28 +2547,26 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
     4 - down
     5 - down - left
     6 - left
-    7 - up - left
- 
+    7 - up - left 
        */
       #if defined Frs_Debug_All || defined Frs_Debug_Missions
         PrintFrPeriod(0);  
-        Log.print("Passthru out RC 0x5009: ");   
-        Log.print(" pt_ms_seq="); Log.print(pt_ms_seq);
-        Log.print(" pt_ms_dist="); Log.print(pt_ms_dist);
-        Log.print(" pt_ms_xtrack="); Log.print(pt_ms_xtrack, 3);
-        Log.print(" pt_ms_target_bearing="); Log.print(pt_ms_target_bearing, 0);
-        Log.print(" pt_ms_cog="); Log.print(pt_ms_cog, 0);  
-        Log.print(" pt_ms_offset="); Log.print(pt_ms_offset);
-        Log.print(" pt_payload="); Log.print(pt_payload);  Log.print(" "); 
+        log.print("Passthru out RC 0x5009: ");   
+        log.print(" pt_ms_seq="); log.print(pt_ms_seq);
+        log.print(" pt_ms_dist="); log.print(pt_ms_dist);
+        log.print(" pt_ms_xtrack="); log.print(pt_ms_xtrack, 3);
+        log.print(" pt_ms_target_bearing="); log.print(pt_ms_target_bearing, 0);
+        log.print(" pt_ms_cog="); log.print(pt_ms_cog, 0);  
+        log.print(" pt_ms_offset="); log.print(pt_ms_offset);
+        log.print(" pt_payload="); log.print(pt_payload);  log.print(" "); 
         FrSkyPort::PrintPayload(passthru, downlink);         
-        Log.println();      
+        log.println();      
       #endif
 
       bit32Pack(pt_ms_seq, 0, 10);    //  WP number
 
       pt_ms_dist = prep_number(roundf(pt_ms_dist), 3, 2);       //  number, digits, power
       bit32Pack(pt_ms_dist, 10, 12);    
-
       pt_ms_xtrack = prep_number(roundf(pt_ms_xtrack), 1, 1);  
       bit32Pack(pt_ms_xtrack, 22, 6); 
 
@@ -2600,12 +2592,12 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
 
       #if defined Frs_Debug_All || defined Frs_Debug_RPM
         PrintFrPeriod(0);
-        Log.print("Passthru out RC 0x500A: ");
-        Log.print(" pt_rpm1="); Log.print(pt_rpm1);
-        Log.print(" pt_rpm2="); Log.print(pt_rpm2);
-        Log.print(" pt_payload="); Log.print(pt_payload);  Log.print(" ");
+        log.print("Passthru out RC 0x500A: ");
+        log.print(" pt_rpm1="); log.print(pt_rpm1);
+        log.print(" pt_rpm2="); log.print(pt_rpm2);
+        log.print(" pt_payload="); log.print(pt_payload);  log.print(" ");
         FrSkyPort::PrintPayload(passthru, downlink);
-        Log.println();
+        log.println();
       #endif
     }
 
@@ -2625,14 +2617,14 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
 
       #if defined Frs_Debug_All || defined Frs_Debug_Terrain
         PrintFrPeriod(0);
-        Log.print("Passthru out RC 0x500B: ");
-        Log.print(" ap_current_height="); Log.print(ap136_current_height);
-        Log.print(" ap_terrain_spacing="); Log.print(ap_terrain_spacing);
-        Log.print(" pt_height_above_terrain="); Log.print(pt_height_above_terrain);
-        Log.print(" pt_terrain_unhealthy="); Log.print(pt_terrain_unhealthy);
-        Log.print(" pt_payload="); Log.print(pt_payload);  Log.print(" ");
+        log.print("Passthru out RC 0x500B: ");
+        log.print(" ap_current_height="); log.print(ap136_current_height);
+        log.print(" ap_terrain_spacing="); log.print(ap_terrain_spacing);
+        log.print(" pt_height_above_terrain="); log.print(pt_height_above_terrain);
+        log.print(" pt_terrain_unhealthy="); log.print(pt_terrain_unhealthy);
+        log.print(" pt_payload="); log.print(pt_payload);  log.print(" ");
         FrSkyPort::PrintPayload(passthru, downlink);
-        Log.println();
+        log.println();
       #endif
     }
 
@@ -2682,17 +2674,17 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
 
       #if defined Frs_Debug_All || defined Frs_Debug_Servo
         PrintFrPeriod(0);  
-        Log.print("Passthru out Servo_Raw 0x50F1: ");  
-        Log.print(" sv_chcnt="); Log.print(sv_chcnt); 
-        Log.print(" sv_count="); Log.print(sv_count); 
-        Log.print(" chunk="); Log.print(chunk);
-        Log.print(" pt_sv1="); Log.print(pt_sv[1]);
-        Log.print(" pt_sv2="); Log.print(pt_sv[2]);
-        Log.print(" pt_sv3="); Log.print(pt_sv[3]);   
-        Log.print(" pt_sv4="); Log.print(pt_sv[4]); 
-        Log.print(" pt_payload="); Log.print(pt_payload);  Log.print(" "); 
+        log.print("Passthru out Servo_Raw 0x50F1: ");  
+        log.print(" sv_chcnt="); log.print(sv_chcnt); 
+        log.print(" sv_count="); log.print(sv_count); 
+        log.print(" chunk="); log.print(chunk);
+        log.print(" pt_sv1="); log.print(pt_sv[1]);
+        log.print(" pt_sv2="); log.print(pt_sv[2]);
+        log.print(" pt_sv3="); log.print(pt_sv[3]);   
+        log.print(" pt_sv4="); log.print(pt_sv[4]); 
+        log.print(" pt_payload="); log.print(pt_payload);  log.print(" "); 
         FrSkyPort::PrintPayload(passthru, downlink);
-        Log.println();             
+        log.println();             
       #endif
 
       sv_count += 4; 
@@ -2708,13 +2700,13 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
 
       #if defined Frs_Debug_All || defined Frs_Debug_Hud
         PrintFrPeriod(0);  
-        Log.print("Passthru out Hud 0x50F2: ");   
-        Log.print(" pt_air_spd="); Log.print(pt_air_spd);
-        Log.print(" pt_throt=");   Log.print(pt_throt);
-        Log.print(" pt_bar_alt="); Log.print(pt_bar_alt);
-        Log.print(" pt_payload="); Log.print(pt_payload);  Log.print(" "); 
+        log.print("Passthru out Hud 0x50F2: ");   
+        log.print(" pt_air_spd="); log.print(pt_air_spd);
+        log.print(" pt_throt=");   log.print(pt_throt);
+        log.print(" pt_bar_alt="); log.print(pt_bar_alt);
+        log.print(" pt_payload="); log.print(pt_payload);  log.print(" "); 
         FrSkyPort::PrintPayload(passthru, downlink);
-        Log.println();             
+        log.println();             
       #endif
   
       pt_air_spd = prep_number(roundf(pt_air_spd), 2, 1);  
@@ -2758,11 +2750,11 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
 
       #if defined Frs_Debug_All || defined Frs_Debug_Rssi
         PrintFrPeriod(0);    
-        Log.print("Passthru out Rssi 0xF101: ");   
-        Log.print(" pt_rssi="); Log.print(pt_rssi);
-        Log.print(" pt_payload="); Log.print(pt_payload);  Log.print(" "); 
+        log.print("Passthru out Rssi 0xF101: ");   
+        log.print(" pt_rssi="); log.print(pt_rssi);
+        log.print(" pt_payload="); log.print(pt_payload);  log.print(" "); 
         FrSkyPort::PrintPayload(passthru, downlink);
-        Log.println();             
+        log.println();             
       #endif
 
       FrSkyPort::PushToEmptyRow(msg_id, 1); 
@@ -2772,7 +2764,7 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
     
     uint16_t FrSkyPort::MatchWaitingParamRequests(char * paramid) {
       for (int i = 0 ; i < mt20_rows ; i++ ) {  // try to find match on waiting param requests
-    //    Log.printf("MatchWaiting. i=%d  mt20_rows=%d  inuse=%d param_id=%s paramid=%s \n", i, mt20_rows, mt20[i].inuse, mt20[i].param_id,  ap22_param_id);
+    //    log.printf("MatchWaiting. i=%d  mt20_rows=%d  inuse=%d param_id=%s paramid=%s \n", i, mt20_rows, mt20[i].inuse, mt20[i].param_id,  ap22_param_id);
 
         bool paramsequal = (strcmp (mt20[i].param_id, paramid) == 0);
         if ( (mt20[i].inuse) && paramsequal ) {
@@ -2803,12 +2795,12 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
       #endif
       
       if ( (msg_class == passthru) && (!dbg_mavlite) ) {
-        Log.print(" passthru payload 0x10 ");
+        log.print(" passthru payload 0x10 ");
         bytes = (uint8_t*)&pt_payload;         // cast to bytes
         sz = 4;   
       } else
       if (msg_class == mavlite) {
-        Log.print(" mavlite payload 0x32 ");   
+        log.print(" mavlite payload 0x32 ");   
         bytes = (uint8_t*)&mtf_payload;       // cast to bytes
         sz = 6;
       } 
@@ -2816,76 +2808,76 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
       if ( (msg_class == passthru) && (dbg_mavlite) )  return;
        
       for (int i = 0 ; i < sz ; i++) {
-        Printbyte(bytes[i], 0, in_or_out);   
+        printbyte(bytes[i], 0, in_or_out);   
       }
        
-      Log.print("\t");
+      log.print("\t");
       for (int i = 0 ; i <sz ; i++) {
          if ((bytes[i] > 31) && (bytes[i] < 127)) {
-          Log.write(bytes[i]);  
+          log.write(bytes[i]);  
          } else {
-           Log.print('.');  
+           log.print('.');  
          }
       }
-      Log.print("\t");
+      log.print("\t");
     } 
     //===================================================================  
 
     void FrSkyPort::PrintMavLiteUplink() {
   
-      //  if (frbuf[3] == 0) Log.println();  // seq == 0    
+      //  if (frbuf[3] == 0) log.println();  // seq == 0    
               
-        Printbyte(frbuf[0], false, '<');  // 0x7E
-        Printbyte(frbuf[1], false, '<');  // 0x0D
-        Printbyte(frbuf[2], false, '<');  // 0x30 
-        Log.print("  ");
-        Printbyte(frbuf[3], false, '<');  // seq
-        Log.print("  ");       
+        printbyte(frbuf[0], false, '<');  // 0x7E
+        printbyte(frbuf[1], false, '<');  // 0x0D
+        printbyte(frbuf[2], false, '<');  // 0x30 
+        log.print("  ");
+        printbyte(frbuf[3], false, '<');  // seq
+        log.print("  ");       
         for (int i = 4 ; i <= 8 ; i++ ) {
-          Printbyte(frbuf[i], false, '<');
+          printbyte(frbuf[i], false, '<');
         }
-        Log.print(" CRC=");
-        Printbyte(frbuf[9], false, '<');  // ?
+        log.print(" CRC=");
+        printbyte(frbuf[9], false, '<');  // ?
 
-        Log.print("\t");
+        log.print("\t");
         
-        Printbyte(frbuf[3], false, ' ');  // seq
+        printbyte(frbuf[3], false, ' ');  // seq
 
         if (frbuf[3] == 0)  {    // if seq == 0
-          Log.print("  ");
-          Printbyte(frbuf[4], false, ' ');   // length
-          Printbyte(frbuf[5], false, ' ');   // msg_id 
-          Log.print(" [");
+          log.print("  ");
+          printbyte(frbuf[4], false, ' ');   // length
+          printbyte(frbuf[5], false, ' ');   // msg_id 
+          log.print(" [");
           for (int i = 6 ; i <= 8 ; i++ ) {  
-            if ((frbuf[i] > 31) && (frbuf[i] < 127)) Log.write(frbuf[i]);   // print ascii
+            if ((frbuf[i] > 31) && (frbuf[i] < 127)) log.write(frbuf[i]);   // print ascii
           }
         } else {                  // seq > 0
-          Log.print("[");
+          log.print("[");
           for (int i = 4 ; i <= 8 ; i++ ) {  
-           if ((frbuf[i] > 31) && (frbuf[i] < 127)) Log.write(frbuf[i]);   // print ascii
+           if ((frbuf[i] > 31) && (frbuf[i] < 127)) log.write(frbuf[i]);   // print ascii
           }       
         }
-        Log.println("] ");
+        log.println("] ");
 
     }
     
     //===================================================================      
     void  FrSkyPort::Print_PWM_Channels(int16_t *ch, uint16_t num_of_channels) {
       for (int i = 0 ; i < num_of_channels ; i++ ) {
-        Log.printf("%2d:%4d  ", i+1, *(ch+i)); 
+        log.printf("%2d:%4d  ", i+1, *(ch+i)); 
       }
-      Log.printf("  rssi:%d\n", FrSkyPort::pwm_rssi );
+      log.printf("  rssi:%d\n", FrSkyPort::pwm_rssi );
     }
     //===================================================================      
 
    void FrSkyPort::PrintBuffer(uint8_t *buf, uint8_t length) {
-    //Log.printf("length=%d\t", length);
+    //log.printf("length=%d\t", length);
     for (int i = 0 ; i < length ; i++) {  
-      if (*(buf+i) <= 0xf) Log.print("0");
-        Log.print(*(buf+i),HEX);
-        Log.write(" ");
+      if (*(buf+i) <= 0xf) log.print("0");
+        log.print(*(buf+i),HEX);
+        log.write(" ");
       }
-      Log.println();
+      log.println();
   }
    
     //===================================================================
@@ -2947,10 +2939,10 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
        if (FrSkyPort::frGood != FrSkyPort::frPrev) {  // report on change of status
          FrSkyPort::frPrev = FrSkyPort::frGood;
          if (frGood) {
-           Log.println("FrPort read good!");
+           log.println("FrPort read good!");
            LogScreenPrintln("FrPort read ok");         
          } else {
-          Log.println("FrPort read timeout!");
+          log.println("FrPort read timeout!");
           LogScreenPrintln("FrPort timeout");         
          }
        }
@@ -2958,10 +2950,10 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
        if (FrSkyPort::pwmGood != FrSkyPort::pwmPrev) {  // report on change of status
          FrSkyPort::pwmPrev = FrSkyPort::pwmGood;
          if (pwmGood) {
-           Log.println("RC PWM good");
+           log.println("RC PWM good");
            LogScreenPrintln("RC PWM good");         
          } else {
-          Log.println("RC PWM timeout");
+          log.println("RC PWM timeout");
           LogScreenPrintln("RC PWM timeout");         
          }
        }
@@ -2978,7 +2970,7 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
         delayMicroseconds(500); // so test for 0.5 seconds
       }  
 
-      //Log.printf("hi:%d  lo:%d\n", pw_hi, pw_lo);  
+      //log.printf("hi:%d  lo:%d\n", pw_hi, pw_lo);  
       if ( ( (pw_lo == 1000) && (pw_hi == 0) ) || ((pw_lo == 0) && (pw_hi == 1000) ) ) 
       {
         return no_traffic;
@@ -2992,7 +2984,7 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
     //===================================================================     
 
     uint32_t FrSkyPort::getBaud(uint8_t s_pin, pol_t pl) {
-      Log.print("autoBaud - sensing pin "); Log.println(s_pin);
+      log.print("autoBaud - sensing pin "); log.println(s_pin);
       uint8_t i = 0;
       uint8_t col = 0;
       pinMode(s_pin, INPUT);       
@@ -3005,22 +2997,22 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
         }
         i++;
         if ((i % 5) == 0) {
-          Log.print(".");
+          log.print(".");
           col++; 
         }
         if (col > 60) {
-          Log.println(); 
-          Log.print("No telemetry found on pin "); Log.println(s_pin);
+          log.println(); 
+          log.print("No telemetry found on pin "); log.println(s_pin);
           col = 0;
           i = 0;
         }
         gb_baud = getConsistent(s_pin, pl);
       } 
       if (!ftgetBaud) {
-        Log.println();
+        log.println();
       }
 
-      Log.print("autoBaud: "); Log.print(gb_baud);  Log.println(" b/s");
+      log.print("autoBaud: "); log.print(gb_baud);  log.println(" b/s");
       LogScreenPrintln("autoBaud: " + String(gb_baud));
       
       return(gb_baud);  
@@ -3040,17 +3032,17 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
         delay(10);
         t_baud[4] = SenseUart(s_pin, pl);
         #if defined Debug_All || defined Debug_Baud
-          Log.print("  t_baud[0]="); Log.print(t_baud[0]);
-          Log.print("  t_baud[1]="); Log.print(t_baud[1]);
-          Log.print("  t_baud[2]="); Log.print(t_baud[2]);
-          Log.print("  t_baud[3]="); Log.println(t_baud[3]);
+          log.print("  t_baud[0]="); log.print(t_baud[0]);
+          log.print("  t_baud[1]="); log.print(t_baud[1]);
+          log.print("  t_baud[2]="); log.print(t_baud[2]);
+          log.print("  t_baud[3]="); log.println(t_baud[3]);
         #endif  
         if (t_baud[0] == t_baud[1]) {
           if (t_baud[1] == t_baud[2]) {
             if (t_baud[2] == t_baud[3]) { 
               if (t_baud[3] == t_baud[4]) {   
                 #if defined Debug_All || defined Debug_Baud    
-                  Log.print("Consistent baud found="); Log.println(t_baud[3]); 
+                  log.print("Consistent baud found="); log.println(t_baud[3]); 
                 #endif   
                 return t_baud[3]; 
               }          
@@ -3068,7 +3060,7 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
     const uint32_t su_timeout = 5000; // uS !  Default timeout 1000mS!
 
       #if defined Debug_All || defined Debug_Baud
-        Log.printf("s_pin:%d  rxInvert:%d\n", s_pin, frInvert);  
+        log.printf("s_pin:%d  rxInvert:%d\n", s_pin, frInvert);  
       #endif  
 
       if (pl == idle_low) {       
@@ -3087,11 +3079,11 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
 
         if (pw !=0) {
           min_pw = (pw < min_pw) ? pw : min_pw;  // Choose the lowest
-          //Log.printf("i:%d  pw:%d  min_pw:%d\n", i, pw, min_pw);      
+          //log.printf("i:%d  pw:%d  min_pw:%d\n", i, pw, min_pw);      
         } 
       } 
       #if defined Debug_All || defined Debug_Baud
-        Log.printf("pw:%d  min_pw:%d\n", pw, min_pw);
+        log.printf("pw:%d  min_pw:%d\n", pw, min_pw);
       #endif
 
       switch(min_pw) {   

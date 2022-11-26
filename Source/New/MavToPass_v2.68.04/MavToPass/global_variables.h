@@ -6,8 +6,7 @@
 //================================================================================================= 
 //=================================================================================================
 
-bool      pb_rx = true;               // For Printbyte() direction indication
-uint8_t   clm = 0;                    // Columns for Printbyte();
+uint8_t   clm = 0;                    // Columns for printbyte();
 String    pgm_path;
 String    pgm_name;
 
@@ -158,32 +157,21 @@ uint8_t    px4_main_mode = 0;
 uint8_t    px4_sub_mode = 0;
 bool       pitlab_flight_stack = false;
 
-uint8_t    gcs_sysid;
-uint8_t    gcs_compid;
-uint8_t    gcs_targsys;
-uint8_t    gcs_targcomp;
-
-// Message #0  GCS HEARTHBEAT 
-uint8_t    gcs_type = 0;
-uint8_t    gcs_autopilot = 0;
-uint8_t    gcs_base_mode = 0;
-uint32_t   gcs_custom_mode = 0;
-uint8_t    gcs_system_status = 0;
-uint8_t    gcs_mavlink_version = 0;
-
-
 uint8_t    apo_sysid;
 uint8_t    apo_compid;
 uint8_t    apo_targsys;
 uint8_t    apo_targcomp;
+uint16_t   apo_seq;            
+uint8_t    apo_mission_type;     // Mav2
 
 // Message #0  UPLINK HEARTHBEAT 
-uint8_t    apo_mission_type;              // Mav2
+
 uint8_t    apo_type = 0;
 uint8_t    apo_autopilot = 0;
 uint8_t    apo_base_mode = 0;
 uint32_t   apo_custom_mode = 0;
 uint8_t    apo_system_status = 0;
+uint8_t    apo_mavlink_version = 0;
 
 // Message #410 MAV_CMD_GET_HOME_POSITION      
   
@@ -343,10 +331,7 @@ bool      ap_ms_count_ft = true;
 
 // Message #51 Mission_Request_Int    Uplink to FC- Request info on mission seq #
 
-uint8_t    gcs_target_system;    // System ID
-uint8_t    gcs_target_component; // Component ID
-uint16_t   gcs_seq;              // Sequence #
-uint8_t    gcs_mission_type;      
+// use shared apo_ above     
 
 // Message #62 Nav_Controller_Output
 float     ap_nav_roll;           // Current desired roll
@@ -393,9 +378,9 @@ float    ap74_climb;
 
 //Command_Long ( #76 )          // Uplink to FC-  https://mavlink.io/en/services/command.html
 // target sys and comp defined up top 
-uint16_t  ap76_command;         // MAV_CMD Command ID (of command to send).
-uint8_t   ap76_confirm;         // 0: First transmission of this command. 1-255: Confirmation transmissions (e.g. for kill command)
-float     ap76_param[7];        // Parameter  
+uint16_t  apo76_command;         // MAV_CMD Command ID (of command to send).
+uint8_t   apo76_confirmation;    // 0: First transmission of this command. 1-255: Confirmation transmissions (e.g. for kill command)
+float     apo76_param[7];        // Parameter  
 
 //Command_Ack ( #77 )           // Downlink from FC https://mavlink.io/en/services/command.html
 uint16_t  ap77_command;         //  MAV_CMD Command ID (of acknowledged command).
@@ -633,34 +618,34 @@ int16_t  pt_bat2_volts;
 uint16_t pt_bat2_amps;
 uint16_t pt_bat2_mAh;
 
-//0x5009 Servo_raw         // 4 ch per frame
-uint8_t  frPort; 
-int8_t   pt_sv[5];       
+//0x5009 Waypoints       
+uint16_t pt_ms_seq;                // WP number
+uint16_t pt_ms_dist;               // To next WP  
+float    pt_ms_xtrack;             // Cross track error in metres
+float    pt_ms_target_bearing;     // Direction of next WP
+float    pt_ms_cog;                // Course-over-ground in degrees
+int8_t   pt_ms_offset;             // Next WP bearing offset from COG     
 
 //0x500A RPM
-int16_t pt_rpm1;
-int16_t pt_rpm2;
+int16_t  pt_rpm1;
+int16_t  pt_rpm2;
 
 //0x500B TERRAIN
 int16_t  pt_height_above_terrain;
 uint8_t  pt_terrain_unhealthy;
 
-//0x50F1 HUD
-float    pt_air_spd;       // dm/s
-uint16_t pt_throt;         // 0 to 100%
-float    pt_bar_alt;       // metres
+//0x50F1 Servo_raw                  // 4 ch per frame
+uint8_t  frPort; 
+int8_t   pt_sv[5];  
 
-//0x50F2 Missions       
-uint16_t  pt_ms_seq;                // WP number
-uint16_t  pt_ms_dist;               // To next WP  
-float     pt_ms_xtrack;             // Cross track error in metres
-float     pt_ms_target_bearing;     // Direction of next WP
-float     pt_ms_cog;                // Course-over-ground in degrees
-int8_t    pt_ms_offset;             // Next WP bearing offset from COG
+//0x50F2 HUD
+float    pt_air_spd;                // dm/s
+uint16_t pt_throt;                  // 0 to 100%
+float    pt_bar_alt;                // metres
 
 //0x50F3 Wind Estimate      
-uint16_t  pt_wind_speed;            // dm/s
-uint16_t  pt_direction;             // Wind direction relative to yaw, deg / 3
+uint16_t pt_wind_speed;             // dm/s
+uint16_t pt_direction;              // Wind direction relative to yaw, deg / 3
 
 //0xF101
 uint32_t pt_rssi;

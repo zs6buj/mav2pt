@@ -128,7 +128,7 @@ from FLASH memory without first copying it to RAM. So, there is no need to use t
     
 // Callback for the embedded jquery.min.js page
 void onJavaScript(void) {
-    //Log.println("onJavaScript(void)");
+    //log.println("onJavaScript(void)");
     server.setContentLength(jquery_min_js_v3_2_1_gz_len);
     server.sendHeader("Content-Encoding", "gzip");
     server.send_P(200, "text/javascript", jquery_min_js_v3_2_1_gz, jquery_min_js_v3_2_1_gz_len);
@@ -156,7 +156,7 @@ void onJavaScript(void) {
   server.begin();
    
   #if defined Debug_SRAM
-    Log.printf("==============>Free Heap after WebServer setup = %d\n", ESP.getFreeHeap());
+    log.printf("==============>Free Heap after WebServer setup = %d\n", ESP.getFreeHeap());
   #endif
   
   }
@@ -170,17 +170,17 @@ void RecoverSettingsFromFlash() {
   set.major_version = EEPROMRead8(166);
   set.minor_version = EEPROMRead8(167);   
   set.patch_level = EEPROMRead8(168);  
-  Log.printf("EEPROM settings version:%u.%u.%u\n", set. major_version, set.minor_version, set.patch_level);
+  log.printf("EEPROM settings version:%u.%u.%u\n", set. major_version, set.minor_version, set.patch_level);
 
-  #if defined Reset_EEPROM
-    Log.println("Reset_EEPROM defined. ALL SETTINGS IN EEPROM SET TO COMPILE_TIME DEFAULTS");     
+  #if defined RESET_NVS
+    log.println("RESET_NVS defined. ALL SETTINGS IN EEPROM SET TO COMPILE_TIME DEFAULTS");     
     set.major_version = MAJOR_VERSION;
     set.minor_version = MINOR_VERSION;  
     set.patch_level = PATCH_LEVEL;                                           
     WriteSettingsToEEPROM();
   #else
     if ( (set.major_version != MAJOR_VERSION) || (set.minor_version != MINOR_VERSION) || (set.patch_level != PATCH_LEVEL) ) {          
-      Log.println("Version change detected. ALL SETTINGS IN EEPROM SET TO COMPILE_TIME DEFAULTS");     
+      log.println("Version change detected. ALL SETTINGS IN EEPROM SET TO COMPILE_TIME DEFAULTS");     
       set.major_version = MAJOR_VERSION;
       set.minor_version = MINOR_VERSION;  
       set.patch_level = PATCH_LEVEL;                                           
@@ -504,7 +504,7 @@ byte b;
 
     if(strlen(set.apPw) < 8) {
         // esp fail passphrase too short
-      Log.println("AP Password < 8 chars long! Will fail to authenticate");
+      log.println("AP Password < 8 chars long! Will fail to authenticate");
       LogScreenPrintln("AP PW < 8 chars long");   
     }
     
@@ -513,7 +513,7 @@ byte b;
 
     if(strlen(set.staPw) < 8) {
         // esp fail passphrase too short
-      Log.println("STA Password < 8 chars long! Will fail to authenticate");
+      log.println("STA Password < 8 chars long! Will fail to authenticate");
       LogScreenPrintln("STA PW < 8 chars long");   
     }
     
@@ -533,38 +533,38 @@ byte b;
     RefreshHTMLButtons();     
    
     #if defined Debug_Web_Settings
-      Log.println();
-      Log.println("Debug Read WiFi Settings from EEPROM: ");
-      Log.print("validity_check = "); Log.println(set.validity_check, HEX);
-      Log.print("translator mode = "); Log.println(set.trmode);  
-      Log.print("fr_port_type = "); Log.println(set.frport);      
-      Log.print("set.fr_io = "); Log.println(set.fr_io);             
-      Log.print("fc_io = "); Log.println(set.fc_io);                
-      Log.print("gcs_io = "); Log.println(set.gs_io);            
-      Log.print("gcs_sd = "); Log.println(set.gs_sd);   
-      Log.print("sport_sd = "); Log.println(set.sport_sd);            
-      Log.print("wifi mode = "); Log.println(set.wfmode);
-      Log.print("wifi protocol = "); Log.println(set.mav_wfproto);     
-      Log.print("baud = "); Log.println(set.baud);
-      Log.print("wifi channel = "); Log.println(set.channel);  
-      Log.print("apSSID = "); Log.println(set.apSSID);
-      Log.print("apPw = "); Log.println(set.apPw);
-      Log.print("staSSID = "); Log.println(set.staSSID);
-      Log.print("staPw = "); Log.println(set.staPw); 
-      Log.print("Host = "); Log.println(set.host);           
-      Log.print("tcp_localPort = "); Log.println(set.tcp_localPort);
-      Log.print("tcp_remotePort = "); Log.println(set.tcp_remotePort);      
-      Log.print("udp_localPort = "); Log.println(set.udp_localPort);
-      Log.print("udp_remotePort = "); Log.println(set.udp_remotePort); 
-      Log.print("bt mode = "); Log.println(set.btmode); 
-      Log.print("SlaveConnect To Name = "); Log.println(set.btConnectToSlave);
-      Log.print("Major version = "); Log.println(set.major_version); 
-      Log.print("Minor version = "); Log.println(set.minor_version);  
-      Log.print("Patch level = "); Log.println(set.patch_level);            
-      Log.println();          
+      log.println();
+      log.println("Debug Read WiFi Settings from EEPROM: ");
+      log.print("validity_check = "); log.println(set.validity_check, HEX);
+      log.print("translator mode = "); log.println(set.trmode);  
+      log.print("fr_port_type = "); log.println(set.frport);      
+      log.print("set.fr_io = "); log.println(set.fr_io);             
+      log.print("fc_io = "); log.println(set.fc_io);                
+      log.print("gcs_io = "); log.println(set.gs_io);            
+      log.print("gcs_sd = "); log.println(set.gs_sd);   
+      log.print("sport_sd = "); log.println(set.sport_sd);            
+      log.print("wifi mode = "); log.println(set.wfmode);
+      log.print("wifi protocol = "); log.println(set.mav_wfproto);     
+      log.print("baud = "); log.println(set.baud);
+      log.print("wifi channel = "); log.println(set.channel);  
+      log.print("apSSID = "); log.println(set.apSSID);
+      log.print("apPw = "); log.println(set.apPw);
+      log.print("staSSID = "); log.println(set.staSSID);
+      log.print("staPw = "); log.println(set.staPw); 
+      log.print("Host = "); log.println(set.host);           
+      log.print("tcp_localPort = "); log.println(set.tcp_localPort);
+      log.print("tcp_remotePort = "); log.println(set.tcp_remotePort);      
+      log.print("udp_localPort = "); log.println(set.udp_localPort);
+      log.print("udp_remotePort = "); log.println(set.udp_remotePort); 
+      log.print("bt mode = "); log.println(set.btmode); 
+      log.print("SlaveConnect To Name = "); log.println(set.btConnectToSlave);
+      log.print("Major version = "); log.println(set.major_version); 
+      log.print("Minor version = "); log.println(set.minor_version);  
+      log.print("Patch level = "); log.println(set.patch_level);            
+      log.println();          
     #endif  
 
-    Log.println("EEPROM settings read and adopted");  
+    log.println("EEPROM settings read and adopted");  
                 
   }
 //=================================================================================
@@ -600,35 +600,35 @@ void WriteSettingsToEEPROM() {
       RefreshHTMLButtons();
                                                                   
       #if defined Debug_Web_Settings
-        Log.println();
-        Log.println("Debug Write WiFi Settings to EEPROM: ");
-        Log.print("validity_check = "); Log.println(set.validity_check, HEX);
-        Log.print("translator mode = "); Log.println(set.trmode); 
-        Log.print("fr_port_type = "); Log.println(set.frport);        
-        Log.print("set.fr_io = "); Log.println(set.fr_io);                
-        Log.print("fc_io = "); Log.println(set.fc_io);                
-        Log.print("gcs_io = "); Log.println(set.gs_io);              
-        Log.print("gcs_sd = "); Log.println(set.gs_sd);   
-        Log.print("sport_sd = "); Log.println(set.sport_sd);               
-        Log.print("wifi mode = "); Log.println(set.wfmode);
-        Log.print("wifi protocol = "); Log.println(set.mav_wfproto);     
-        Log.print("baud = "); Log.println(set.baud);
-        Log.print("wifi channel = "); Log.println(set.channel);  
-        Log.print("apSSID = "); Log.println(set.apSSID);
-        Log.print("apPw = "); Log.println(set.apPw);
-        Log.print("staSSID = "); Log.println(set.staSSID);
-        Log.print("staPw = "); Log.println(set.staPw); 
-        Log.print("Host = "); Log.println(set.host);           
-        Log.print("tcp_localPort = "); Log.println(set.tcp_localPort);
-        Log.print("tcp_remotePort = "); Log.println(set.tcp_remotePort);        
-        Log.print("udp_localPort = "); Log.println(set.udp_localPort);
-        Log.print("udp_remotePort = "); Log.println(set.udp_remotePort); 
-        Log.print("bt mode = "); Log.println(set.btmode); 
-        Log.print("Master to Slave Name = "); Log.println(set.btConnectToSlave);  
-        Log.print("Major version = "); Log.println(set.major_version); 
-        Log.print("Minor version = "); Log.println(set.minor_version);  
-        Log.print("Patch level = "); Log.println(set.patch_level);            
-        Log.println();             
+        log.println();
+        log.println("Debug Write WiFi Settings to EEPROM: ");
+        log.print("validity_check = "); log.println(set.validity_check, HEX);
+        log.print("translator mode = "); log.println(set.trmode); 
+        log.print("fr_port_type = "); log.println(set.frport);        
+        log.print("set.fr_io = "); log.println(set.fr_io);                
+        log.print("fc_io = "); log.println(set.fc_io);                
+        log.print("gcs_io = "); log.println(set.gs_io);              
+        log.print("gcs_sd = "); log.println(set.gs_sd);   
+        log.print("sport_sd = "); log.println(set.sport_sd);               
+        log.print("wifi mode = "); log.println(set.wfmode);
+        log.print("wifi protocol = "); log.println(set.mav_wfproto);     
+        log.print("baud = "); log.println(set.baud);
+        log.print("wifi channel = "); log.println(set.channel);  
+        log.print("apSSID = "); log.println(set.apSSID);
+        log.print("apPw = "); log.println(set.apPw);
+        log.print("staSSID = "); log.println(set.staSSID);
+        log.print("staPw = "); log.println(set.staPw); 
+        log.print("Host = "); log.println(set.host);           
+        log.print("tcp_localPort = "); log.println(set.tcp_localPort);
+        log.print("tcp_remotePort = "); log.println(set.tcp_remotePort);        
+        log.print("udp_localPort = "); log.println(set.udp_localPort);
+        log.print("udp_remotePort = "); log.println(set.udp_remotePort); 
+        log.print("bt mode = "); log.println(set.btmode); 
+        log.print("Master to Slave Name = "); log.println(set.btConnectToSlave);  
+        log.print("Major version = "); log.println(set.major_version); 
+        log.print("Minor version = "); log.println(set.minor_version);  
+        log.print("Patch level = "); log.println(set.patch_level);            
+        log.println();             
       #endif 
 }  
 //=================================================================================
@@ -699,7 +699,7 @@ void ReadSettingsFromForm() {
   S = server.arg("_gs_io");    
   if (S == "Serial") {
     if (set.fc_io == fc_ser) {
-      Log.println("Selection of simultaneous serial uplink and serial downlink ignored!");
+      log.println("Selection of simultaneous serial uplink and serial downlink ignored!");
       LogScreenPrintln("Bad serial selection!");     
     } else {
       set.gs_io = gs_ser;
@@ -763,7 +763,7 @@ void ReadSettingsFromForm() {
 
   if(strlen(set.apPw) < 8) {
         // esp fail passphrase too short
-      Log.println("AP Password < 8 chars long! Will fail to authenticate");
+      log.println("AP Password < 8 chars long! Will fail to authenticate");
       LogScreenPrintln("AP PW < 8 chars long");   
     }
 
@@ -774,7 +774,7 @@ void ReadSettingsFromForm() {
 
   if(strlen(set.staPw) < 8) {
         // esp fail passphrase too short
-      Log.println("STA Password < 8 chars long! Will fail to authenticate");
+      log.println("STA Password < 8 chars long! Will fail to authenticate");
       LogScreenPrintln("STA PW < 8 chars long");   
     }
 
@@ -796,32 +796,32 @@ void ReadSettingsFromForm() {
   strcpy(set.btConnectToSlave, S.c_str());    // strcpy() copies the C string including the terminating null character
   
       #if defined Debug_Web_Settings
-        Log.println();
-        Log.println("Debug Read WiFi Settings from Form: ");
-        Log.print("validity_check = "); Log.println(set.validity_check, HEX);
-        Log.print("translator mode = "); Log.println(set.trmode);   
-        Log.print("fr_port_type = "); Log.println(set.frport);       
-        Log.print("set.fr_io = "); Log.println(set.fr_io);               
-        Log.print("fc_io = "); Log.println(set.fc_io);                
-        Log.print("gcs_io = "); Log.println(set.gs_io);           
-        Log.print("gcs_sd = "); Log.println(set.gs_sd); 
-        Log.print("sport_sd = "); Log.println(set.sport_sd);                     
-        Log.print("wifi mode = "); Log.println(set.wfmode);
-        Log.print("wifi protocol = "); Log.println(set.mav_wfproto);     
-        Log.print("baud = "); Log.println(set.baud);
-        Log.print("wifi channel = "); Log.println(set.channel);  
-        Log.print("apSSID = "); Log.println(set.apSSID);
-        Log.print("apPw = "); Log.println(set.apPw);
-        Log.print("staSSID = "); Log.println(set.staSSID);
-        Log.print("staPw = "); Log.println(set.staPw); 
-        Log.print("Host = "); Log.println(set.host);           
-        Log.print("tcp_localPort = "); Log.println(set.tcp_localPort);
-        Log.print("tcp_remotePort = "); Log.println(set.tcp_remotePort);        
-        Log.print("udp_localPort = "); Log.println(set.udp_localPort);
-        Log.print("udp_remotePort = "); Log.println(set.udp_remotePort); 
-        Log.print("bt mode = "); Log.println(set.btmode); 
-        Log.print("Master to Slave Name = "); Log.println(set.btConnectToSlave);      
-        Log.println();      
+        log.println();
+        log.println("Debug Read WiFi Settings from Form: ");
+        log.print("validity_check = "); log.println(set.validity_check, HEX);
+        log.print("translator mode = "); log.println(set.trmode);   
+        log.print("fr_port_type = "); log.println(set.frport);       
+        log.print("set.fr_io = "); log.println(set.fr_io);               
+        log.print("fc_io = "); log.println(set.fc_io);                
+        log.print("gcs_io = "); log.println(set.gs_io);           
+        log.print("gcs_sd = "); log.println(set.gs_sd); 
+        log.print("sport_sd = "); log.println(set.sport_sd);                     
+        log.print("wifi mode = "); log.println(set.wfmode);
+        log.print("wifi protocol = "); log.println(set.mav_wfproto);     
+        log.print("baud = "); log.println(set.baud);
+        log.print("wifi channel = "); log.println(set.channel);  
+        log.print("apSSID = "); log.println(set.apSSID);
+        log.print("apPw = "); log.println(set.apPw);
+        log.print("staSSID = "); log.println(set.staSSID);
+        log.print("staPw = "); log.println(set.staPw); 
+        log.print("Host = "); log.println(set.host);           
+        log.print("tcp_localPort = "); log.println(set.tcp_localPort);
+        log.print("tcp_remotePort = "); log.println(set.tcp_remotePort);        
+        log.print("udp_localPort = "); log.println(set.udp_localPort);
+        log.print("udp_remotePort = "); log.println(set.udp_remotePort); 
+        log.print("bt mode = "); log.println(set.btmode); 
+        log.print("Master to Slave Name = "); log.println(set.btConnectToSlave);      
+        log.println();      
       #endif 
  }
 //=================================================================================
@@ -1007,7 +1007,7 @@ void RefreshHTMLButtons() {
  void handleLoginPage() {
 
   #if ((defined ESP32) || (defined ESP8266)) && (defined Debug_SRAM)
-    Log.printf("==============>Free Heap before handleLoginPage = %d\n", ESP.getFreeHeap());
+    log.printf("==============>Free Heap before handleLoginPage = %d\n", ESP.getFreeHeap());
   #endif  
 
   ComposeLoginPage();
@@ -1029,7 +1029,7 @@ void RefreshHTMLButtons() {
   
   String s = "<a href='/'> Rebooting........  Back to login screen</a>";
   server.send(200, "text/html", styleLogin+s);
-  Log.println("Rebooting to adopt new settings ....\n");  
+  log.println("Rebooting to adopt new settings ....\n");  
   delay(3000);
   ESP.restart();                 // esp32 and esp8266   
  }
@@ -1038,7 +1038,7 @@ void RefreshHTMLButtons() {
  void handleReboot() {
   String s = "<a href='/'> Rebooting........  Back to login screen</a>";
   server.send(200, "text/html", styleLogin+s);
-  Log.println("Rebooting ......");  
+  log.println("Rebooting ......");  
   delay(3000);
   ESP.restart();                 // esp32 and esp8266   
  }
@@ -1058,7 +1058,7 @@ void RefreshHTMLButtons() {
     HTTPUpload& upload = server.upload();
     if (upload.status == UPLOAD_FILE_START) {
       uint32_t uploadSize;
- //   Log.setDebugOutput(true);
+ //   log.setDebugOutput(true);
       #if (defined ESP32) 
         uploadSize = UPDATE_SIZE_UNKNOWN;
       #elif (defined ESP8266) 
@@ -1067,23 +1067,23 @@ void RefreshHTMLButtons() {
         uploadSize = maxSketchSpace;
       #endif
 
-      Log.printf("OTA Update: %s\n", upload.filename.c_str());    
+      log.printf("OTA Update: %s\n", upload.filename.c_str());    
       if (!Update.begin(uploadSize)) { //start with max available size
-        Update.printError(Log);
+        Update.printError(log);
       }
     } else if (upload.status == UPLOAD_FILE_WRITE) {
       /* flashing firmware to ESP OTA space */
       if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-        Update.printError(Log);
+        Update.printError(log);
       }
     } else if (upload.status == UPLOAD_FILE_END) {
       if (Update.end(true)) { //true to show the percentage progress bar
-        Log.printf("OTA Update Success: %u\nRebooting...\n", upload.totalSize);
+        log.printf("OTA Update Success: %u\nRebooting...\n", upload.totalSize);
         delay(2000);
       } else {
-        Update.printError(Log);
+        Update.printError(log);
       }
-   // Log.setDebugOutput(false);
+   // log.setDebugOutput(false);
     }
     #if (defined ESP8266) // ESP8266 
       yield();
@@ -1348,34 +1348,34 @@ void RawSettingsToStruct() {
   #endif
      
   #if defined Debug_Web_Settings
-      Log.println();
-      Log.println("Debug Raw WiFi Settings : ");
-      Log.print("web_support = "); Log.println(set.web_support);      
-      Log.print("validity_check = "); Log.println(set.validity_check, HEX);   
-      Log.print("translator mode = "); Log.println(set.trmode);    
-      Log.print("frport = "); Log.println(set.frport);           
-      Log.print("set.fr_io = "); Log.println(set.fr_io);         
-      Log.print("fc_io = "); Log.println(set.fc_io);                
-      Log.print("gcs_io = "); Log.println(set.gs_io);     
-      Log.print("gcs_sd = "); Log.println(set.gs_sd);   
-      Log.print("sport_sd = "); Log.println(set.sport_sd);              
-      Log.print("wifi mode = "); Log.println(set.wfmode);
-      Log.print("wifi protocol = "); Log.println(set.mav_wfproto);     
-      Log.print("baud = "); Log.println(set.baud);
-      Log.print("wifi channel = "); Log.println(set.channel);  
-      Log.print("apSSID = "); Log.println(set.apSSID);
-      Log.print("apPw = "); Log.println(set.apPw);
-      Log.print("staSSID = "); Log.println(set.staSSID);
-      Log.print("staPw = "); Log.println(set.staPw); 
-      Log.print("Host = "); Log.println(set.host);           
-      Log.print("tcp_localPort = "); Log.println(set.tcp_localPort);
-      Log.print("tcp_remotePort = "); Log.println(set.tcp_remotePort);      
-      Log.print("udp_localPort = "); Log.println(set.udp_localPort);
-      Log.print("udp_remotePort = "); Log.println(set.udp_remotePort); 
-      Log.print("bt mode = "); Log.println(set.btmode); 
-      Log.print("Master to Slave Name = "); Log.println(set.btConnectToSlave); 
+      log.println();
+      log.println("Debug Raw WiFi Settings : ");
+      log.print("web_support = "); log.println(set.web_support);      
+      log.print("validity_check = "); log.println(set.validity_check, HEX);   
+      log.print("translator mode = "); log.println(set.trmode);    
+      log.print("frport = "); log.println(set.frport);           
+      log.print("set.fr_io = "); log.println(set.fr_io);         
+      log.print("fc_io = "); log.println(set.fc_io);                
+      log.print("gcs_io = "); log.println(set.gs_io);     
+      log.print("gcs_sd = "); log.println(set.gs_sd);   
+      log.print("sport_sd = "); log.println(set.sport_sd);              
+      log.print("wifi mode = "); log.println(set.wfmode);
+      log.print("wifi protocol = "); log.println(set.mav_wfproto);     
+      log.print("baud = "); log.println(set.baud);
+      log.print("wifi channel = "); log.println(set.channel);  
+      log.print("apSSID = "); log.println(set.apSSID);
+      log.print("apPw = "); log.println(set.apPw);
+      log.print("staSSID = "); log.println(set.staSSID);
+      log.print("staPw = "); log.println(set.staPw); 
+      log.print("Host = "); log.println(set.host);           
+      log.print("tcp_localPort = "); log.println(set.tcp_localPort);
+      log.print("tcp_remotePort = "); log.println(set.tcp_remotePort);      
+      log.print("udp_localPort = "); log.println(set.udp_localPort);
+      log.print("udp_remotePort = "); log.println(set.udp_remotePort); 
+      log.print("bt mode = "); log.println(set.btmode); 
+      log.print("Master to Slave Name = "); log.println(set.btConnectToSlave); 
    
-      Log.println(); 
+      log.println(); 
   #endif    
 }
 
