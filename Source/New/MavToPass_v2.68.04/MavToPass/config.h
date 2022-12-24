@@ -1255,18 +1255,18 @@ bool daylightSaving = false;
   #endif 
     
 #elif (defined ESP8266)
-  #define Log                 Serial1        //  D4  OR  TXD1 debug out  - no RXD1 !
+  #define log                 Serial1        //  D4  OR  TXD1 debug out  - no RXD1 !
   #define fcSerial            Serial         //  RXD0 and TXD0
   #include <SoftwareSerial.h>
   SoftwareSerial frSerial;                   // frSerial.begin(frBaud, SWSERIAL_8N1, frRx, frTx, frInvert);
   
 #elif (defined RP2040)  
-  #define Log                 Serial         // USB
+  #define log                 Serial         // USB
   #define fcSerial            Serial1        // uart0 
   #define frSerial            Serial2        // uart1 
 
 #elif (defined TEENSY3X)      //  Teensy 3.1
-  #define Log                 Serial         // USB  
+  #define log                 Serial         // USB  
   #define fcSerial            Serial2   
   #if (frPort_Serial == 1) 
     #define frSerial          Serial1        // F.Port/S.Port 
