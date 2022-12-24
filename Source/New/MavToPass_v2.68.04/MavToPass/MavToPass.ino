@@ -2003,17 +2003,17 @@ void DecodeOneMavFrame() {
      log.printf("FC to GGS - msgid = %3d Msg size =%3d\n",  R2Gmsg.msgid, sz);
    #endif
 
-   ap_sysid = R2Gmsg.sysid;
-   ap_compid = R2Gmsg.compid;  
+   if (mavGood && (ap_sysid != R2Gmsg.sysid || ap_compid != R2Gmsg.compid)) return;  // If messages are not from our autopilot
 
    switch(R2Gmsg.msgid) {
     
         case MAVLINK_MSG_ID_HEARTBEAT:    // #0   https://mavlink.io/en/messages/common.html
           ap_type_tmp = mavlink_msg_heartbeat_get_type(&R2Gmsg);   // Alex - don't contaminate the ap_type variable
-          if (ap_type_tmp == 5 || ap_type_tmp == 6 || ap_type_tmp == 18 || ap_type_tmp == 26 || ap_type_tmp == 27) break;      
-          // Ignore heartbeats from GCS (6) or Ant Trackers(5) or Onboard_Controllers(18) or Gremsy Gimbal(26) or ADSB (27))
+          ap_autopilot_tmp = mavlink_msg_heartbeat_get_autopilot(&R2Gmsg);  // Why do we do this????
+          if (ap_type_tmp == 5 || ap_type_tmp == 6 || ap_type_tmp == 18 || ap_type_tmp >= 26 || ap_type_tmp == 27 || ap_autopilot_tmp == 8) break;
+          // Ignore heartbeats from GCS (6) or Ant Trackers(5) or Onboard_Controllers(18) or Gremsy Gimbal(26) or ADSB (27) or from Invalid Autopilot (8))
           ap_type = ap_type_tmp;
-          ap_autopilot = mavlink_msg_heartbeat_get_autopilot(&R2Gmsg);
+          ap_autopilot = ap_autopilot_tmp;
           ap_base_mode = mavlink_msg_heartbeat_get_base_mode(&R2Gmsg);
           ap_custom_mode = mavlink_msg_heartbeat_get_custom_mode(&R2Gmsg);
           
@@ -2021,6 +2021,7 @@ void DecodeOneMavFrame() {
           px4_sub_mode = bit32Extract(ap_custom_mode,24, 8);
           px4_flight_stack = (ap_autopilot == MAV_AUTOPILOT_PX4);
 
+          // PitLab should set their autopilot to MAV_AUTOPILOT_GENERIC as per Mavlink standard
           pitlab_flight_stack = (ap_autopilot == MAV_AUTOPILOT_INVALID);
           #if (defined PitLab)
             pitlab_flight_stack = true;
@@ -2045,6 +2046,8 @@ void DecodeOneMavFrame() {
             log.printf("hb_count=%d\n", hb_count);
             if(hb_count >= 3) {        // If  3 heartbeats from MavLink then we are connected
               mavGood=true;
+              ap_sysid = R2Gmsg.sysid;  // Only save IDs once
+              ap_compid = R2Gmsg.compid;
               log.println("Mavlink good!");
               LogScreenPrintln("Mavlink good!");      
               }
@@ -2052,7 +2055,7 @@ void DecodeOneMavFrame() {
           #if (defined frBuiltin)       
             if (mavGood) {
               FrPort.PushMessage(0x5001, 0);    // Flight mode (from ap_base_mode)
-              FrPort.PushMessage(0x5007, 1);    // Frame type (from ap_type 
+              FrPort.PushMessage(0x5007, 1);    // Frame type (from ap_type)
             }
           #endif
            

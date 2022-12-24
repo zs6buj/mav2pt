@@ -146,6 +146,7 @@ uint8_t    mvType;
 
 // Message #0  HEARTHBEAT 
 uint8_t    ap_type_tmp = 0;              // hold the type until we know HB not from GCS or Tracker
+uint8_t    ap_autopilot_tmp = 0;
 uint8_t    ap_type = 0;
 uint8_t    ap_autopilot = 0;
 uint8_t    ap_base_mode = 0;
