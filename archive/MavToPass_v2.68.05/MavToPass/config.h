@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      68
-#define PATCH_LEVEL        04
+#define PATCH_LEVEL        05
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -28,7 +28,9 @@ v2.68.01  2022-06-10   Correct 5009 waypoints, 500A rpm, 500B terrain, 50f1 serv
           2022-06-28   Update printMavBuffer().
 v2.68.02  2022-07 25   Improve udp remote client fc/gcs reporting 
 v2.68.03  2022-10-22   Revise current calculation from Mav to pt yet again  
-v2.68.04  2022-11-22   PR by Hasi123. apo_system_status offset in mavlink_msg_heartbeat_pack()                                                                                                      
+v2.68.04  2022-11-22   PR by Hasi123. apo_system_status offset in mavlink_msg_heartbeat_pack() 
+v2.68.05  2022-12025   Merged 2 PRs from Hasi123. Mavlink routing. Limit Mavlink message decodes 
+                       to those from the first valid autopilot by checking sysid/compid.                                                                                                     
 */
 
 //=================================================================================================                            
