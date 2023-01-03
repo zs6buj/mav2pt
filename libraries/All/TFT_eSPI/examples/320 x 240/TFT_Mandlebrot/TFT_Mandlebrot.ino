@@ -16,7 +16,7 @@ uint16_t x0 = 0, x1 = 0, yy0 = 0, yy1 = 0;
 
 void setup()
 {
-  Serial.begin(115200);
+  Serial.begin(250000);
   //randomSeed(analogRead(A0));
   Serial.println();
   // Setup the LCD
@@ -90,3 +90,5 @@ unsigned int rainbow(int value)
   }
   return (red << 11) + (green << 5) + blue;
 }
+
+

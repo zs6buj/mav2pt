@@ -21,6 +21,10 @@
   writedata(0x0A);
   writedata(0x82);
 
+  writecommand(ST7789_RAMCTRL);
+  writedata(0x00);
+  writedata(0xE0); // 5 to 6 bit conversion: r0 = r5, b0 = b5
+
   writecommand(ST7789_COLMOD);
   writedata(0x55);
   delay(10);
@@ -99,7 +103,7 @@
   writedata(0x00);
   writedata(0x00);
   writedata(0x00);
-  writedata(0xE5);    // 239
+  writedata(0xEF);    // 239
 
   writecommand(ST7789_RASET);    // Row address set
   writedata(0x00);

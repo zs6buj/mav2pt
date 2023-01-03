@@ -109,7 +109,7 @@ void TFT_eSPI::pushSwapBytePixels(const void* data_in, uint32_t len){
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-#elif defined (ILI9488_DRIVER)
+#elif defined (SPI_18BIT_DRIVER) // SPI 18 bit colour
 ////////////////////////////////////////////////////////////////////////////////////////
 
 /***************************************************************************************
@@ -304,7 +304,7 @@ return;
     SPI1U1 = (511 << SPILMOSI);
     while(len>31)
     {
-#if defined SPI_FREQUENCY && (SPI_FREQUENCY == 80000000)
+#if (defined (SPI_FREQUENCY) && (SPI_FREQUENCY == 80000000))
       if(SPI1CMD & SPIBUSY) // added to sync with flag change
 #endif
       while(SPI1CMD & SPIBUSY) {}
