@@ -2003,7 +2003,7 @@ void DecodeOneMavFrame() {
      log.printf("FC to GGS - msgid = %3d Msg size =%3d\n",  R2Gmsg.msgid, sz);
    #endif
 
-   if (mavGood && (ap_sysid != R2Gmsg.sysid || ap_compid != R2Gmsg.compid)) return;  // If messages are not from our autopilot
+   if (mavGood && (ap_sysid != R2Gmsg.sysid || ap_compid != R2Gmsg.compid) && R2Gmsg.msgid != MAVLINK_MSG_ID_RADIO_STATUS) return;  // If messages are not from our autopilot
    // ap_sysid/compid saved below when hb_count >= 3
    switch(R2Gmsg.msgid) {
     
