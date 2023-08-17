@@ -285,30 +285,30 @@ void setup()  {
   #if (defined displaySupport) 
 
     #if (defined ESP32)
-      if ( (Tup != 99) && (Tdn != 99) ) {   // enable touch pin-pair
+      if ( (Tup != -1) && (Tdn != -1) ) {   // enable touch pin-pair
         touchAttachInterrupt(digitalPinToInterrupt(Tup), gotButtonUp, threshold);
         touchAttachInterrupt(digitalPinToInterrupt(Tdn), gotButtonDn, threshold);   
       } else
-      if ( (Pup != 99) && (Pdn != 99) ) {   // enable digital pin-pair
+      if ( (Pup != -1) && (Pdn != -1) ) {   // enable digital pin-pair
         pinMode(Pup, INPUT_PULLUP );        // low = true
         pinMode(Pdn, INPUT_PULLUP);                          
       }
     #endif  
     #if defined RP2040
-      if ( (Pup != 99) && (Pdn != 99) ) {   // enable digital pin-pair
+      if ( (Pup != -1) && (Pdn != -1) ) {   // enable digital pin-pair
         pinMode(Pup, INPUT );          // high = true
         pinMode(Pdn, INPUT);                          
       }
     #endif
     
     #if ((defined ESP8266) || (defined TEENSY3X))         
-      if ( (Pup != 99) && (Pdn != 99) ) { // enable digital pin pair
+      if ( (Pup != -1) && (Pdn != -1) ) { // enable digital pin pair
         pinMode(Pup, INPUT_PULLUP);       // low = true
         pinMode(Pdn, INPUT_PULLUP);       // low = true
       }
     #endif 
     #if (defined ST7789_Display) || (defined ST7789V_Display)  // LILYGO® TTGO T-Display ESP32 
-      log.println("Ignore 'E (2521) gpio:' error in TFT_eSPI lib");
+      log.println("minor init error in in TFT_eSPI lib - ignore");
       display.init(); 
       #define SCR_BACKGROUND TFT_BLACK
     #elif (defined SSD1306_Display)            // all  boards with SSD1306 OLED display (128 x 64)
@@ -322,7 +322,7 @@ void setup()  {
       //Wire1.begin(0x30); 
       
       #if (not defined TEENSY3X) && (not defined RP2040) // Teensy & RP2040, SCA and SCL defined in appropriate "pins_arduino.h"
-        if (SDA != 99) {
+        if (SDA != -1) {
           Wire.begin(SDA, SCL);  
         }
       #endif   
@@ -393,7 +393,7 @@ void setup()  {
   
   #if (defined webSupport) 
     RecoverSettingsFromFlash(); 
-    if (resetEepromPin != 99) {               // Pin to reset eeprom to default settings on the fly
+    if (resetEepromPin != -1) {               // Pin to reset eeprom to default settings on the fly
       pinMode(resetEepromPin, INPUT );        // High = true                       
     }  
   #endif
@@ -664,7 +664,7 @@ void setup()  {
   #if (defined wifiBuiltin)
     if ((set.fc_io == fc_wifi) || (set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt) || (set.web_support)) {     
       #if (not defined Start_WiFi)
-        if (startWiFiPin != 99) { 
+        if (startWiFiPin != -1) { 
           pinMode(startWiFiPin, INPUT_PULLUP);
           attachInterrupt(digitalPinToInterrupt(startWiFiPin),gotWifiButton, FALLING);   // For optional Start_WiFi button       
         }
@@ -883,15 +883,15 @@ void setup()  {
     esp8266_variant2 = true;
   #endif
 
-  if (MavStatusLed != 99) {
+  if (MavStatusLed != -1) {
     if (esp8266_variant2) {
-      log.println("MavStatusLed = D4. Set MavStatusLed = 99 if you need more TXD1 debugging");
+      log.println("MavStatusLed = D4. Set MavStatusLed = -1 if you need more TXD1 debugging");
       delay(200);
     }
     pinMode(MavStatusLed, OUTPUT); 
   } else {
     if (esp8266_variant2) {
-      log.println("MavStatusLed = 99. TXD1 debugging possible if enabled in IDE");
+      log.println("MavStatusLed = -1. TXD1 debugging possible if enabled in IDE");
     }
   }
 }
@@ -924,7 +924,7 @@ void loop() {
 
   #if (defined webSupport) 
     bool pinval = 0;
-    if (resetEepromPin != 99) {   // if digital pin enumerated
+    if (resetEepromPin != -1) {   // if digital pin enumerated
     //  #if (defined ESP32) || (defined RP20400)
         pinval = digitalRead(resetEepromPin);       // pin to 3.3v = high = pressed  
         resetEepromPress = pinval;

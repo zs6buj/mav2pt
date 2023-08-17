@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      68
-#define PATCH_LEVEL        06
+#define PATCH_LEVEL        07
 
 //=================================================================================================
 //
@@ -35,7 +35,7 @@
 //#define ESP32_Variant     5    //  LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD (135 x 240) - Select TTGO_T1 in IDE
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     7    //  ESP32 Dev Board with separate ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
-#define ESP32_Variant     8    // Lilygo T-Display-S3 ESP32-S3 1.9 in ST7789 LCD
+#define ESP32_Variant     8    // Lilygo T-Display-S3 ESP32-S3 1.9 in ST7789 LCD no touch screen
 
 #define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
 //#define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - choose Generic ESP8266 in the IDE
@@ -59,7 +59,7 @@
 #define Device_sysid     251                     // Our Mavlink Identity - APM FC is 1, Mission Planner is 255, QGC default is 0 
 #define Device_compid    MAV_COMP_ID_PERIPHERAL  // 158 Generic autopilot peripheral - APM FC is 1, MP is 190, QGC is  https://mavlink.io/en/messages/common.html
     
-//#define ESP32_FC_SOFTWARESERIAL   // Also see FrSky settings below 
+//#define ESP32_FC_SWSERIAL   // Also see FrSky settings below 
 
                                      // NOTE: Set mvBaud = 57600 for RFD900X
 #define mvBaud            57600      // Mavlink to/from the flight controller - max 921600 - must match FC or long range radio
@@ -104,12 +104,12 @@
 //#define Support_SBUS_Out  // Derive SBUS from F.Port and present it on a uart tx pin - NOT ESP8266 yet. Need pins.
 
 #if ( (defined ESP32) && (defined Support_SBUS_Out)  ) // Then we need uart1 for the SBUS out
-  #if not defined ESP32_FC_SOFTWARESERIAL 
-    #define ESP32_FC_SOFTWARESERIAL  
+  #if not defined ESP32_FC_SWSERIAL 
+    #define ESP32_FC_SWSERIAL  
   #endif
 #endif
 
-//#define ESP32_FRS_SOFTWARESERIAL            // Experimental - don't use me
+//#define ESP32_FRS_SWSERIAL            // Experimental - don't use me
 
 //===========================================================
 // Choose only one of these default FrSky S/Port I/O channels
@@ -325,9 +325,9 @@ bool daylightSaving = false;
       #define SSD1306_Display      // I2C OLED display type   
       #define SCR_ORIENT   1       // 1 Landscape or 0 Portrait 
       /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
-       *  Pin == 99 means the pin-pair is not used
+       *  Pin == -1 means the pin-pair is not used
        */ 
-      #define Pinfo         99        // Digital pin to trigger information display              
+      #define Pinfo         -1        // Digital pin to trigger information display              
       #define Pup           11        // Digital pin to scroll the display up
       #define Pdn           12        // Board Button 2 to scroll the display down   
       // SDA                18        // I2C OLED - default in teensy "pins_arduino.h"
@@ -343,23 +343,23 @@ bool daylightSaving = false;
   #if (ESP32_Variant == 1)          // ESP32 Dev Module
     #define MavStatusLed   02        // Onboard LED
     #define InvertMavLed  false      
-    #define BufStatusLed   99        // Mavlink serial tx    99=none 
+    #define BufStatusLed   -1        // Mavlink serial tx    -1=none 
     #define fc_rxPin       16        // 27 Mavlink serial rx
     #define fc_txPin       17        // 26 Mavlink serial tx
     #define fr_rxPin       13        // FPort- Not used in 1-wire mode DON'T use 12!
     #define fr_txPin       12        // FPorttx - Use me in single wire mode
-    #define sbus_rxPin     99        // not used - don't care
+    #define sbus_rxPin     -1        // not used - don't care
     #define sbus_txPin     14        // ?try 17 Optional SBUS out pin     
     #define startWiFiPin    5        // Trigger WiFi startup  
-    #define resetEepromPin 34        // 99=none Trigger EEPROM reset to default settings in config.h        
+    #define resetEepromPin 34        // -1=none Trigger EEPROM reset to default settings in config.h        
     //#define displaySupport     // activate me if you have a display
     #if (defined displaySupport)   // Display type defined with board variant
       #define SSD1306_Display         // OLED display type    
       /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
-       *  Pin == 99 means the pin-pair is not used
+       *  Pin == -1 means the pin-pair is not used
        */            
-      #define Pup           99        // 35 Board Button 1 to scroll the display up
-      #define Pdn           99        //  0 Board Button 2 to scroll the display down       
+      #define Pup           -1        // 35 Board Button 1 to scroll the display up
+      #define Pdn           -1        //  0 Board Button 2 to scroll the display down       
       #define Tup           33        // 33 Touch pin to scroll the display up
       #define Tdn           32        // 32 Touch pin to scroll the display down   
       #define SDA           21        // I2C OLED board
@@ -385,25 +385,25 @@ bool daylightSaving = false;
   #if (ESP32_Variant == 2)          // Wemos® LOLIN ESP32-WROOM-32_OLED_Dual_26p
     #define MavStatusLed   15        // No Onboard LED
     #define InvertMavLed  false     
-    #define BufStatusLed   99        // None    
+    #define BufStatusLed   -1        // None    
     #define fc_rxPin       25        // Mavlink serial rx
     #define fc_txPin       26        // Mavlink serial tx
     #define fr_rxPin       13        // FPort- Not used in single wire mode DON'T use 12!
     #define fr_txPin       14        // FPorttx - Use me in single wire mode
-    #define sbus_rxPin     99        // not used - don't care
+    #define sbus_rxPin     -1        // not used - don't care
     #define sbus_txPin     17        // ?Optional SBUS out pin     
     #define startWiFiPin   18        // Trigger WiFi startup
-    #define resetEepromPin 99        // 99=none try 35 Trigger EEPROM reset to default settings in config.h     
+    #define resetEepromPin -1        // -1=none try 35 Trigger EEPROM reset to default settings in config.h     
     #if (defined displaySupport)     // Display type defined with # define displaySupport 
       #define SSD1306_Display        // OLED display type   
       #define SCR_ORIENT   1         // 1 Landscape or 0 Portrait 
       /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
-       *  Pin == 99 means the pin-pair is not used
+       *  Pin == -1 means the pin-pair is not used
        */             
-      #define Pup           99        // 35 Board Button 1 to scroll the display up
-      #define Pdn           99        //  0 Board Button 2 to scroll the display down        
-      #define Tup           99        // 33 Touch pin to scroll the display up
-      #define Tdn           99        // 32 Touch pin to scroll the display down   
+      #define Pup           -1        // 35 Board Button 1 to scroll the display up
+      #define Pdn           -1        //  0 Board Button 2 to scroll the display down        
+      #define Tup           -1        // 33 Touch pin to scroll the display up
+      #define Tdn           -1        // 32 Touch pin to scroll the display down   
       #define SDA           05        // I2C OLED board
       #define SCL           04        // I2C OLED board
       #define i2cAddr      0x3C       // I2C OLED board
@@ -423,20 +423,20 @@ bool daylightSaving = false;
     #define fc_txPin       17        // Mavlink serial tx
     #define fr_rxPin       13        // FPort- Not used in single wire mode DON'T use 12!
     #define fr_txPin       01        // FPorttx - Use me in single wire mode
-    #define sbus_rxPin     99        // not used - don't care
+    #define sbus_rxPin     -1        // not used - don't care
     #define sbus_txPin     14        // ?Optional SBUS out pin     
-    #define startWiFiPin   99        // Trigger WiFi startup  
-    #define resetEepromPin 99        // 99=none try 34, 35 Trigger EEPROM reset to default settings in config.h     
+    #define startWiFiPin   -1        // Trigger WiFi startup  
+    #define resetEepromPin -1        // -1=none try 34, 35 Trigger EEPROM reset to default settings in config.h     
     #if (defined displaySupport)   // Display type defined with # define displaySupport   
       #define SSD1306_Display      // OLED display type 
       #define SCR_ORIENT   0       // 1 Landscape or 0 Portrait       
       /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
-       *  Pin == 99 means the pin-pair is not used
+       *  Pin == -1 means the pin-pair is not used
        */      
-      #define Pup           99        // 35 Board Button 1 to scroll the display up
-      #define Pdn           99        //  0 Board Button 2 to scroll the display down        
-      #define Tup           99        // 33 Touch pin to scroll the display up
-      #define Tdn           99        // 32 Touch pin to scroll the display down   
+      #define Pup           -1        // 35 Board Button 1 to scroll the display up
+      #define Pdn           -1        //  0 Board Button 2 to scroll the display down        
+      #define Tup           -1        // 33 Touch pin to scroll the display up
+      #define Tdn           -1        // 32 Touch pin to scroll the display down   
       #define SDA           05        // I2C OLED board
       #define SCL           04        // I2C OLED board 
       #define i2cAddr      0x3C       // I2C OLED board
@@ -447,25 +447,25 @@ bool daylightSaving = false;
   #if (ESP32_Variant == 4)          // Heltec Wifi Kit 32 (NOTE! 8MB) 
     #define MavStatusLed    25        // Onboard LED
     #define InvertMavLed   false     
-    #define BufStatusLed    99        // none  
+    #define BufStatusLed    -1        // none  
     #define fc_rxPin        27        // Mavlink serial rx2
     #define fc_txPin        17        // Mavlink serial tx2
     #define fr_rxPin        13        // FPort rx1 - (NOTE: DON'T use pin 12! boot fails if pulled high)
     #define fr_txPin        14        // FPort tx1 - Use me in single wire mode
-    #define sbus_rxPin      99        // not used - don't care
+    #define sbus_rxPin      -1        // not used - don't care
     #define sbus_txPin      18        // ?Optional SBUS out pin   
-    #define startWiFiPin    99        // Trigger WiFi startup 
-    #define resetEepromPin  05        // 5, 99=none use non digital touch pin
+    #define startWiFiPin    -1        // Trigger WiFi startup 
+    #define resetEepromPin  05        // 5, -1=none use non digital touch pin
     #if !defined displaySupport       // I2C OLED board is built into Heltec WiFi Kit 32
       #define displaySupport
     #endif  
     #define SSD1306_Display         // OLED display type  
     #define SCR_ORIENT   1          // 1 Landscape or 0 Portrait 
     /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
-     *  Pin == 99 means the pin-pair is not used
+     *  Pin == -1 means the pin-pair is not used
      */ 
-    #define Pup           99        // Board Button to scroll the display up
-    #define Pdn           99        // Board Button to scroll the display down
+    #define Pup           -1        // Board Button to scroll the display up
+    #define Pdn           -1        // Board Button to scroll the display down
     #define Tup           33        // 33 Touch pin to scroll the display up
     #define Tdn           32        // 32 Touch pin to scroll the display down 
     #define SDA           04        // I2C OLED board 
@@ -487,15 +487,15 @@ bool daylightSaving = false;
                                     // Remember to select the T_Display board in User_Setup_Select.h in TFT_eSPI library                                  
     #define MavStatusLed  25        // Add your own LED with around 1K series resistor
     #define InvertMavLed false     
-    #define BufStatusLed  99        // none
+    #define BufStatusLed  -1        // none
     #define fc_rxPin      27        // Mavlink serial rx2
     #define fc_txPin      26        // Mavlink serial tx2
     #define fr_rxPin      13        // F/SPort rx1 - (NOTE: DON'T use pin 12! boot fails if pulled high)
     #define fr_txPin      15        // F/SPort tx1 - Use me in single wire mode
-    #define sbus_rxPin    99        // not used - don't care
+    #define sbus_rxPin    -1        // not used - don't care
     #define sbus_txPin    12        // ?Optional SBUS out pin - not 16
-    #define startWiFiPin  99        // 99=none. No input pin available (non touch!) Could use touch with a bit of messy work.
-    #define resetEepromPin 37       // 99=none. HIGH (3.3V) triggers EEPROM reset to default settings in config.h   HIGH =Press
+    #define startWiFiPin  -1        // -1=none. No input pin available (non touch!) Could use touch with a bit of messy work.
+    #define resetEepromPin 37       // -1=none. HIGH (3.3V) triggers EEPROM reset to default settings in config.h   HIGH =Press
     #if !defined displaySupport    // I2C TFT board is built into TTGO T-Display
       #define displaySupport
     #endif    
@@ -503,12 +503,12 @@ bool daylightSaving = false;
     #define SCR_ORIENT   1          // 1 Landscape or 0 Portrait    
     
     /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
-     *  Pin == 99 means the pin-pair is not used
+     *  Pin == -1 means the pin-pair is not used
      */ 
     #define Pup            0        //  0 Board Button 1 to scroll the display up     LOW=Press
     #define Pdn           35        // 35 Board Button 2 to scroll the display down   LOW=Press   
-    #define Tup           99        // 33 Touch pin to scroll the display up
-    #define Tdn           99        // 32 Touch pin to scroll the display down   
+    #define Tup           -1        // 33 Touch pin to scroll the display up
+    #define Tdn           -1        // 32 Touch pin to scroll the display down   
     
     #define SCR_ORIENT     1        // 1 Landscape or 0 Portrait
  
@@ -521,15 +521,15 @@ bool daylightSaving = false;
   #if (ESP32_Variant == 6)          // LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin  IDE board = "ESP32 Dev Module"
     #define MavStatusLed    5        // BoardLED
     #define InvertMavLed true     
-    #define BufStatusLed   99        // none
+    #define BufStatusLed   -1        // none
     #define fc_rxPin       17        // Mavlink serial rx2
     #define fc_txPin       18        // Mavlink serial tx2
     #define fr_rxPin       19        // FPort rx1 - possible 22 / 23
     #define fr_txPin       21        // FPort tx1 - Use me in single wire mode
-    #define sbus_rxPin     99        // not used - don't care
+    #define sbus_rxPin     -1        // not used - don't care
     #define sbus_txPin     27        // ?try 25, 26 Optional SBUS out pin     
-    #define startWiFiPin   99        // 99=none. No input pin available (non touch!) Could use touch with a bit of messy work.
-    #define resetEepromPin 99        // Trigger EEPROM reset to default settings in config.h   
+    #define startWiFiPin   -1        // -1=none. No input pin available (non touch!) Could use touch with a bit of messy work.
+    #define resetEepromPin -1        // Trigger EEPROM reset to default settings in config.h   
     #if !defined sdBuiltin           // SD reader is built into TTGO T2
       //#define sdBuiltin            // Board limitation: Only Disply or SD, not both simultaneously
     #endif
@@ -545,10 +545,10 @@ bool daylightSaving = false;
     #define RST            4
     #define MISO          12        // apparently not used by Adafruit    
     /*    Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
-     *    Pin == 99 means the pin-pair is not used
+     *    Pin == -1 means the pin-pair is not used
      */      
-    #define Pup           99        // Board Button 1 to scroll the display up
-    #define Pdn           99        // Board Button 2 to scroll the display down    
+    #define Pup           -1        // Board Button 1 to scroll the display up
+    #define Pdn           -1        // Board Button 2 to scroll the display down    
     #define Tup           32        // Touch pin to scroll the display up
     #define Tdn            2        // Touch pin to scroll the display down      
       
@@ -563,10 +563,10 @@ bool daylightSaving = false;
     #define fc_txPin       17        // Mavlink serial tx2
     #define fr_rxPin       13        // FPort- Not used in 1-wire mode DON'T use 12!
     #define fr_txPin        4        // FPort tx1 - Use me in single wire mode
-    #define sbus_rxPin     99        // not used - don't care
+    #define sbus_rxPin     -1        // not used - don't care
     #define sbus_txPin     14        // ?Optional SBUS out pin       
     #define startWiFiPin    5        // 5 Trigger WiFi startup  
-    #define resetEepromPin 99        // 34 Trigger EEPROM reset to default settings in config.h after 10 seconds      
+    #define resetEepromPin -1        // 34 Trigger EEPROM reset to default settings in config.h after 10 seconds      
     #if !defined displaySupport      // I2C OLED board is built into TTGO T2
       #define displaySupport
     #endif
@@ -580,10 +580,10 @@ bool daylightSaving = false;
     // MISO                not used by Adafruit     
     
     /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
-     *  Pin == 99 means the pin-pair is not used
+     *  Pin == -1 means the pin-pair is not used
      */             
-    #define Pup           99        // 35 Board Button 1 to scroll the display up
-    #define Pdn           99        //  0 Board Button 2 to scroll the display down      
+    #define Pup           -1        // 35 Board Button 1 to scroll the display up
+    #define Pdn           -1        //  0 Board Button 2 to scroll the display down      
     #define Tup           33        // 33 Touch pin to scroll the display up
     #define Tdn           32        // 32 Touch pin to scroll the display down   
 
@@ -592,41 +592,56 @@ bool daylightSaving = false;
   //=========================================================================   
   #if (ESP32_Variant == 8)          
 /* 
-  Lilygo T-Display-S3 ESP32-S3 1.9 in ST7789V LCD     
+  Lilygo T-Display-S3 ESP32-S3 1.9 in ST7789V LCD no touch screen
   FC from wifi, mav and s.port to GCS
   see C:\Users\erics\AppData\Local\Arduino15\packages\esp32\hardware\esp32\2.0.10\variants\lilygo_t_display_s3\pins_arduino.h                                
   uart0(flash & monitor), uart1 and uart2(map pins)   
   static const uint8_t TX = 43;       // u0txd default
   static const uint8_t RX = 44;       // u0rxd
 */
-    #define MavStatusLed    99        // Onboard LED
+    #define MavStatusLed    -1        // Onboard LED
     #define InvertMavLed   false     
-    #define BufStatusLed    99        // none  
-    #define fc_rxPin        99        // not used
-    #define fc_txPin        99        // not used
-    #define fr_rxPin        99        // FPort u2rxd - map a spare pin
-    #define fr_txPin        99        // FPort u2txd - map a spare pin
-    #define sbus_rxPin      99        // not used - don't care
-    #define sbus_txPin      99        // not used
-    #define startWiFiPin    99        // not used
-    #define resetEepromPin  99        // not used  non digital touch pin
-    #define gs_rxPin        18        // GCS u1rxd default
-    #define gs_txPin        17        // GCS u1txd
+    #define BufStatusLed    -1        // none  
+    #define fc_rxPin        16        // u2rxd - map a spare pin
+    #define fc_txPin        21        // u2txd - map a spare pin
+    #define fr_rxPin        18        // FPort u1rxd - map a spare pin
+    #define fr_txPin        17        // FPort u1txd - map a spare pin
+    #define sbus_rxPin      -1        // not used - don't care
+    #define sbus_txPin      -1        // not used
+    #define startWiFiPin    -1        // not used
+    #define resetEepromPin  -1        // not used  non digital touch pin
+    #define ESP32_GCS_SWSERIAL  
+    #define gs_rxPin        18        // GCS u1rxd default pins, still mapped
+    #define gs_txPin        17        // GCS u1txd default pins, still mapped
     #if !defined displaySupport       // I2C OLED board is built into Heltec WiFi Kit 32
       #define displaySupport
     #endif  
     #define ST7789V_Display         // 170 x 320 dot 262K Color TFT LCD
     #define SCR_ORIENT   1          // 1 Landscape or 0 Portrait 
     /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
-     *  Pin == 99 means the pin-pair is not used
+     *  Pin == -1 means the pin-pair is not used
      */ 
-    #define Pup           00        // "BUTTON_1" to scroll the display up     LOW=Press
+    #define Pup            0        // "BUTTON_1" to scroll the display up     LOW=Press
     #define Pdn           14        // "BUTTON_2" to scroll the display down   LOW=Press   
-    #define Tup           99        // 33 Touch pin to scroll the display up
-    #define Tdn           99        // 32 Touch pin to scroll the display down   
+    #define Tup           -1        // 33 Touch pin to scroll the display up
+    #define Tdn           -1        // 32 Touch pin to scroll the display down   
 
-
-    /*  ST7789V Display reserved pins
+    
+    /*  
+     Apparently unused pins right now 
+                        01
+                        02
+                        03
+                        10
+                        11X
+                        12X
+                        13
+                        16X
+                        21X
+                        43 u0txd default
+                        44 u0rxd default
+       
+     ST7789V Display reserved pins
       LCD_Power_on      15
       LCD_BL            38
       LCD_D0            39
@@ -650,22 +665,22 @@ bool daylightSaving = false;
   //========================================================================= 
   #if (ESP8266_Variant == 1)        // NodeMCU 12F board - Select NodeMCU 12E in IDE 
   
-    #define MavStatusLed   99        // D4/GPIO2 Board LED - Mav Status LED inverted logic - use 99 while debug
+    #define MavStatusLed   -1        // D4/GPIO2 Board LED - Mav Status LED inverted logic - use -1 while debug
     #define InvertMavLed  true      
-    #define BufStatusLed   99        // None     
+    #define BufStatusLed   -1        // None     
    //                      D4        // TXD1 - Serial-1 debug log out SHARED WITH BOARD LED                         
     #define fc_rxPin       D9        // RXD0 default  
     #define fc_txPin       D10       // TXD0 default    
     #define fr_rxPin       D5        // FPort- Not used in single wire mode
     #define fr_txPin       D6        // FPorttx - Use me in single wire mode
-    #define startWiFiPin   99        // 99=none or D3/D7 - Trigger WiFi startup 
+    #define startWiFiPin   -1        // -1=none or D3/D7 - Trigger WiFi startup 
                                      // NOTE: There are not enough pins for wifi pin and display scrolling
-    #define resetEepromPin 99        // D8 Trigger EEPROM reset to default settings in config.h  HIGH(3.3V)=Press                                    
+    #define resetEepromPin -1        // D8 Trigger EEPROM reset to default settings in config.h  HIGH(3.3V)=Press                                    
     #define displaySupport           // activate me if you have a display
     #if (defined displaySupport)     // Display type defined with # define displaySupport   
       #define SSD1306_Display  
       /* Below please choose digital pin-pair for display scrolling
-       *  Pin == 99 means the pin-pair is not used
+       *  Pin == -1 means the pin-pair is not used
        */         
       #define Pup         D3        // D3 Board Button 1 to scroll the display up LOW=Press
       #define Pdn         D7        // D7 Board Button 2 to scroll the display down LOW=Press
@@ -683,7 +698,7 @@ bool daylightSaving = false;
     static const uint8_t D1   = 5;    // SDA - optional
     static const uint8_t D2   = 4;    // FPort_tx - Use me in single wire mode
     static const uint8_t D3   = 0;    // Flash
-    static const uint8_t D4   = 2;    // BoardLED & ( TXD1 optional debug out (MUST set MavStatusLed to 99) )
+    static const uint8_t D4   = 2;    // BoardLED & ( TXD1 optional debug out (MUST set MavStatusLed to -1) )
     static const uint8_t D5   = 14;   // FPort_rx (unused in half-duplex)
     static const uint8_t D6   = 12;   // P2-3 exposed dual row of pins
     static const uint8_t D7   = 13;   // CTS
@@ -691,26 +706,26 @@ bool daylightSaving = false;
     static const uint8_t D9   = 3;    // RXD0 mavlink and flashing
     static const uint8_t D10  = 1;    // TXD0 mavlink and flashing
                                       // NOTE: You can have Mavlink status on onboard LED, or debugging out of pin D4, not both at once
-    #define MavStatusLed   D4          // D4 on board LED -  NB NB NB NB NB NB use 99 while debugging on txd1
+    #define MavStatusLed   D4          // D4 on board LED -  NB NB NB NB NB NB use -1 while debugging on txd1
     #define InvertMavLed  true         // On board LED needs inverted logic 
-    #define BufStatusLed   99          // None
+    #define BufStatusLed   -1          // None
     //                     D4          // TXD1 - Serial1 default debug log out SHARED WITH BOARD LED                           
     #define fc_rxPin       D9          // RXD0 default  
     #define fc_txPin       D10         // TXD0 default    
     #define fr_rxPin       D5          // FPort- Not used in single wire mode
     #define fr_txPin       D2          // FPort(half-duplex) inverted - Use me in single wire mode
     #define startWiFiPin   D6          // Trigger WiFi startup
-    #define resetEepromPin 99          // Try D8, trigger EEPROM reset to default settings in config.h  HIGH(3.3V)=Press       
+    #define resetEepromPin -1          // Try D8, trigger EEPROM reset to default settings in config.h  HIGH(3.3V)=Press       
     //#define displaySupport       // activate me if you have a display
                                        // NOTE: There may not be enough pins for wifi pin AND display scrolling  
-    #define resetEepromPin 99          // Trigger EEPROM reset to default settings in config.h                                        
+    #define resetEepromPin -1          // Trigger EEPROM reset to default settings in config.h                                        
     #if (defined displaySupport)       
       #define SSD1306_Display  
       /* Below please choose Digital pin-pair for display scrolling
-       *  Pin == 99 means the pin-pair is not used
+       *  Pin == -1 means the pin-pair is not used
        */      
-      #define Pup           99        // D3 Board Button 1 to scroll the display up
-      #define Pdn           99        // D7 Board Button 2 to scroll the display down    
+      #define Pup           -1        // D3 Board Button 1 to scroll the display up
+      #define Pdn           -1        // D7 Board Button 2 to scroll the display down    
       #define SCL           D0        // I2C OLED board   
       #define SDA           D1        // I2C OLED board
       #define i2cAddr      0x3C       // I2C OLED board
@@ -733,23 +748,23 @@ bool daylightSaving = false;
     static const uint8_t   D9   = 3;   // RXD0
     static const uint8_t   D10  = 1;   // TCD0 
     
-    #define MavStatusLed   D4        // D4 Board LED - Mav Status LED inverted logic - use 99 while debug
+    #define MavStatusLed   D4        // D4 Board LED - Mav Status LED inverted logic - use -1 while debug
     #define InvertMavLed  true    
-    #define BufStatusLed   99        // None
+    #define BufStatusLed   -1        // None
     //                     D4        // TXD1 - Serial1 default debug log out SHARED WITH LED_BUILTIN BOARD LED  
     #define fc_rxPin       D9        // RXD0 - Serial(0) 
     #define fc_txPin       D10       // TXD0 - Serial(0)                              
     #define fr_rxPin       RX        // FPort- Not used in single wire mode
     #define fr_txPin       TX        // FPort- inverted - Use me in single wire mode
     #define startWiFiPin   D16       // Trigger WiFi startup 
-    #define resetEepromPin 99        // Try D8, trigger EEPROM reset to default settings in config.h  HIGH(3.3V)=Press                  
+    #define resetEepromPin -1        // Try D8, trigger EEPROM reset to default settings in config.h  HIGH(3.3V)=Press                  
     #if (defined displaySupport)   // Display type defined with # define displaySupport   
       /* Below please choose Digital pin-pair for display scrolling
-       *  Pin == 99 means the pin-pair is not used
+       *  Pin == -1 means the pin-pair is not used
        */ 
-      #define Pinfo         99        // Digital pin to toggle information/log page           
-      #define Pup           99        // D3 Board Button 1 to scroll the display up
-      #define Pdn           99        // D7 Board Button 2 to scroll the display down    
+      #define Pinfo         -1        // Digital pin to toggle information/log page           
+      #define Pup           -1        // D3 Board Button 1 to scroll the display up
+      #define Pdn           -1        // D7 Board Button 2 to scroll the display down    
       #define SCL           D1        // I2C OLED board   
       #define SDA           D2        // I2C OLED board
       #define i2cAddr      0x3C       // I2C OLED board
@@ -764,12 +779,12 @@ bool daylightSaving = false;
   #if (RP2040_Variant == 1)           // Raspberry Pi Pico RP2040 board with SSD1306 0.96" (128 x 64) display 
     #define MavStatusLed    25        // or LED_BUILTIN    
     #define InvertMavLed   false     
-    #define BufStatusLed    99        // none  
+    #define BufStatusLed    -1        // none  
     #define fc_rxPin         1        // Serial1 uart0 Mavlink rx - GPIO1  (2 × UARTs Only)
     #define fc_txPin         0        // Serial1 uart0 Mavlink tx - GPIO0
     #define fr_rxPin         9        // Serial2 uart1 FPort rx - GPIO9 - not mapped, but default
     #define fr_txPin         8        // Serial2 uart1 FPort tx - GPIO8
-    #define startWiFiPin    99        // Trigger WiFi startup   
+    #define startWiFiPin    -1        // Trigger WiFi startup   
     #if defined Support_SBUS_Out 
       #define sbus_txPin     8       // SBUS out = tx pin  
     #endif    
@@ -779,7 +794,7 @@ bool daylightSaving = false;
     #define SSD1306_Display         // OLED display type  
     #define SCR_ORIENT   1          // 1 Landscape or 0 Portrait 
     /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
-     *  Pin == 99 means the pin-pair is not used
+     *  Pin == -1 means the pin-pair is not used
      */ 
     #define Pup           21        // Board Button to scroll the display up - high(3.3v) = scroll
     #define Pdn           22        // Board Button to scroll the display down - high(3.3v) = scroll
@@ -896,8 +911,8 @@ bool daylightSaving = false;
   #endif
 
  #if defined ESP_Onewire 
-   #if not defined ESP32_FRS_SOFTWARESERIAL 
-     #error ESP_Onewire is predicated on ESP32_FRS_SOFTWARESERIAL
+   #if not defined ESP32_FRS_SWSERIAL 
+     #error ESP_Onewire is predicated on ESP32_FRS_SWSERIAL
    #endif
  #endif
 
@@ -917,6 +932,10 @@ bool daylightSaving = false;
 #if (not defined HUD_ARROW_OFFSET)
   #error Please define this option. See HUD_ARROW_OFFSET above
 #endif 
+
+#if (defined ESP32_FC_SWSERIAL && defined ESP32_GCS_SWSERIAL)||(defined ESP32_FC_SWSERIAL && defined ESP32_FRS_SWSERIAL)||(defined ESP32_GCS_SWSERIAL && defined ESP32_FRS_SWSERIAL) 
+       #error Only one instance of SOFTWARESERIAL is allowed/stable
+#endif
 
 #if (ESP32_Variant == 8)
    #if (GCS_Mavlink_IO == 0) 
@@ -1116,19 +1135,19 @@ bool daylightSaving = false;
     volatile bool infoButton = false;
     
     #if (not defined Tup) 
-      #define Tup         99
+      #define Tup         -1
     #endif
 
     #if (not defined Tdn) 
-      #define Tdn         99
+      #define Tdn         -1
     #endif
 
     #if (not defined Pup) 
-      #define Tup         99
+      #define Tup         -1
     #endif
 
     #if (not defined Pdn) 
-      #define Tdn         99
+      #define Tdn         -1
     #endif
 
     typedef enum scroll_set { non = 0, up = 1, down = 2 } scroll_t;
@@ -1282,24 +1301,16 @@ bool daylightSaving = false;
     //C:\Users\<YourName>\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\tools\sdk\include\driver
   
     #define log                 Serial         // USB UART0
-                    
-    #if (ESP32_Variant == 8)                       // variant 8 is a special case that does not use fcSerial
-       #if (GCS_Mavlink_IO == 0) && (FC_Mavlink_IO != 0) 
-         #define gsSerial       Serial2
-         //#include <SoftwareSerial.h>
-         //SoftwareSerial gsSerial;          
-       #endif
-     #else    // regular esp32 board, not variant 8    
-      #if defined ESP32_FC_SOFTWARESERIAL
-        #include <SoftwareSerial.h>
-        SoftwareSerial fcSerial; 
-      #else     // default HW Serial
-        #define fcSerial            Serial2        // RXD2 and TXD2 UART2 (last one, no Serial3)
-      #endif 
-    #endif  
-  
-    #if defined ESP32_FRS_SOFTWARESERIAL
-      #if not defined ESP32_FC_SOFTWARESERIAL
+                      
+    #if defined ESP32_FC_SWSERIAL
+      #include <SoftwareSerial.h>
+      SoftwareSerial fcSerial; 
+    #else     // default HW Serial
+      #define fcSerial            Serial2        // RXD2 and TXD2 UART2 (last uart, no Serial3)
+    #endif 
+
+    #if defined ESP32_FRS_SWSERIAL
+      #if not defined ESP32_FC_SWSERIAL
         #include <SoftwareSerial.h>
       #endif  
       SoftwareSerial frSerial; 
@@ -1307,7 +1318,7 @@ bool daylightSaving = false;
       #define frSerial          Serial1        // UART1
     #endif    
        
-    #if defined ESP32_GCS_SOFTWARESERIAL  // here for possible future use
+    #if defined ESP32_GCS_SWSERIAL       // for possible fcSerial AND gsSerial
       #include <SoftwareSerial.h>
       SoftwareSerial gsSerial; 
     #endif     

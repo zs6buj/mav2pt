@@ -368,7 +368,7 @@
       frRx = fr_rxPin;
       frTx = fr_txPin;
 
-      #if ( (defined ESP8266) || ( (defined ESP32) && (defined ESP32_FRS_SWSERIAL)) )
+      #if ( (defined ESP8266) || ( (defined ESP32) && (defined ESP32_FRS_SOFTWARESERIAL)) )
           if (set.trmode == ground) {
             log.printf("FrSky is 1-wire simplex on tx pin:%d\n", frTx);
           } else { 
@@ -892,7 +892,7 @@
     #if (defined ESP8266) || (defined ESP32) 
         if(mode == tx && modeNow !=tx) { 
           modeNow=mode;
-          #if (defined ESP_Onewire) && (defined ESP32_FRS_SWSERIAL)        
+          #if (defined ESP_Onewire) && (defined ESP32_FRS_SOFTWARESERIAL)        
           frSerial.enableTx(true);  // Switch F.Port into send mode
           #endif
           #if defined Debug_FrPort_Switching
@@ -901,7 +901,7 @@
         }   else 
         if(mode == rx && modeNow != rx) {   
           modeNow=mode; 
-          #if (defined ESP_Onewire) && (defined ESP32_FRS_SWSERIAL)                  
+          #if (defined ESP_Onewire) && (defined ESP32_FRS_SOFTWARESERIAL)                  
           frSerial.enableTx(false);  // disable interrupts on tx pin     
           #endif
           #if defined Debug_FrPort_Switching
