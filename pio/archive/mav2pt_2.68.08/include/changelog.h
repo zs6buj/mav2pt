@@ -275,4 +275,6 @@ v2.68.06  2023-08-11   Add support for LilyGo T-Display-S3
                        Ignore bug lines 536 and 644 of TFT_eSPI.cpp in TFT-eSPI library TFT_CS not initialised, 
                          digitalWrite(TFT_CS, HIGH) throws an error message:E (2521) gpio: gpio_set_level(226): 
                          GPIO output gpio_num error
+v2.68.07 2023-08-17    Minor fix for debug report of "Passthru out Bat1 0x5003" 
+v2.68.08 2023-10-06    PIO WIP version only. Heltec V3 board no pins for fc + GS serial. Macro out.                        
 */

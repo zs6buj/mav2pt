@@ -2244,6 +2244,12 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
       // pt_bat1_mAh is populated at #147 depending on battery id.  Into FrPort table from #1 SYS_status only.
       //pt_bat1_mAh = Total_mAh1();  // If record type #147 is not sent and good
   
+      bit32Pack(pt_bat1_volts ,0, 9);
+      uint16_t w_bat1_amps = prep_number(roundf(pt_bat1_amps),2,1);
+      bit32Pack(w_bat1_amps,9, 8);
+      bit32Pack(pt_bat1_mAh,17, 15);
+      //log.printf("mantissa:%d  10exponent:%d mutiplier:%d \n", bit32Extract(pt_payload,10,7), bit32Extract(pt_payload,9,1), TenToPwr(bit32Extract(pt_payload,9,1)) );
+ 
       #if defined Frs_Debug_All || defined Debug_Batteries
         PrintFrPeriod(0); 
         log.print("Passthru out Bat1 0x5003: ");   
@@ -2255,12 +2261,7 @@ if (ap24_sat_visible > 15) {                // @rotorman 2021/01/18
         log.println();               
       #endif
     
-      bit32Pack(pt_bat1_volts ,0, 9);
-      uint16_t w_bat1_amps = prep_number(roundf(pt_bat1_amps),2,1);
-      bit32Pack(w_bat1_amps,9, 8);
-      bit32Pack(pt_bat1_mAh,17, 15);
-      //log.printf("mantissa:%d  10exponent:%d mutiplier:%d \n", bit32Extract(pt_payload,10,7), bit32Extract(pt_payload,9,1), TenToPwr(bit32Extract(pt_payload,9,1)) );
-      FrSkyPort::PushToEmptyRow(msg_id, 0);  
+      FrSkyPort::PushToEmptyRow(msg_id, 0); 
                        
     }
     //===================================================================
