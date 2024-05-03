@@ -276,5 +276,7 @@ v2.68.06  2023-08-11   Add support for LilyGo T-Display-S3
                          digitalWrite(TFT_CS, HIGH) throws an error message:E (2521) gpio: gpio_set_level(226): 
                          GPIO output gpio_num error
 v2.68.07 2023-08-17    Minor fix for debug report of "Passthru out Bat1 0x5003" 
-v2.68.08 2023-10-06    PIO WIP version only. Heltec V3 board no pins for fc + GS serial. Macro out.                        
+v2.68.08 2023-10-06    PIO WIP version only. Heltec V3 board no pins for fc + GS serial. Macro out.  
+                       Add variant 9, LILYGO T-HMI ESP32-S3 2.8 inch Resistive Touch Screen TF card                         
+          2023-10-08   Format pairs of braces          
 */

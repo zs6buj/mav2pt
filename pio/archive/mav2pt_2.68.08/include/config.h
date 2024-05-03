@@ -36,6 +36,7 @@
 //#define ESP32_Variant     6    //  LILYGO® TTGO T2 SD SSD1331 TFT Colour 26pin - 16Ch x 8 lines (96 x 64)- Select ESP32 Dev Board in IDE
 //#define ESP32_Variant     7    //  ESP32 Dev Board with separate ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  select Dev Board in IDE
 //#define ESP32_Variant     8    // Lilygo T-Display-S3 ESP32-S3 1.9 in ST7789 LCD
+//#define ESP32_Variant     9    // LILYGO T-HMI ESP32-S3 2.8 inch Resistive Touch Screen TF card
 
 #define ESP8266_Variant   1   // NodeMCU ESP 12F - choose "NodeMCU 1.0(ESP-12E)" board in the IDE
 //#define ESP8266_Variant   2   // ESP-12E, ESP-F barebones boards. RFD900X TX-MOD, QLRS et al - choose Generic ESP8266 in the IDE
@@ -660,7 +661,70 @@ bool daylightSaving = false;
       LCD_CS            06
       LCD_RES           05                 
     */
+  //=========================================================================   
+  #if (ESP32_Variant == 9) // LILYGO T-HMI ESP32-S3 2.8 inch Resistive Touch Screen TF card         
+    #define MavStatusLed    -1        // Onboard LED
+    #define InvertMavLed   false     
+    #define BufStatusLed    -1        // none  
+    #define fc_rxPin        16        // u2rxd - map a spare pin
+    #define fc_txPin        21        // u2txd - map a spare pin
+    #define fr_rxPin        18        // FPort u1rxd - map a spare pin
+    #define fr_txPin        17        // FPort u1txd - map a spare pin
+    #define sbus_rxPin      -1        // not used - don't care
+    #define sbus_txPin      -1        // not used
+    #define startWiFiPin    -1        // not used
+    #define resetEepromPin  -1        // not used  non digital touch pin
+    #define ESP32_GCS_SERIAL    
+    #define ESP32_GCS_SWSERIAL  
+    #define gs_rxPin        18        // GCS u1rxd default pins, still mapped
+    #define gs_txPin        17        // GCS u1txd default pins, still mapped
+    #if !defined displaySupport       // I2C OLED board is built into Heltec WiFi Kit 32
+      #define displaySupport
+    #endif  
+    #define ST7789V_Display         // 170 x 320 dot 262K Color TFT LCD
+    #define SCR_ORIENT   1          // 1 Landscape or 0 Portrait 
+    /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
+     *  Pin == -1 means the pin-pair is not used
+     */ 
+    #define Pup            0        // "BUTTON_1" to scroll the display up     LOW=Press
+    #define Pdn           14        // "BUTTON_2" to scroll the display down   LOW=Press   
+    #define Tup           -1        // 33 Touch pin to scroll the display up
+    #define Tdn           -1        // 32 Touch pin to scroll the display down   
 
+    
+    /*  
+     Apparently unused pins right now 
+                        01
+                        02
+                        03
+                        10
+                        11X
+                        12X
+                        13
+                        16X
+                        21X
+                        43 u0txd default
+                        44 u0rxd default
+       
+     ST7789V Display reserved pins
+      LCD_Power_on      15
+      LCD_BL            38
+      LCD_D0            39
+      LCD_D1            40 
+      LCD_D2            41
+      LCD_D3            42
+      LCD_D4            45 
+      LCD_D5            46
+      LCD_D6            47
+      LCD_D7            48
+      LCD_WR            08
+      LCD_RD            09
+      LCD_DC            07
+      LCD_CS            06
+      LCD_RES           05                 
+    */
+
+  #endif   
   #endif    
 #elif defined ESP8266                    // ESP8266 Board Types
   

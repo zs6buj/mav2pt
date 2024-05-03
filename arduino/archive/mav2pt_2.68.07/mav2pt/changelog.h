@@ -276,4 +276,5 @@ v2.68.06  2023-08-11   Add support for LilyGo T-Display-S3
                          digitalWrite(TFT_CS, HIGH) throws an error message:E (2521) gpio: gpio_set_level(226): 
                          GPIO output gpio_num error
 v2.68.07 2023-08-17    Minor fix to power debug report of "Passthru out Bat1 0x5003"                        
+NOTE v2.68.8 in pio folder
 */
