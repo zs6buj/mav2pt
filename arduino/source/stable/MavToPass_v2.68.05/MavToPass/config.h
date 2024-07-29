@@ -308,9 +308,13 @@ bool daylightSaving = false;
 #elif defined  PICO_DEFAULT_LED_PIN
   #define Target_Board   5      // Pi Pico RP2040
   #define RP2040
+
+#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)
   
+  #define TEENSY4X
+    
 #else
-  #error "Unsupported board type!"
+ #define TEENSY3X
 #endif
 
 
@@ -356,6 +360,46 @@ bool daylightSaving = false;
       // SCL                19        // I2C OLED - default in teensy "pins_arduino.h"
       #define i2cAddr      0x3C       // I2C OLED board
     #endif  
+
+#elif defined TEENSY4X               // Teensy4x
+  #define Teensy_One_Wire          // default half-duplex
+  #define MavStatusLed  13
+  #define InvertMavLed false   
+  #define BufStatusLed  14        
+  #define fc_rxPin      7        // rx2
+  #define fc_txPin      8        // tx2
+  #define frPort_Serial    1      // Teensy F/SPort port1=pin1, port3=pin8. The default is Serial 1, but 3 is possible 
+
+  #if (frPort_Serial == 1)
+    #define fr_rxPin       0      // FPort rx1 - optional
+    #define fr_txPin       1      // FPort tx1 - Use me in single wire mode 
+    #define gs_rxPin       7      // Optional GCS rx3  
+    #define gs_txPin       8      // Optional GCS tx3 
+  #elif (frPort_Serial == 3)
+    #define fr_txPin       7       // Optional FPort rx3  
+    #define fr_txPin       8       // Optional FPort tx3 - use me in single wire mode 
+  #endif
+  
+  #if defined Support_SBUS_Out 
+    #define sbus_txPin     8       // SBUS out = tx3 pin  
+  #endif 
+   
+   // #define displaySupport       // un-comment for displaySupport
+    #if (defined displaySupport)   // Display type defined with # define displaySupport 
+      #define SSD1306_Display      // I2C OLED display type   
+      #define SCR_ORIENT   1       // 1 Landscape or 0 Portrait 
+      /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
+       *  Pin == 99 means the pin-pair is not used
+       */ 
+      #define Pinfo         99        // Digital pin to trigger information display              
+      #define Pup           11        // Digital pin to scroll the display up
+      #define Pdn           12        // Board Button 2 to scroll the display down   
+      // SDA                18        // I2C OLED - default in teensy "pins_arduino.h"
+      // SCL                19        // I2C OLED - default in teensy "pins_arduino.h"
+      #define i2cAddr      0x3C       // I2C OLED board
+    #endif  
+ 
+
  
 #elif defined ESP32                 // ESP32 Board Types
   
@@ -783,7 +827,7 @@ bool daylightSaving = false;
     #error Please choose at least one Battery_mAh_Source
   #endif
   
-  #if (defined TEENSY3X) 
+  #if (defined TEENSY3X) || (defined TEENSY4X)
      #if (FC_Mavlink_IO == 3) || (defined GCS_Mavlink_SD)  
        #error SD card not currently implemented for Teensy
      #endif
@@ -840,7 +884,7 @@ bool daylightSaving = false;
  
   #endif         
 
-#if ((FrSky_Port_Type == 0) && (defined TEENSY3X) )
+#if ((FrSky_Port_Type == 0) && ((defined TEENSY3X) || (defined TEENSY4X) ) )
    #error Are you sure you want no FrSky port support on this Teensy 3.x?
 #endif
 
@@ -867,7 +911,7 @@ bool daylightSaving = false;
    #endif
  #endif
 
- #if (not defined TEENSY3X)
+ #if (not defined TEENSY3X) && (not defined TEENSY4X)
    #if (FC_Mavlink_IO == 0 && GCS_Mavlink_IO == 0)
      #error Similtaneous serial uplink and serial downlink not supported. Not enough uarts.
    #endif
@@ -1269,6 +1313,23 @@ bool daylightSaving = false;
   #define frSerial            Serial2        // uart1 
 
 #elif (defined TEENSY3X)      //  Teensy 3.1
+  #define log                 Serial         // USB  
+  #define fcSerial            Serial2   
+  #if (frPort_Serial == 1) 
+    #define frSerial          Serial1        // F.Port/S.Port 
+  #elif (frPort_Serial == 3)
+    #define frSerial          Serial3        // F.Port/S.Port 
+  #else
+    #error frPort_Serial can only be 1 or 3. Please correct.
+  #endif 
+  #if (GCS_Mavlink_IO == 0)
+    #define gsSerial          Serial3 
+  #endif
+  #if (defined Support_SBUS_Out) 
+    #define sbusSerial        Serial3
+  #endif
+
+#elif (defined TEENSY4X)      //  Teensy 4.0
   #define log                 Serial         // USB  
   #define fcSerial            Serial2   
   #if (frPort_Serial == 1) 

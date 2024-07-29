@@ -134,7 +134,7 @@
   #include "FrSky_Ports.h"
 #endif
 
-#if defined TEENSY3X || defined ESP8266  ||  defined ESP32 
+#if defined TEENSY3X || defined ESP8266  ||  defined ESP32 || defined TEENSY4X
   #undef F   // F defined as m->counter[5]  in c_library_v2\mavlink_sha256.h
              // Macro F()defined in Teensy3/WString.h && ESP8266WebServer-impl.h (forces string literal into prog mem)   
 #endif
@@ -304,7 +304,7 @@ void setup()  {
       }
     #endif
     
-    #if ((defined ESP8266) || (defined TEENSY3X))         
+    #if ((defined ESP8266) || (defined TEENSY3X) || (defined TEENSY4X))         
       if ( (Pup != 99) && (Pdn != 99) ) { // enable digital pin pair
         pinMode(Pup, INPUT_PULLUP);       // low = true
         pinMode(Pdn, INPUT_PULLUP);       // low = true
@@ -326,7 +326,7 @@ void setup()  {
       //Wire1.setSCL(3);
       //Wire1.begin(0x30); 
       
-      #if (not defined TEENSY3X) && (not defined RP2040) // Teensy & RP2040, SCA and SCL defined in appropriate "pins_arduino.h"
+      #if (not defined TEENSY3X) && (not defined RP2040) && (not defined TEENSY4X) // Teensy & RP2040, SCA and SCL defined in appropriate "pins_arduino.h"
          Wire.begin(SDA, SCL);  
       #endif   
       display.begin(SSD1306_SWITCHCAPVCC, i2cAddr);         
@@ -504,6 +504,9 @@ void setup()  {
       log.println("Raspberry Pi Pico RP2040");
       LogScreenPrintln("Pi Pico RP2040");
     #endif        
+  #elif (defined TEENSY4X) // Teensy4x
+    log.println("Teensy 4.x");
+    LogScreenPrintln("Teensy 4.x");
   #endif
 
   if (set.fc_io == fc_ser)   {
@@ -830,7 +833,7 @@ void setup()  {
       delay(60);  // for esp8266 debug on txd1     
     #endif
         
-    #if (defined TEENSY3X)          // Always HardwareSerial
+    #if (defined TEENSY3X) || (defined TEENSY4X)          // Always HardwareSerial
       fcSerial.begin(set.baud);   
       if (set.gs_io == gs_ser) {
         gsSerial.begin(set.baud);           
@@ -1283,7 +1286,7 @@ void decodeRBtoGCS() {
 //================================================================================================= 
 bool readGCS() {
 
-  #if (defined TEENSY3X)
+  #if (defined TEENSY3X) || (defined TEENSY4X)
     if (set.gs_io == gs_ser)  {  // Serial 
       mavlink_status_t status;
       static bool got_one = false;      
@@ -1792,7 +1795,7 @@ void Send_From_RingBuf_To_GCS() {   // Down to GCS (or other) from Ring Buffer
   
   if ((set.gs_io == gs_ser) || (set.gs_io == gs_bt) || (set.gs_io == gs_wifi) || (set.gs_io == gs_wifi_bt) || (set.gs_sd == gs_on)) {
 
-    #if (defined TEENSY3X)
+    #if (defined TEENSY3X) || (defined TEENSY4X)
       if (set.gs_io == gs_ser) {  // Serial
         len = mavlink_msg_to_send_buffer(GCSbuf, &R2Gmsg);
         gsSerial.write(GCSbuf,len);  
