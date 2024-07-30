@@ -6,7 +6,7 @@
 
 #define MAJOR_VERSION      2
 #define MINOR_VERSION      68
-#define PATCH_LEVEL        05
+#define PATCH_LEVEL        05c
 /*
 =================================================================================================== 
                                 M o s t    R e c e n t   C h a n g e s
@@ -31,7 +31,7 @@ v2.68.03  2022-10-22   Revise current calculation from Mav to pt yet again
 v2.68.04  2022-11-22   PR by Hasi123. apo_system_status offset in mavlink_msg_heartbeat_pack() 
 v2.68.05  2022-12-25   Merged 2 PRs from Hasi123. Mavlink routing. Limit Mavlink message decodes 
                        to those from the first valid autopilot by checking sysid/compid.   
-v2.68.0b  2024-07-30   Merged PR from Tor Berg to add support for Teensy 4.x                                                                                                                         
+v2.68.05c 2024-07-30   Merged PR from Tor Berg to add support for Teensy 4.x                                                                                                                         
 */
 
 //=================================================================================================                            
