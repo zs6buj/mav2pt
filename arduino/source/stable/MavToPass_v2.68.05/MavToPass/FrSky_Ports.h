@@ -84,6 +84,10 @@
     uint8_t   fr_prime = 0;
     
     volatile uint8_t *uartC3;
+
+#if (defined TEENSY4X)
+    IMXRT_LPUART_t *s_pkuart = nullptr;
+#endif
     
     enum PortMode { rx , tx };
     PortMode mode, modeNow;
@@ -288,7 +292,7 @@
     typedef enum wires_set { one_wire = 1, two_wire = 2 } wire_t;  
     wire_t wire_mode;
     uint8_t sense_pin = 0;
-    #if (defined TEENSY3X) 
+    #if (defined TEENSY3X) || (defined TEENSY4X)
       wire_mode = one_wire;
     #else
       wire_mode = two_wire;
@@ -453,11 +457,33 @@
        #else
          log.printf(" and 2-wire full-duplex on Teensy3.x pins rx=%d  tx=%x\n", fr_rxPin, fr_txPin);  
        #endif
-          
+            
 
-     #endif
-      
-    #endif 
+      #endif
+    #endif  // end of TEENSY3X block  =======================================================
+
+    #if (defined TEENSY4X)
+      #if (frPort_Serial == 1)
+        s_pkuart = &IMXRT_LPUART6;
+      #else
+        s_pkuart = &IMXRT_LPUART2;
+      #endif
+
+      //frSerial.setRX(fr_txPin);
+
+      if (frInvert)
+        frSerial.begin(frBaud); // Teensy 4.x 
+      else 
+        frSerial.begin(frBaud); // Teensy 4.x 
+
+      //frSerial.setTX(fr_txPin);
+            
+      s_pkuart->CTRL |= LPUART_CTRL_LOOPS | LPUART_CTRL_RSRC | LPUART_CTRL_TXINV;
+      s_pkuart->STAT |= LPUART_STAT_RXINV;
+
+      log.printf("FrSky 1-wire half-duplex on Teensy4.x pin %d \n", fr_txPin);          
+
+     #endif 
       
     } // end of member function
 
@@ -495,7 +521,7 @@
 
       if ( (frport_id == f_port1) || (frport_id == f_port2) ) { 
 
-          #if defined TEENSY3X 
+          #if (defined TEENSY3X) || (defined TEENSY4X) 
             if(mavGood && ((millis() - sp_millis) > 1)) {   // very necessary for Teensy 3.x
               sp_millis=millis();
               FPort_Read_And_Write(&FrSkyPort::frbuf[0], frport_id);
@@ -886,6 +912,26 @@
           log.print("rx");
         #endif
       }
+    #elif (defined TEENSY4X)
+      if(mode == tx && modeNow != tx) {
+        if (s_pkuart) s_pkuart->CTRL |= LPUART_CTRL_TXDIR;
+        else log.print("no tx 4X");
+        
+        modeNow=mode; 
+        #if defined Debug_FrPort_Switching
+          log.print("tx 4X");
+        #endif
+      }
+      else if(mode == rx && modeNow != rx) {   
+        if (s_pkuart) s_pkuart->CTRL &= ~LPUART_CTRL_TXDIR;
+        modeNow=mode;
+        #if defined Debug_FrPort_Switching
+          log.print("rx 4X");
+        #endif
+      }
+
+
+    
     #endif
 
 /*
