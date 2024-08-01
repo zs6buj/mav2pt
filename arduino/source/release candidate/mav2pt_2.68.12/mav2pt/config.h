@@ -1501,4 +1501,20 @@ bool daylightSaving = false;
     #if (defined SUPPORT_SBUS_OUT) 
       #define sbusSerial        Serial3
     #endif
+#elif (defined TEENSY4X)      //  Teensy 4.0
+  #define log                 Serial         // USB  
+  #define fcSerial            Serial2   
+  #if (frPort_Serial == 1) 
+    #define frSerial          Serial1        // F.Port/S.Port 
+  #elif (frPort_Serial == 3)
+    #define frSerial          Serial3        // F.Port/S.Port 
+  #else
+    #error frPort_Serial can only be 1 or 3. Please correct.
+  #endif 
+  #if (GCS_Mavlink_IO == 0)
+    #define gsSerial          Serial3 
+  #endif
+  #if (defined Support_SBUS_Out) 
+    #define sbusSerial        Serial3
+  #endif    
 #endif 

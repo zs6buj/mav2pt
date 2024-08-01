@@ -1346,6 +1346,7 @@ bool daylightSaving = false;
   #if (defined Support_SBUS_Out) 
     #define sbusSerial        Serial3
   #endif
+ 
 #endif 
 
 

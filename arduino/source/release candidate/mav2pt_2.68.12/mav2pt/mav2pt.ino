@@ -1160,7 +1160,7 @@ bool readFCtoRingBuffer() {
   #if (ESP32_Variant != 8)                       // variant 8 is a special case that does not use fcSerial  
     if (set.fc_io == fc_ser)  {  // Serial 
       mavlink_status_t status;
-      static bool got_one = false; 
+
       while(fcSerial.available()) { 
         byte c = fcSerial.read();
        // printbyte(c, 1, '<');
@@ -1295,8 +1295,7 @@ void decodeRBtoGCS() {
 bool readGCS() {
 #if (defined TEENSY3X) || (defined ESP32)
     if (set.gs_io == gs_ser)  {  // Serial 
-      mavlink_status_t status;
-      static bool got_one = false;      
+      mavlink_status_t status;    
       while(gsSerial.available()) { 
         uint8_t c = gsSerial.read();
         if(mavlink_parse_char(MAVLINK_COMM_0, c, &G2Fmsg, &status)) {  // Read a frame from GCS  
